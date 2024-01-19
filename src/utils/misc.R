@@ -7,9 +7,15 @@ suppressPackageStartupMessages({
   library(dplyr)
   library(readxl)
   library(openxlsx)
+  
+  library(glue)
+  library(Seurat)
+  library(SCpubr)
+  library(ggplot2)
+  library(cowplot)
 })
 
-init_records <- function(DATASET, PARAMS) {
+init_records <- function(expression.init, params) {
   #' Get a named list of three data.frames, with: 
   #' - 'cells': rows are cells | cols are populations. 
   #' The value of the cell i,j corresponds to the probability that a cell i belongs to a population j.
@@ -17,23 +23,23 @@ init_records <- function(DATASET, PARAMS) {
   #' The value of the cell i,j is 1 if a cell is a marker of a population. Else, it is 0.
   #' - 'meta': rows are populations | cols are 'consensus', 'parent', 'n' and 'to_do'.
   #' 
-  #' @param expression: a scRNA-seq dataset: rows are genes | cols are cells.
-  #' @param PARAMS: a named list of hyper-parameters, with 'root_consensus', a numeric.
+  #' @param expression.init: the base scRNA-seq dataset: rows are genes | cols are cells.
+  #' @param params: a list of parameters, with 'root_consensus'.
   #' 
   #' @return a named list of three data.frames: 'cells', 'markers' and 'meta'.
   #' 
   cells <- data.frame(
-    C=as.numeric(rep(1, ncol(DATASET))),
-    row.names=colnames(DATASET)
+    C=as.numeric(rep(1, ncol(expression.init))),
+    row.names=colnames(expression.init)
     )
   markers <- data.frame(
-    C=as.numeric(rep(0, nrow(DATASET))),
-    row.names=rownames(DATASET)
+    C=as.numeric(rep(0, nrow(expression.init))),
+    row.names=rownames(expression.init)
     )
   meta <- data.frame(
-    consensus=as.numeric(PARAMS[["root_consensus"]]),
+    consensus=0,
     parent=as.character(NA),
-    n=as.numeric(ncol(DATASET)),
+    n=as.numeric(ncol(expression.init)),
     to_dig=as.numeric(1),
     row.names="C"
     )
@@ -45,7 +51,7 @@ get_undug_population <- function(records) {
   #' Get a population label that has not been analyzed yet.
   #' This function is required to iterate the algorithm (scEDEA-L).
   #'
-  #' @param: records a named list of three data.frames: 'cells', 'markers' and 'meta'.
+  #' @param records: a named list of three data.frames: 'cells', 'markers' and 'meta'.
   #' 
   #' @return a character.
   #' 
@@ -104,7 +110,7 @@ filter_expressed_genes <- function(ranked_genes, expression) {
 get_existing_pdfs <- function(population) {
   #' Get the names of the existing pdf files (intermediate figures) w.r.t a population.
   #'
-  #' @param population: the name of a population.
+  #' @param population: a character.
   #'
   #' @return a vector of filenames.
   #'
@@ -155,4 +161,69 @@ update_records <- function(records, seeds, population) {
     records$markers[, cluster_label] <- as.numeric(col.markers)
   }
   return(records)
+}
+
+trim_data <- function(expression.init, 
+                      population, 
+                      records, 
+                      params,
+                      figures,
+                      random_state,
+                      SeurObj.init) {
+  #' Trim a scRNA-seq dataset to keep only the cells of interest and a subset of their HVGs.
+  #' 
+  #' @param expression.init: the base scRNA-seq dataset: rows are genes | cols are cells.
+  #' @param population: a character.
+  #' @param records: a named list of three data.frames: 'cells', 'markers' and 'meta'.
+  #' @param params: a list of parameters, with 'n_HVGs'.
+  #' @param figures: a boolean. If TRUE, draw figures summarizing the trimming step. 
+  #' If FALSE, SeurObj.init is not required.
+  #' @param random_state: a numeric.
+  #' @param SeurObj.init: a SeuratObject generated from the base scRNA-seq dataset. 
+  #' A U-MAP has already been applied on the object.
+  #' 
+  #' @return a list of three data.frames: 'expression.loop' and 'SeurObj.loop', and 'ranked_genes.loop'.
+  #' 
+  data.loop <- list()
+  cells_of_interest <- rownames(records$cells)[records$cells[, population]==1]
+  
+  if (length(cells_of_interest)>=100) {
+    
+    # get discriminant transcriptome of the subpopulation
+    #####################################################
+    expression.loop <- expression.init[, cells_of_interest]
+    HVGs.loop <- get_n_HVGs(expression.loop, n=params$n_HVGs)
+    expression.loop <- expression.loop[HVGs.loop,]
+    
+    # set-up data for SeurObj-dependent clustering algorithms
+    #########################################################
+    SeurObj.loop <- CreateSeuratObject(expression.loop)
+    VariableFeatures(SeurObj.loop) <- HVGs.loop
+    SeurObj.loop <- NormalizeData(SeurObj.loop)
+    SeurObj.loop <- ScaleData(SeurObj.loop,
+                              features=VariableFeatures(SeurObj.loop))
+    SeurObj.loop <- RunUMAP(SeurObj.loop,
+                            features=VariableFeatures(SeurObj.loop),
+                            seed.use=random_state)
+   
+    # rank and filter the expressed genes
+    #####################################
+    ranked_genes.loop <- get_ranked_genes(expression.loop)
+    ranked_genes.loop <- filter_expressed_genes(ranked_genes.loop, expression.loop)
+    
+    # store the data for the iteration
+    ##################################
+    data.loop <- list(expression.loop=expression.loop,
+                      SeurObj.loop=SeurObj.loop,
+                      ranked_genes.loop=ranked_genes.loop)
+  }
+  
+  if (figures) {
+    trim_plot <- do_DimPlot(SeurObj.init, cells.highlight=cells_of_interest)
+    pdf(file = glue("./figures/{population}_trim.pdf"))
+    print(trim_plot)
+    dev.off()
+  }
+    
+  return(data.loop)
 }

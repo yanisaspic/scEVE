@@ -5,76 +5,78 @@
 suppressPackageStartupMessages({
   library(glue)
   library(dplyr)
+  library(scater)
+  library(gridExtra)
+  library(SeuratWrappers)
   
   library(cidr)
   library(scLCA)
   library(SHARP)
   library(SIMLR)
   library(Seurat)
-  library(scater)
   library(scCCESS)
   library(monocle3)
   library(densitycut)
 })
 
-do_Seurat <- function(SeurObj.count, seed) {
+do_Seurat <- function(SeurObj.count, random_state) {
   #' Apply a Seurat clustering algorithm.
   #' 
   #' @param SeurObj.count: a Seurat Object of raw count expression, with selected genes.
   #' FindVariableFeatures() and ScaleData() must have been applied already.
-  #' @param seed: a numeric random seed.
+  #' @param random_state: a numeric.
   #' 
   #' @return a factor of cluster labels.
   #'
   SeurObj.count <- RunPCA(SeurObj.count,
-                    features=VariableFeatures(SeurObj.count), 
-                    seed.use=seed)
+                          features=VariableFeatures(SeurObj.count), 
+                          seed.use=random_state)
   SeurObj.count <- FindNeighbors(SeurObj.count,
-                           features=VariableFeatures(SeurObj.count))
+                                 features=VariableFeatures(SeurObj.count))
   SeurObj.count <- FindClusters(SeurObj.count,
-                          random.seed=seed)
+                                random.seed=random_state)
   labels <- unname(Idents(SeurObj.count))
   return(labels)
 }
 
-do_monocle3 <- function(SeurObj.count, seed) {
+do_monocle3 <- function(SeurObj.count, random_state) {
   #' Apply a monocle3 clustering algorithm.
   #' 
   #' @param SeurObj.count: a Seurat Object of raw count expression, with selected genes.
   #' FindVariableFeatures() and ScaleData() must have been applied already.
-  #' @param seed: a numeric random seed.
+  #' @param random_state: a numeric.
   #' 
   #' @return a factor of cluster labels.
   #'
   CelDatSet <- as.cell_data_set(SeurObj.count)
-  CelDatSet <- cluster_cells(CelDatSet, random_seed=seed)
+  CelDatSet <- cluster_cells(CelDatSet, random_seed=random_state)
   labels <- unname(CelDatSet@clusters@listData$UMAP$clusters)
   return(labels)
 }
 
-do_SHARP <- function(expression.count, seed) {
+do_SHARP <- function(expression.count, random_state) {
   #' Apply a SHARP clustering algorithm.
   #' 
   #' @param expression.count: a scRNA-seq dataset of raw count expression, without selected genes:
   #' genes are rows | cells are cols.
-  #' @param seed: a numeric random seed.
+  #' @param random_state: a numeric.
   #' 
   #' @return a vector of cluster labels.
   #'
   results <- SHARP(scExp=expression.count,
                    exp.type="count",
-                   rN.seed=seed)
+                   rN.seed=random_state)
   labels <- results$pred_clusters
   return(labels)
 }
 
-do_scCCESS.Kmeans <- function(log.expression.tpm, seed) {
+do_scCCESS.Kmeans <- function(log.expression.tpm, random_state) {
   #' Apply a scCCESS with K-means clustering algorithm. 
   #' Hyperparameters from Yu et al. (2022). 
   #' 
   #' @param log.expression.tpm: a scRNA-seq dataset of log2 TPM expression, without selected genes:
   #' genes are rows | cells are cols.
-  #' @param seed: a numeric random seed.
+  #' @param random_state: a numeric.
   #' 
   #' @return a vector of cluster labels.
   #'
@@ -86,27 +88,27 @@ do_scCCESS.Kmeans <- function(log.expression.tpm, seed) {
     ensemble_sizes=20,
     cluster_func=function(x, centers) {
       kmeans(x, centers)
-      },
-    seed=SEED)
+    },
+    seed=random_state)
   
   labels <- ensemble_cluster(
     data,
     ensemble_sizes=20,
     cluster_func = function(x) {
       kmeans(x, estimation$ngroups)
-      },
-    seed=SEED)
+    },
+    seed=random_state)
   
   return(labels)
 }
 
-do_scCCESS.SIMLR <- function(log.expression.tpm, seed) {
+do_scCCESS.SIMLR <- function(log.expression.tpm, random_state) {
   #' Apply a scCCESS with SIMLR clustering algorithm. 
   #' Hyperparameters from Yu et al. (2022). 
   #' 
   #' @param log.expression.tpm: a scRNA-seq dataset of log2 TPM expression, without selected genes:
   #' genes are rows | cells are cols.
-  #' @param seed: a numeric random seed.
+  #' @param random_state: a numeric.
   #' 
   #' @return a vector of cluster labels.
   #'
@@ -118,29 +120,30 @@ do_scCCESS.SIMLR <- function(log.expression.tpm, seed) {
     ensemble_sizes=20,
     cluster_func = function(x, centers) {
       SIMLR_Large_Scale(t(x), c=centers, kk=15)
-      },
-    seed=SEED)
+    },
+    seed=random_state)
   
   labels <- ensemble_cluster(
     data,
     ensemble_sizes=20,
     cluster_func = function(x) {
       SIMLR_Large_Scale(t(x), c=estimation$ngroups, kk=15)
-      },
-    seed=SEED)
+    },
+    seed=random_state)
   
   return(labels)
 }
 
-do_CIDR <- function(expression.count, seed=NA) {
+do_CIDR <- function(expression.count, random_state) {
   #' Apply a CIDR clustering algorithm.
   #' 
   #' @param expression.count: a scRNA-seq dataset of raw count expression, without selected genes:
   #' genes are rows | cells are cols.
-  #' @param seed: a numeric random seed.
+  #' @param random_state: a numeric.
   #' 
   #' @return a vector of cluster labels.
   #'
+  set.seed(random_state)
   SinCelData <- scDataConstructor(as.matrix(expression.count))
   SinCelData <- determineDropoutCandidates(SinCelData)
   SinCelData <- wThreshold(SinCelData)
@@ -152,43 +155,45 @@ do_CIDR <- function(expression.count, seed=NA) {
   return(labels)
 }
 
-do_densityCut <- function(log.expression.tpm, seed=NA) {
+do_densityCut <- function(log.expression.tpm, random_state) {
   #' Apply a densityCut clustering algorithm.
   #' 
   #' @param log.expression.tpm: a scRNA-seq dataset of log2 TPM expression, without selected genes:
   #' genes are rows | cells are cols.
-  #' @param seed: a numeric random seed.
+  #' @param random_state: a numeric.
   #' 
   #' @return a vector of cluster labels.
   #'
+  set.seed(random_state)
   data <- t(log.expression.tpm)
   labels <- DensityCut(data, show.plot = FALSE)$cluster
   return(labels)
 }
 
-do_scLCA <- function(expression, seed=NA) {
+do_scLCA <- function(expression, random_state) {
   #' Apply a scLCA clustering algorithm.
   #' 
   #' @param expression: a scRNA-seq dataset of raw count expression, without selected genes:
   #' genes are rows | cells are cols.
-  #' @param seed: a numeric random seed.
+  #' @param random_state: a numeric random seed.
   #' 
   #' @return a vector of cluster labels.
   #'
+  set.seed(random_state)
   labels <- myscLCA(expression.count)[[1]]
   return(labels)
 }
 
-get_clusters <- function(expression.count, SeurObj.count, methods, seed) {
-  #' Apply independently multiple methods of clustering algorithms on a scRNA-seq dataset. 
+get_clusters <- function(expression.count, SeurObj.count, clustering_methods, random_state) {
+  #' Apply multiple independent methods of clustering on a scRNA-seq dataset. 
   #' 
   #' @param expression.count: a scRNA-seq dataset of raw count expression, without selected genes:
   #' genes are rows | cells are cols.
   #' @param SeurObj.count: a Seurat Object of raw count expression, with selected genes.
   #' FindVariableFeatures() and ScaleData() must have been applied already.
-  #' @param methods: a vector of valid clustering method names, i.e. in: 
+  #' @param clustering_methods: a vector of valid clustering method names, i.e. in: 
   #' 'Seurat', 'monocle3', 'CIDR', 'SHARP', 'scLCA', 'densityCut', 'scCCESS.Kmeans', 'scCCESS.SIMLR'.
-  #' @param seed: a numeric random seed.
+  #' @param random_state: a numeric.
   #' 
   #' @return a data.frame: cells are rows | methods are cols | a cell is a label.
   #' 
@@ -206,17 +211,17 @@ get_clusters <- function(expression.count, SeurObj.count, methods, seed) {
   
   get_clusters.method <- function(method){
     fun=get(glue("do_{method}"))
-    labels <- fun(inputs[[method]], seed)
+    labels <- fun(inputs[[method]], random_state)
     labels <- as.character(labels)
     labels <- paste0(glue("{method}_"), labels)
     return(labels)
   }
-  results <- lapply(X=methods, FUN=get_clusters.method)
+  results <- lapply(X=clustering_methods, FUN=get_clusters.method)
   gc()
   
   clusters <- do.call(cbind, results)
   rownames(clusters) <- colnames(expression.count)
-  colnames(clusters) <- methods
+  colnames(clusters) <- clustering_methods
   return(clusters)
 }
 
@@ -242,38 +247,40 @@ get_clusters_plots <- function(SeurObj, clusters) {
     plot <- plot + 
       theme(
         plot.title=element_text(hjust=0.5, margin=margin(1, 0, 0, 0))
-        )
+      )
   }
   
-  methods <- colnames(clusters)
-  plots <- lapply(X=methods, FUN=get_plot)
-  names(plots) <- methods
+  clustering_methods <- colnames(clusters)
+  plots <- lapply(X=clustering_methods, FUN=get_plot)
+  names(plots) <- clustering_methods
   return(plots)
 }
 
-get_independent_clusters <- function(expression.count, SeurObj.count, methods, seed=0, draw=FALSE) {
+get_independent_clusters <- function(data.loop, population, clustering_methods, figures, random_state) {
   #' Conduct the independent clusters step.
   #' 
-  #' @param expression.count: a scRNA-seq dataset of raw count expression, without selected genes:
-  #' genes are rows | cells are cols.
-  #' @param SeurObj.count: a Seurat Object of raw count expression, with selected genes.
-  #' FindVariableFeatures() and ScaleData() must have been applied already.
-  #' @param methods: a vector of valid clustering method names, i.e. in: 
+  #' @param data.loop: a list of three data.frames: 'expression.loop' and 'SeurObj.loop', and 'ranked_genes.loop'.
+  #' @param population: a character.
+  #' @param clustering_methods: a vector of valid clustering method names, i.e. in: 
   #' 'Seurat', 'monocle3', 'CIDR', 'SHARP', 'scLCA', 'densityCut', 'scCCESS.Kmeans', 'scCCESS.SIMLR'.
-  #' @param seed: a numeric random seed.
-  #' @param draw: a boolean. If TRUE, a summary figure is drawn and saved.
-  #' 
-  clusters <- get_clusters(expression.count, SeurObj.count, methods, seed)
-  output <- list(clusters=clusters, step="seeds")
+  #' @param figures: a boolean. If TRUE, draw figures summarizing the independent clustering step. 
+  #' @param random_state: a numeric.
+  #'
+  #' @return a data.frame where: rows are cells | cols are clusterings | cells are labels.
+  #'
+  clusters <- get_clusters(data.loop$expression.loop, 
+                           data.loop$SeurObj.loop, 
+                           clustering_methods, 
+                           random_state)
   
-  if (draw) {
-    pdf(file = glue("./results/figures/{POPULATION}_independent_clusters.pdf"))
-    clusters_plots <- get_clusters_plots(SeurObj.count,
+  if (figures) {
+    pdf(file = glue("./figures/{population}_independent_clusters.pdf"))
+    clusters_plots <- get_clusters_plots(data.loop$SeurObj.loop,
                                          clusters)
     composite_clusters_plot <- do.call(grid.arrange, clusters_plots)
     print(composite_clusters_plot)
     dev.off()
   }
   
-  return(output)
+  return(clusters)
 }
