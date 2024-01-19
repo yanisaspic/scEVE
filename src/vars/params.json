@@ -1,0 +1,9 @@
+{
+    "alpha": 0.05,
+    "n_HVGs": 500,
+    "min_prop_HVGs": 0.5,
+    "fdr_correction": "BH",
+    "root_consensus": 0.17,  // 0.17: >2 methods
+    "min_prop_cells": 0.001,
+    "min_confidence": 0.5
+}

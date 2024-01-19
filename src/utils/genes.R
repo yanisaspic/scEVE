@@ -1,0 +1,236 @@
+"Functions called by get_genes.R to identify characteristic genes of seeds.
+
+	2024/01/10 @yanisaspic"
+
+suppressPackageStartupMessages({
+  library(glue)
+  library(stats)
+  library(ggplot2)
+  library(ggplotify)
+  library(ggVennDiagram)
+})
+
+get_occurrences <- function(ranked_genes) {
+  #' Get the genes sampled w.r.t. effort, i.e. the number of top ranking genes sampled.
+  #' 
+  #' @param ranked_genes: a data.frame where: ranks are rows | cells are cols | cells are genes.
+  #' 
+  #' @return a data.frame where: genes are rows | sampling effort is cols | cells are number of occurrences. 
+  #'
+  max_effort <- max(apply(X=!is.na(ranked_genes), MARGIN=2, FUN=sum))
+  all_genes <- sort(unique(as.vector(ranked_genes)))
+  
+  get_occurrences_at_effort <- function(effort) {
+    data <- ranked_genes[1:effort,]
+    occurrences_at_effort <- table(as.vector(data))
+    unsampled_genes <- setdiff(all_genes, names(occurrences_at_effort))
+    occurrences_at_effort[unsampled_genes] <- 0
+    return(occurrences_at_effort[all_genes])
+  }
+  
+  results <- lapply(X=1:max_effort, FUN=get_occurrences_at_effort)
+  occurrences <- as.data.frame(do.call(cbind, results))
+  occurrences <- as.data.frame(occurrences)
+  colnames(occurrences) <- 1:max_effort
+  occurrences[] <- lapply(occurrences, as.numeric)
+  
+  return(occurrences)
+}
+
+add_genes_to_seeds <- function(ranked_genes, seeds) {
+  #' Add the occurrences and the minimal efforts respective to each seed.
+  #' 
+  #' @param ranked_genes: a data.frame where: ranks are rows | cells are cols | cells are genes.
+  #' @param seeds: a nested list, where each sub-list has three keys: 'consensus', 'cells' and 'clusters'.
+  #' 
+  #' @return a nested list, where each sub-list has four keys: 'consensus', 'cells', 'clusters' and 'genes'.
+  #' 
+  get_occurrences.seed <- function(seed){get_occurrences(ranked_genes[, seed$cells])}
+  occurrences <- lapply(X=seeds, FUN=get_occurrences.seed)
+  for (i in 1:length(seeds)) {
+    seeds[[i]]$genes <- occurrences[[i]]
+  }
+  return(seeds)
+}
+
+get_efforts.frame <- function(ranked_genes, seeds) {
+  #' Get a ggplot ready data.frame of the effort w.r.t. the group of cells.
+  #' 
+  #' @param ranked_genes: a data.frame where: ranks are rows | cells are cols | cells are genes.
+  #' @param seeds: a nested list, where each sub-list has three keys: 'consensus', 'cells' and 'clusters'.
+  #'
+  #' @return a data.frame with two columns: 'effort' and 'seed'.
+  #' 
+  get_efforts.seed <- function(seed) {apply(X=!is.na(ranked_genes[, seed$cells]), MARGIN=2, FUN=sum)}
+  efforts.seeds <- lapply(X=seeds, FUN=get_efforts.seed)
+  for (i in 1:length(efforts.seeds)) {
+    efforts.seeds[[i]] <- data.frame(effort=efforts.seeds[[i]], seed=i)
+  }
+  efforts.frame <- do.call(rbind, efforts.seeds)
+  efforts.frame$seed <- as.factor(efforts.frame$seed)
+  return(efforts.frame)
+}
+
+get_efforts.plot <- function(efforts.frame) {
+  #' Get a boxplot corresponding to the effort w.r.t. the group of cells. 
+  #' The whiskers correspond to the minimum and maximum values.
+  #' 
+  #' @param efforts.frame: a data.frame with two columns: 'effort' and 'seed'.
+  #' 
+  #' @return a boxplot where x=seed, y=effort and group=seed.
+  #' 
+  efforts.plot <- ggplot(data=efforts.frame, 
+                         aes(x=seed, y=effort, group=seed, fill=seed)) + 
+    geom_boxplot(coef=NULL) +
+    ggtitle("Sampling effort of cells, per seed.")
+  return(efforts.plot)
+}
+
+test_overrepresentation <- function(q, m, N, k) {
+  #' Get the probability of observing x successes or more in a sample.
+  #' 
+  #' @param q: number of successes in sample.
+  #' @param m: number of successes in reference.
+  #' @param n: size of the reference.
+  #' @param k: size of the sample.
+  #' 
+  #' @return a numeric.
+  #' 
+  
+  # phyper tests Pr(X > q): so use q-1 #
+  ######################################
+  n <- N - m
+  pvalue <- phyper(q-1, m, n, k, lower.tail=FALSE)
+  return(pvalue)
+}
+
+test_overrepresentation.gene <- function(gene, overrepresentation.frame) {
+  #' Test if a gene is over-represented in a sample w.r.t. a reference.
+  #' 
+  #' @param gene: a character.
+  #' @param overrepresentation.frame: a data.frame with two columns: 'sample' and 'population'. The row names are genes.
+  #' 
+  #' @return a numeric.
+  #' 
+  q <- overrepresentation.frame[gene, "sample"]
+  m <- overrepresentation.frame[gene, "population"]
+  N <- sum(overrepresentation.frame$population)
+  k <- sum(overrepresentation.frame$sample)
+  pvalue <- test_overrepresentation(q, m, N, k)
+  return(pvalue)
+}
+
+test_overrepresentation.seed <- function(seed, occurrences.population, params) {
+  #' Test which genes in a seed are overrepresented w.r.t. minimal effort in the seed.
+  #' 
+  #' @param seed: a list with four keys: 'consensus', 'cells', 'clusters' and 'genes'.
+  #' @param occurrences.population: a data.frame where: genes are rows | sampling effort is cols | cells are occurrences.
+  #' @param params: a list of hyperparameters, with 'alpha' and 'fdr_correction'.
+  #' 
+  #' @return a data.frame with four columns: 'sample', 'population', 'pvalue' and 'adj_pvalue'
+  #' 
+  occurrences.seed <- seed$genes
+  occurrences.population <- occurrences.population[rownames(occurrences.seed),]
+  overrepresentation.frame <- data.frame(sample=occurrences.seed[, length(occurrences.seed)],
+                                         population=occurrences.population[, length(occurrences.population)])
+  rownames(overrepresentation.frame) <- rownames(occurrences.seed)
+  
+  ### p-values w/ correction ###
+  ##############################
+  pvalues <- sapply(X=rownames(overrepresentation.frame),
+                    FUN=test_overrepresentation.gene,
+                    overrepresentation.frame=overrepresentation.frame)
+  overrepresentation.frame$pvalue <- pvalues
+  overrepresentation.frame$adj_pvalue <- p.adjust(pvalues, method=params$fdr_correction)
+  return(overrepresentation.frame)
+}
+
+get_markers.seed <- function(seed, occurrences.population, params) {
+  #' Get genes significantly over-represented in a seed, w.r.t. the population w/ equal sampling effort.
+  #'
+  #' @param seed: a list with four keys: 'consensus', 'cells', 'clusters' and 'genes'.
+  #' @param occurrences.population: a data.frame where: genes are rows | sampling effort is cols | cells are occurrences.
+  #' @param params: a list of hyperparameters, with 'alpha' and 'fdr_correction'.
+  #'
+  #' @return a vector of characters.
+  #' 
+  overrepresentation.frame <- test_overrepresentation.seed(seed, occurrences.population, params)
+  is_significant <- overrepresentation.frame$adj_pvalue < params$alpha
+  markers <- rownames(overrepresentation.frame[is_significant, ])
+  return(markers)
+}
+
+get_markers <- function(seeds, occurrences.population, params) {
+  #' Identify markers w.r.t. their respective seed.
+  #' 
+  #' @param seeds: a nested list, where each sub-list has four keys: 'consensus', 'cells', 'clusters' and 'genes'.
+  #' @param occurrences.population: a data.frame where: genes are rows | sampling effort is cols | cells are occurrences.
+  #' @param params: a list of hyperparameters, with 'alpha' and 'fdr_correction'.
+  #' 
+  #' @return a nested list with two keys: 'seed' and 'all'.
+  #' 
+  specific_markers <- lapply(X=seeds, 
+                             FUN=get_markers.seed, 
+                             occurrences.population=occurrences.population, 
+                             params=params)
+  all_markers <- unlist(specific_markers)
+  markers <- list(seed=specific_markers, all=all_markers)
+  return(markers)
+}
+
+add_specific_markers <- function(seeds, markers) {
+  #' Add the markers w.r.t. the seeds.
+  #'
+  #' @param seeds: a nested list, where each sub-list has four keys: 'consensus', 'cells', 'clusters' and 'genes'.
+  #' @param markers: a nested list with two keys: 'seed' and 'all'.
+  #'
+  #' @return a nested list, where each sub-list has five keys: 'consensus', 'cells', 'clusters', 'genes' and 'markers'.
+  #'
+  all_markers <- markers[["all"]]
+  unspecific_markers <- unique(all_markers[duplicated(all_markers)])
+  for (i in 1:length(seeds)) {
+    specific_markers <- setdiff(markers$seed[[i]], unspecific_markers)
+    seeds[[i]]$markers <- specific_markers
+  }
+  return(seeds)
+}
+
+get_markers.plot <- function(markers) {
+  #' Get an upset plot corresponding to the intersection of marker genes between sets.
+  #' 
+  #' @param markers: a nested list with two keys: 'seed' and 'all'.
+  #'
+  #' @return an upset plot.
+  #'
+  labels <- as.character(1:length(markers$seed))
+  markers.plot <- ggVennDiagram(markers$seed, 
+                                category.names = labels,
+                                force_upset = TRUE,
+                                order.set.by = "name",
+                                order.intersect.by = "none")
+  
+  ### use the color palette of seeds ###
+  ######################################
+  
+    # intersection dots
+  intersect_colors.dots <- rep(NA, length(markers.plot[[1]]$data$name))
+  intersect_colors.dots[1:length(labels)] <- labels
+  markers.plot[[1]]$layers[[1]]$aes_params$colour <- NULL
+  markers.plot[[1]]$layers[[2]]$aes_params$colour <- NULL
+  markers.plot[[1]] <- markers.plot[[1]] + 
+    aes(colour=intersect_colors.dots) + theme(legend.position = "none")
+  
+    # intersection bars
+  intersect_colors.bars <- rep(NA, length(markers.plot[[2]]$data$name))
+  intersect_colors.bars[1:length(labels)] <- labels
+  markers.plot[[2]] <- markers.plot[[2]] +
+    aes(fill=intersect_colors.bars) + theme(legend.position = "none") +
+    ggtitle("Overrepresented HVGs, per seed.")
+  
+    # size bars
+  markers.plot[[3]] <- markers.plot[[3]] + aes(fill=name) + theme(legend.position = "none")
+
+  markers.plot <- as.ggplot(markers.plot)
+  dev.off()
+  return(markers.plot)
+}
