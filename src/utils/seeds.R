@@ -20,12 +20,12 @@ get_rules <- function(transactions, min_support, min_confidence) {
   #' @return a data.frame with three columns: 'A', 'B' and 'confidence'.
   #' 
   data <- apriori(transactions, 
-                   parameter = list(support=min_support,
-                                    confidence=min_confidence,
-                                    minlen=2,
-                                    maxlen=2,
-                                    target="rules")
-                   )
+                  parameter = list(support=min_support,
+                                   confidence=min_confidence,
+                                   minlen=2,
+                                   maxlen=2,
+                                   target="rules")
+  )
   out <- DATAFRAME(data)
   
   get_item <- function(x){substr(x, 2, nchar(x)-1)}
@@ -51,7 +51,7 @@ get_symmetric_rules <- function(rules) {
   ######################################
   data <- data.frame(
     rbind(rules, rules[, c("B", "A", "confidence")])
-    )
+  )
   
   # keep the rules with a symmetric #
   ###################################
@@ -75,7 +75,7 @@ get_symmetric_rules <- function(rules) {
   return(symmetric_rules)
 }
 
-get_consensus.max <- function(methods) {
+get_max_consensus <- function(methods) {
   #' Get the value of the maximum consensus expected w.r.t. the number of methods n.
   #' It corresponds to the number of edges in a complete non-directed graph with n nodes.
   #' 
@@ -89,35 +89,35 @@ get_consensus.max <- function(methods) {
 }
 
 get_hint.component <- function(connected_component,
-                                          consensus.max) {
+                               max_consensus) {
   #' Get a cluster hint from a connected component.
   #' It is a group of clusters that overlap across multiple methods.
   #'
   #' @param connected_component: a connected_component with 'name' and 'confidence' attributes.
-  #' @param consensus.max: a numeric.
+  #' @param max_consensus: a numeric.
   #' 
   #' @return a list with two keys: 'consensus' and 'clusters'.
   #' 
   clusters <- names(V(connected_component))
   edges_confidence <- as.numeric(E(connected_component)$confidence)
   consensus <- sum(edges_confidence)
-  hint <- list(clusters=clusters, consensus=consensus/consensus.max)
+  hint <- list(clusters=clusters, consensus=consensus/max_consensus)
   return(hint)
 }
 
-get_hints <- function(rules, consensus.max) {
+get_hints <- function(rules, max_consensus) {
   #' Use the connected components of a graph to identify raw seeds.
   #'
   #' @param rules: a data.frame with three columns: 'A', 'B' and 'confidence'.
-  #' @param consensus.max: a numeric.
+  #' @param max_consensus: a numeric.
   #' 
   #' @return a nested list, where each sub-list has two keys: 'consensus' and 'clusters'.
   #' 
   overlap_graph <- graph.data.frame(rules)
   connected_components <- decompose.graph(overlap_graph)
   hints <- lapply(X=connected_components, 
-                             FUN=get_hint.component,
-                             consensus.max=consensus.max)
+                  FUN=get_hint.component,
+                  max_consensus=max_consensus)
   return(hints)
 }
 
@@ -132,14 +132,14 @@ get_method.cluster <- function(cluster){
   return(method)
 }
 
-has_independent_clusters_only <- function(raw_seed) {
+has_independent_clusters_only <- function(hint) {
   #' Check if a raw seed has independent clusters only, i.e. no more than one cluster per method.
   #' 
-  #' @param raw_seed: a list with two keys: 'consensus' and 'members'.
+  #' @param hint: a list with two keys: 'consensus' and 'members'.
   #' 
   #' @return a logical
   #'
-  clusters <- raw_seed$clusters
+  clusters <- hint$clusters
   methods <- as.character(sapply(X=clusters, FUN=get_method.cluster))
   result <- length(unique(methods)) == length(clusters) 
   return(result)
@@ -237,4 +237,112 @@ add_seeds <- function(SeurObj, seeds) {
   cells <- as.factor(cells) 
   SeurObj$seeds <- cells
   return(SeurObj)
+}
+
+get_transactions <- function(clusters) {
+  #' Get transactions from a table of clusters.
+  #' 
+  #' @param clusters: a data.frame where: rows are cells | cols are clusterings | cells are labels.
+  #' 
+  #' @return an object of the class 'transactions'.
+  #'
+  clusters_path <- "./clusters.tmp.csv"
+  write.table(clusters, file=clusters_path, col.names=FALSE, row.names=FALSE)
+  transactions <- read.transactions(clusters_path)
+  file.remove(clusters_path)
+  return(transactions)
+}
+
+get_minimal_support <- function(expression.init, clusters, params) {
+  #' Get the minimal support expected in a hint w.r.t. the global minimal support.
+  #' 
+  #' @param expression.init: a scRNA-seq dataset of raw count expression, without selected genes:
+  #' genes are rows | cells are cols.
+  #' @param clusters: a data.frame where: rows are cells | cols are clusterings | cells are labels.
+  #' @param params: a list of parameters.
+  #' 
+  #' @return a numeric.
+  #' 
+  n_cells.init <- ncol(expression.init)
+  expected_min_n_cells <- params$min_prop_cells * n_cells.init
+  n_cells.loop <- nrow(clusters)
+  minimal_support <- expected_min_n_cells / n_cells.loop
+  return(minimal_support)
+}
+
+get_seeds <- function(expression.init, data.loop, clusters, params, records, population, figures) {
+  #' Get consensual seeds from a table of cluster labels.
+  #'
+  #' @param expression.init: a scRNA-seq dataset of raw count expression, without selected genes:
+  #' genes are rows | cells are cols.
+  #' @param data.loop: a list of three data.frames: 'expression.loop' and 'SeurObj.loop', and 'ranked_genes.loop'.
+  #' @param clusters: a data.frame where: rows are cells | cols are clusterings | cells are labels.
+  #' @param params: a list of parameters.
+  #' @param records: a list of three data.frames: 'meta', 'cells', 'markers'.
+  #' @param population: a character.
+  #' @param figures: a boolean. If TRUE, draw figures summarizing the seed digging.
+  #'
+  #' @return a nested list, where each sub-list has three keys: 'consensus', 'cells' and 'clusters'.
+  #' 
+  
+  # hyperparameters
+  #################
+  minimal_support <- get_minimal_support(expression.init, clusters, params)
+  threshold_relative_consensus <- max(records$meta[population, "consensus"], params$root_consensus)
+  max_absolute_consensus <- get_max_consensus(methods=colnames(clusters))
+  
+  # association mining
+  #####################
+  transactions <- get_transactions(clusters)
+  rules <- get_rules(transactions, minimal_support, min_confidence = .5)
+  rules <- get_symmetric_rules(rules)
+  hints <- get_hints(rules, max_absolute_consensus)
+  
+  # seeds
+  #######
+  seeds <- list()
+  while (TRUE) {
+    if(length(hints)==0){break()}
+    
+    # filter conflictual hints
+    ##########################
+    hints <- filter_conflictual_hints(hints, threshold_relative_consensus)
+    if(length(hints)==0){break()}
+    
+    # identify unambiguous cells for each hint
+    ##########################################
+    cells.hints <- get_cells(hints, clusters)
+    seeds <- add_cells_to_hints(hints, cells.hints)
+    has_cells <- function(seed){length(seed$cells)>1}
+    seeds <- Filter(f=has_cells, x=seeds)
+    
+    if(length(seeds)==0){break()}
+    consensi <- sapply(seeds, "[[", "consensus")
+    seeds <- seeds[order(-consensi)]
+    
+    # generate a leftover seed: naive approach
+    ##########################################
+    cells.seeds <- unlist(sapply(seeds, "[[", "cells"))
+    missing_cells <- setdiff(rownames(clusters), cells.seeds)
+    leftover_seed <- list(
+      consensus=0,
+      clusters=c(),
+      cells=missing_cells
+    )
+    seeds[[length(seeds) + 1]] <- leftover_seed
+    
+    # draw the seeds
+    ################
+    if (figures) {
+      data.loop$SeurObj.loop <- add_seeds(data.loop$SeurObj.loop, seeds)
+      pdf(file = glue("./figures/{population}_seeds.pdf"))
+      seeds_plot <- do_DimPlot(data.loop$SeurObj.loop,
+                               split.by="seeds",
+                               legend.position="none")
+      print(seeds_plot)
+      dev.off()
+    }
+    break() 
+  }
+  return(seeds)
 }
