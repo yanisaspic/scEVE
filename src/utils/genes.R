@@ -4,6 +4,7 @@
 
 suppressPackageStartupMessages({
   library(glue)
+  library(grid)
   library(stats)
   library(ggplot2)
   library(ggplotify)
@@ -37,8 +38,8 @@ get_occurrences <- function(ranked_genes) {
   return(occurrences)
 }
 
-add_genes_to_seeds <- function(ranked_genes, seeds) {
-  #' Add the occurrences and the minimal efforts respective to each seed.
+add_occurrences_to_seeds <- function(ranked_genes, seeds) {
+  #' Add the occurrences respective to each seed. This information is used for the overrepresentation test.
   #' 
   #' @param ranked_genes: a data.frame where: ranks are rows | cells are cols | cells are genes.
   #' @param seeds: a nested list, where each sub-list has three keys: 'consensus', 'cells' and 'clusters'.
@@ -48,7 +49,7 @@ add_genes_to_seeds <- function(ranked_genes, seeds) {
   get_occurrences.seed <- function(seed){get_occurrences(ranked_genes[, seed$cells])}
   occurrences <- lapply(X=seeds, FUN=get_occurrences.seed)
   for (i in 1:length(seeds)) {
-    seeds[[i]]$genes <- occurrences[[i]]
+    seeds[[i]]$occurrences <- occurrences[[i]]
   }
   return(seeds)
 }
@@ -120,16 +121,15 @@ test_overrepresentation.gene <- function(gene, overrepresentation.frame) {
   return(pvalue)
 }
 
-test_overrepresentation.seed <- function(seed, occurrences.population, params) {
+test_overrepresentation.seed <- function(seed, occurrences.population) {
   #' Test which genes in a seed are overrepresented w.r.t. minimal effort in the seed.
   #' 
   #' @param seed: a list with four keys: 'consensus', 'cells', 'clusters' and 'genes'.
   #' @param occurrences.population: a data.frame where: genes are rows | sampling effort is cols | cells are occurrences.
-  #' @param params: a list of hyperparameters, with 'alpha' and 'fdr_correction'.
   #' 
   #' @return a data.frame with four columns: 'sample', 'population', 'pvalue' and 'adj_pvalue'
   #' 
-  occurrences.seed <- seed$genes
+  occurrences.seed <- seed$occurrences
   occurrences.population <- occurrences.population[rownames(occurrences.seed),]
   overrepresentation.frame <- data.frame(sample=occurrences.seed[, length(occurrences.seed)],
                                          population=occurrences.population[, length(occurrences.population)])
@@ -141,38 +141,35 @@ test_overrepresentation.seed <- function(seed, occurrences.population, params) {
                     FUN=test_overrepresentation.gene,
                     overrepresentation.frame=overrepresentation.frame)
   overrepresentation.frame$pvalue <- pvalues
-  overrepresentation.frame$adj_pvalue <- p.adjust(pvalues, method=params$fdr_correction)
+  overrepresentation.frame$adj_pvalue <- p.adjust(pvalues, method="BH")
   return(overrepresentation.frame)
 }
 
-get_markers.seed <- function(seed, occurrences.population, params) {
+get_markers.seed <- function(seed, occurrences.population) {
   #' Get genes significantly over-represented in a seed, w.r.t. the population w/ equal sampling effort.
   #'
   #' @param seed: a list with four keys: 'consensus', 'cells', 'clusters' and 'genes'.
   #' @param occurrences.population: a data.frame where: genes are rows | sampling effort is cols | cells are occurrences.
-  #' @param params: a list of hyperparameters, with 'alpha' and 'fdr_correction'.
   #'
   #' @return a vector of characters.
   #' 
-  overrepresentation.frame <- test_overrepresentation.seed(seed, occurrences.population, params)
-  is_significant <- overrepresentation.frame$adj_pvalue < params$alpha
+  overrepresentation.frame <- test_overrepresentation.seed(seed, occurrences.population)
+  is_significant <- overrepresentation.frame$adj_pvalue < 0.05
   markers <- rownames(overrepresentation.frame[is_significant, ])
   return(markers)
 }
 
-get_markers <- function(seeds, occurrences.population, params) {
+get_markers <- function(seeds, occurrences.population) {
   #' Identify markers w.r.t. their respective seed.
   #' 
   #' @param seeds: a nested list, where each sub-list has four keys: 'consensus', 'cells', 'clusters' and 'genes'.
   #' @param occurrences.population: a data.frame where: genes are rows | sampling effort is cols | cells are occurrences.
-  #' @param params: a list of hyperparameters, with 'alpha' and 'fdr_correction'.
   #' 
   #' @return a nested list with two keys: 'seed' and 'all'.
   #' 
   specific_markers <- lapply(X=seeds, 
                              FUN=get_markers.seed, 
-                             occurrences.population=occurrences.population, 
-                             params=params)
+                             occurrences.population=occurrences.population)
   all_markers <- unlist(specific_markers)
   markers <- list(seed=specific_markers, all=all_markers)
   return(markers)
@@ -233,4 +230,48 @@ get_markers.plot <- function(markers) {
   markers.plot <- as.ggplot(markers.plot)
   dev.off()
   return(markers.plot)
+}
+
+get_genes <- function(data.loop, seeds, params, population, figures) {
+  #' Identify relevant genes to characterize the seeds found.
+  #' If too little genes are identified, the iteration is considered seedless.
+  #' 
+  #' @param data.loop: a list of three data.frames: 'expression.loop' and 'SeurObj.loop', and 'ranked_genes.loop'.
+  #' @param seeds: a nested list, where each sub-list has three keys: 'consensus', 'cells' and 'clusters'.
+  #' @param params: a list of parameters, with 'n_HVGs'.
+  #' @param population: a character.
+  #' @param figures: a boolean. If TRUE, draw figures summarizing the genes identification.
+  #'
+  #' @return a nested list, where each sub-list has four keys: 'consensus', 'cells', 'clusters' and 'markers'.
+  #'
+  
+  # get seed-specific markers
+  ###########################
+  seeds <- add_occurrences_to_seeds(data.loop$ranked_genes.loop, seeds)
+  occurrences.loop <- get_occurrences(data.loop$ranked_genes.loop)
+  markers.loop <- get_markers(seeds, occurrences.loop)
+  for (i in 1:length(seeds)) {
+    seeds[[i]]$markers <- markers.loop$seed[[i]]
+    seeds[[i]]$occurrences <- NULL
+  }
+
+  if (figures) {
+    efforts.frame <- get_efforts.frame(data.loop$ranked_genes.loop, seeds)
+    efforts.plot <- get_efforts.plot(efforts.frame)
+    markers.plot <- get_markers.plot(markers.loop)
+    
+    pdf(file = glue("./figures/{population}_genes.pdf"))
+    composite_genes_plot <- do.call(grid.arrange, list(efforts=efforts.plot, markers=markers.plot))
+    print(composite_genes_plot)
+    dev.off() 
+  }
+  
+  # if any seed is poorly characterized, the iteration is fruitless
+  #################################################################
+  is_informative <- function(seed) {length(seed$markers) >= sqrt(params$n_HVGs)}
+  informative_seeds <- Filter(f=is_informative, x=seeds)
+  if (length(seeds) != length(informative_seeds)) {
+    seeds <- list()
+  }
+  return(seeds)
 }

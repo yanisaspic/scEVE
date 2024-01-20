@@ -256,13 +256,12 @@ get_clusters_plots <- function(SeurObj, clusters) {
   return(plots)
 }
 
-get_independent_clusters <- function(data.loop, population, clustering_methods, figures, random_state) {
+get_independent_clusters <- function(data.loop, population, params, figures, random_state) {
   #' Conduct the independent clusters step.
   #' 
   #' @param data.loop: a list of three data.frames: 'expression.loop' and 'SeurObj.loop', and 'ranked_genes.loop'.
   #' @param population: a character.
-  #' @param clustering_methods: a vector of valid clustering method names, i.e. in: 
-  #' 'Seurat', 'monocle3', 'CIDR', 'SHARP', 'scLCA', 'densityCut', 'scCCESS.Kmeans', 'scCCESS.SIMLR'.
+  #' @param params: a list of parameters, with 'clustering_methods'.
   #' @param figures: a boolean. If TRUE, draw figures summarizing the independent clustering step. 
   #' @param random_state: a numeric.
   #'
@@ -270,7 +269,7 @@ get_independent_clusters <- function(data.loop, population, clustering_methods, 
   #'
   clusters <- get_clusters(data.loop$expression.loop, 
                            data.loop$SeurObj.loop, 
-                           clustering_methods, 
+                           params$clustering_methods, 
                            random_state)
   
   if (figures) {

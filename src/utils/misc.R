@@ -115,8 +115,8 @@ get_existing_pdfs <- function(population) {
   #' @return a vector of filenames.
   #'
   files <- c()
-  for (cat in c("trim", "independent_clusters", "seeds", "genes", "consensus_clusters")) {
-    filename <- glue("./results/figures/{POPULATION}_{cat}.pdf")
+  for (cat in c("trim", "independent_clusters", "seeds", "genes")) {
+    filename <- glue("./figures/{population}_{cat}.pdf")
     if (file.exists(filename)) {
       files <- c(files, filename)
     }
@@ -130,7 +130,7 @@ merge_pdfs <- function(population) {
   #' @param population: a character.
   #' 
   files <- get_existing_pdfs(population)
-  pdf_combine(input = files, output = glue("./results/figures/{population}.pdf"))
+  pdf_combine(input = files, output = glue("./figures/{population}.pdf"))
   unlink(files)
 }
 
