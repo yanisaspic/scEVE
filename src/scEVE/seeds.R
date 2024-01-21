@@ -161,15 +161,15 @@ filter_conflictual_hints <- function(hints, expected_consensus) {
   return(consensual_hints)
 }
 
-get_cells.hint <- function(hint, clusters.frame) {
+get_cells.hint <- function(hint, clusterings) {
   #' Get the names of the cells at the intersection of all the clusters of a hint.
   #' 
   #' @param hint: a list with two keys: 'consensus' and 'clusters'.
-  #' @param clusters.frame: a data.frame: cells are rows | methods are cols | a cell is a label.
+  #' @param clusterings: a data.frame: cells are rows | methods are cols | a cell is a label.
   #' 
   #' @return a vector of cell names.
   #' 
-  data <- clusters.frame
+  data <- clusterings
   methods <- as.character(sapply(X=hint$clusters, FUN=get_method.cluster))
   data <- data[, methods]
   
@@ -181,19 +181,19 @@ get_cells.hint <- function(hint, clusters.frame) {
   return(cells)
 }
 
-get_cells <- function(hints, clusters.frame) {
+get_cells <- function(hints, clusterings) {
   #' Get a nested list of cells with two keys: 'hint' and 'all'.
   #' The sub-list 'hint' is the cells w.r.t. hint.
   #' The vector 'all' is the aggregation of the cells, with duplicates.
   #' 
   #' @param hints: a nested list, where each sub-list has two keys: 'consensus' and 'clusters'.
-  #' @param clusters.frame: a data.frame: cells are rows | methods are cols | a cell is a label.
+  #' @param clusterings: a data.frame: cells are rows | methods are cols | a cell is a label.
   #' 
   #' @return a nested list with two keys: 'hint' and 'all'.
   #' 
   cells_by_hint <- lapply(X=hints,
                           FUN=get_cells.hint,
-                          clusters.frame=clusters.frame)
+                          clusterings=clusterings)
   cells <- list(hints=cells_by_hint, all=unlist(cells_by_hint))
   return(cells)
 }
@@ -239,44 +239,44 @@ add_seeds <- function(SeurObj, seeds) {
   return(SeurObj)
 }
 
-get_transactions <- function(clusters) {
-  #' Get transactions from a table of clusters.
+get_transactions <- function(clusterings) {
+  #' Get transactions from a table of clusterings.
   #' 
-  #' @param clusters: a data.frame where: rows are cells | cols are clusterings | cells are labels.
+  #' @param clusterings: a data.frame where: rows are cells | cols are clusterings | cells are labels.
   #' 
   #' @return an object of the class 'transactions'.
   #'
-  clusters_path <- "./clusters.tmp.csv"
-  write.table(clusters, file=clusters_path, col.names=FALSE, row.names=FALSE)
-  transactions <- read.transactions(clusters_path)
-  file.remove(clusters_path)
+  clusterings_path <- "./clusters.tmp.csv"
+  write.table(clusterings, file=clusterings_path, col.names=FALSE, row.names=FALSE)
+  transactions <- read.transactions(clusterings_path)
+  file.remove(clusterings_path)
   return(transactions)
 }
 
-get_minimal_support <- function(expression.init, clusters, params) {
+get_minimal_support <- function(expression.init, clusterings, params) {
   #' Get the minimal support expected in a hint w.r.t. the global minimal support.
   #' 
   #' @param expression.init: a scRNA-seq dataset of raw count expression, without selected genes:
   #' genes are rows | cells are cols.
-  #' @param clusters: a data.frame where: rows are cells | cols are clusterings | cells are labels.
+  #' @param clusterings: a data.frame where: rows are cells | cols are clusterings | cells are labels.
   #' @param params: a list of parameters.
   #' 
   #' @return a numeric.
   #' 
   n_cells.init <- ncol(expression.init)
   expected_min_n_cells <- params$min_prop_cells * n_cells.init
-  n_cells.loop <- nrow(clusters)
+  n_cells.loop <- nrow(clusterings)
   minimal_support <- expected_min_n_cells / n_cells.loop
   return(minimal_support)
 }
 
-get_seeds <- function(expression.init, data.loop, clusters, params, records, population, figures) {
+get_seeds <- function(expression.init, data.loop, clusterings, params, records, population, figures) {
   #' Get consensual seeds from a table of cluster labels.
   #'
   #' @param expression.init: a scRNA-seq dataset of raw count expression, without selected genes:
   #' genes are rows | cells are cols.
   #' @param data.loop: a list of three data.frames: 'expression.loop' and 'SeurObj.loop', and 'ranked_genes.loop'.
-  #' @param clusters: a data.frame where: rows are cells | cols are clusterings | cells are labels.
+  #' @param clusterings: a data.frame where: rows are cells | cols are clusterings | cells are labels.
   #' @param params: a list of parameters.
   #' @param records: a list of three data.frames: 'meta', 'cells', 'markers'.
   #' @param population: a character.
@@ -287,13 +287,13 @@ get_seeds <- function(expression.init, data.loop, clusters, params, records, pop
   
   # hyperparameters
   #################
-  minimal_support <- get_minimal_support(expression.init, clusters, params)
+  minimal_support <- get_minimal_support(expression.init, clusterings, params)
   threshold_relative_consensus <- max(records$meta[population, "consensus"], params$root_consensus)
-  max_absolute_consensus <- get_max_consensus(methods=colnames(clusters))
+  max_absolute_consensus <- get_max_consensus(methods=colnames(clusterings))
   
   # association mining
   #####################
-  transactions <- get_transactions(clusters)
+  transactions <- get_transactions(clusterings)
   rules <- get_rules(transactions, minimal_support, min_confidence = .5)
   rules <- get_symmetric_rules(rules)
   hints <- get_hints(rules, max_absolute_consensus)
@@ -311,7 +311,7 @@ get_seeds <- function(expression.init, data.loop, clusters, params, records, pop
     
     # identify unambiguous cells for each hint
     ##########################################
-    cells.hints <- get_cells(hints, clusters)
+    cells.hints <- get_cells(hints, clusterings)
     seeds <- add_cells_to_hints(hints, cells.hints)
     has_cells <- function(seed){length(seed$cells)>1}
     seeds <- Filter(f=has_cells, x=seeds)
@@ -323,7 +323,7 @@ get_seeds <- function(expression.init, data.loop, clusters, params, records, pop
     # generate a leftover seed: naive approach
     ##########################################
     cells.seeds <- unlist(sapply(seeds, "[[", "cells"))
-    missing_cells <- setdiff(rownames(clusters), cells.seeds)
+    missing_cells <- setdiff(rownames(clusterings), cells.seeds)
     leftover_seed <- list(
       consensus=0,
       clusters=c(),

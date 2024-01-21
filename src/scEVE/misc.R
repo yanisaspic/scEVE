@@ -115,7 +115,7 @@ get_existing_pdfs <- function(population) {
   #' @return a vector of filenames.
   #'
   files <- c()
-  for (cat in c("trim", "independent_clusters", "seeds", "genes")) {
+  for (cat in c("trim", "clusterings", "seeds", "genes")) {
     filename <- glue("./figures/{population}_{cat}.pdf")
     if (file.exists(filename)) {
       files <- c(files, filename)

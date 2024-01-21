@@ -2,10 +2,10 @@
 
 	2024/01/19 @yanisaspic"
 
-source("./src/utils/misc.R")
-source("./src/utils/genes.R")
-source("./src/utils/seeds.R")
-source("./src/utils/independent_cluster.R")
+source("./src/scEVE/misc.R")
+source("./src/scEVE/genes.R")
+source("./src/scEVE/seeds.R")
+source("./src/scEVE/clusterings.R")
 
 get_default_hyperparameters <- function() {
   #' Get the default hyperparameters for the scEVE algorithm. They include:
@@ -57,19 +57,19 @@ do_scEVE <- function(expression.init,
   
   ## M A I N
   population <- get_undug_population(records)
-  records$meta[population, "to_dig"] <- FALSE
   
   while (!is.na(population)) { #++++++++++++++++++++++++++++++++++++++++++++++++
+    records$meta[population, "to_dig"] <- FALSE
     
     while (TRUE) { #============================================================
       data.loop <- trim_data(expression.init, population, records, params, 
                              figures, random_state, SeurObj.init)
       
       if (length(data.loop)==0){break()}
-      clusters <- get_independent_clusters(data.loop, population, params, 
-                                           figures, random_state)
-      seeds <- get_seeds(expression.init, data.loop, clusters, params, records,
-                         population, figures)
+      clusterings <- get_clusterings(data.loop, population, params, figures,
+                                     random_state)
+      seeds <- get_seeds(expression.init, data.loop, clusterings, params, 
+                         records, population, figures)
       
       if (length(seeds)==0){break()}
       seeds <- get_genes(data.loop, seeds, params, population, figures) 
@@ -85,7 +85,6 @@ do_scEVE <- function(expression.init,
     
     seeds <- list()
     population <- get_undug_population(records)
-    records$meta[population, "to_dig"] <- FALSE
   } #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   is_marker <- as.logical(apply(X=records$markers, MARGIN=1, FUN=sum))
@@ -94,5 +93,45 @@ do_scEVE <- function(expression.init,
   return(records)
 }
 
-expression.init <- read.csv("./data/Darmanis_GBM.csv", row.names=1, header=TRUE)
-records <- do_scEVE(expression.init, figures=TRUE)
+get_classification <- function(records) {
+  #' Get a data.frame associating every unique cell to its most informative cluster label.
+  #' 
+  #' @param records: a list of three data.frames: 'meta', 'cells' and 'markers'.
+  #' 
+  #' @return a data.frame with two columns: 'cell' and 'label'.
+  #' 
+  all_cells <- rownames(records$cells)
+  classification <- data.frame(cell=all_cells, label="C")
+  for (cluster in colnames(records$cells)) {
+    is_in_cluster <- records$cells[, cluster]==1
+    cells_in_cluster <- all_cells[is_in_cluster]
+    classification[classification$cell %in% cells_in_cluster, "label"] <- cluster
+  }
+  return(classification)
+}
+
+benchmark_scEVE <- function(expression.init, params, random_state) {
+  #' Apply a SHARP clustering algorithm for the benchmark.
+  #' 
+  #' @param expression.init: a scRNA-seq dataset of raw count expression, without selected genes:
+  #' genes are rows | cells are cols.
+  #' @param params: a list of parameters.
+  #' @param random_state: a numeric.
+  #' 
+  #' @return a list of three elements: 'time', 'memory' and 'labels'.
+  #'
+  start_time <- Sys.time()
+  max_memory_used.default <- gc(reset=TRUE)[12]
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  records <- do_scEVE(expression.init,
+                      params=params,
+                      figures=FALSE,
+                      random_state=random_state)
+  classification <- get_classification(records)
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  labels <- classification$label
+  results <- list(time=Sys.time()-start_time,
+                  memory=gc()[12] - max_memory_used.default,
+                  labels=labels)
+  return(results)
+}

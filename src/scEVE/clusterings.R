@@ -1,6 +1,6 @@
-"Functions called by get_independent_clusters.R to carry independent clusterings.
+"Functions used to get individual clusterings.
 
-	2024/01/10 @yanisaspic"
+	2024/01/21 @yanisaspic"
 
 suppressPackageStartupMessages({
   library(glue)
@@ -184,7 +184,7 @@ do_scLCA <- function(expression, random_state) {
   return(labels)
 }
 
-get_clusters <- function(expression.count, SeurObj.count, clustering_methods, random_state) {
+apply_clustering_algorithms <- function(expression.count, SeurObj.count, clustering_methods, random_state) {
   #' Apply multiple independent methods of clustering on a scRNA-seq dataset. 
   #' 
   #' @param expression.count: a scRNA-seq dataset of raw count expression, without selected genes:
@@ -201,7 +201,7 @@ get_clusters <- function(expression.count, SeurObj.count, clustering_methods, ra
   inputs <- list(
     Seurat=SeurObj.count,
     monocle3=SeurObj.count,
-    SHARP=expression.count, # nb: SHARP is the only method explicitly requiring no trimming ?
+    SHARP=expression.count,
     CIDR=expression.count,
     scLCA=expression.count,
     scCCESS.Kmeans=log.expression.tpm,
@@ -209,39 +209,39 @@ get_clusters <- function(expression.count, SeurObj.count, clustering_methods, ra
     densityCut=log.expression.tpm
   )
   
-  get_clusters.method <- function(method){
+  get_clusterings.method <- function(method){
     fun=get(glue("do_{method}"))
     labels <- fun(inputs[[method]], random_state)
     labels <- as.character(labels)
     labels <- paste0(glue("{method}_"), labels)
     return(labels)
   }
-  results <- lapply(X=clustering_methods, FUN=get_clusters.method)
+  results <- lapply(X=clustering_methods, FUN=get_clusterings.method)
   gc()
   
-  clusters <- do.call(cbind, results)
-  rownames(clusters) <- colnames(expression.count)
-  colnames(clusters) <- clustering_methods
-  return(clusters)
+  clusterings <- do.call(cbind, results)
+  rownames(clusterings) <- colnames(expression.count)
+  colnames(clusterings) <- clustering_methods
+  return(clusterings)
 }
 
-get_clusters_plots <- function(SeurObj, clusters) {
-  #' Get a DimPlot with the cells colored according to the clusters for each method used.
+get_clusterings_plots <- function(SeurObj, clusterings) {
+  #' Get a DimPlot with the cells colored according to the clusterings for each method used.
   #'
   #' @param SeurObj.count: a Seurat Object of raw count expression, with selected genes.
   #' FindVariableFeatures() and ScaleData() must have been applied already.
-  #' @param clusters: a data.frame: cells are rows | methods are cols | a cell is a label.
+  #' @param clusterings: a data.frame: cells are rows | methods are cols | a cell is a label.
   #'
   #' @return a DimPlot
   #'
   get_cluster_number <- function(cluster_label){
     cluster_number <- strsplit(cluster_label, split="_")[[1]][2]
   }
-  clusters <- apply(clusters, c(1,2), get_cluster_number)
+  clusterings <- apply(clusterings, c(1,2), get_cluster_number)
   
   get_plot <- function(method){
-    cells <- rownames(clusters)
-    labels <- factor(clusters[, method])
+    cells <- rownames(clusterings)
+    labels <- factor(clusterings[, method])
     SeurObj@active.ident <- setNames(labels, cells)
     plot <- do_DimPlot(SeurObj) + ggtitle(method)
     plot <- plot + 
@@ -250,14 +250,14 @@ get_clusters_plots <- function(SeurObj, clusters) {
       )
   }
   
-  clustering_methods <- colnames(clusters)
+  clustering_methods <- colnames(clusterings)
   plots <- lapply(X=clustering_methods, FUN=get_plot)
   names(plots) <- clustering_methods
   return(plots)
 }
 
-get_independent_clusters <- function(data.loop, population, params, figures, random_state) {
-  #' Conduct the independent clusters step.
+get_clusterings <- function(data.loop, population, params, figures, random_state) {
+  #' Get individual clusterings.
   #' 
   #' @param data.loop: a list of three data.frames: 'expression.loop' and 'SeurObj.loop', and 'ranked_genes.loop'.
   #' @param population: a character.
@@ -267,19 +267,19 @@ get_independent_clusters <- function(data.loop, population, params, figures, ran
   #'
   #' @return a data.frame where: rows are cells | cols are clusterings | cells are labels.
   #'
-  clusters <- get_clusters(data.loop$expression.loop, 
-                           data.loop$SeurObj.loop, 
-                           params$clustering_methods, 
-                           random_state)
+  clusterings <- apply_clustering_algorithms(data.loop$expression.loop,
+                                             data.loop$SeurObj.loop,
+                                             params$clustering_methods,
+                                             random_state)
   
   if (figures) {
-    pdf(file = glue("./figures/{population}_independent_clusters.pdf"))
-    clusters_plots <- get_clusters_plots(data.loop$SeurObj.loop,
-                                         clusters)
-    composite_clusters_plot <- do.call(grid.arrange, clusters_plots)
-    print(composite_clusters_plot)
+    pdf(file = glue("./figures/{population}_clusterings.pdf"))
+    clusterings_plots <- get_clusterings_plots(data.loop$SeurObj.loop,
+                                               clusterings)
+    composite_clusterings_plot <- do.call(grid.arrange, clusterings_plots)
+    print(composite_clusterings_plot)
     dev.off()
   }
   
-  return(clusters)
+  return(clusterings)
 }
