@@ -1,6 +1,6 @@
 "Misc. functions called by multiple R scripts.
 
-	2024/01/10 @yanisaspic"
+	2024/01/23 @yanisaspic"
 
 suppressPackageStartupMessages({
   library(qpdf)
@@ -9,6 +9,8 @@ suppressPackageStartupMessages({
   library(openxlsx)
   
   library(glue)
+  library(scales)
+  library(igraph)
   library(Seurat)
   library(SCpubr)
   library(ggplot2)
@@ -226,4 +228,110 @@ trim_data <- function(expression.init,
   }
     
   return(data.loop)
+}
+
+get_classification <- function(records, ground_truth=FALSE) {
+  #' Get a data.frame associating every unique cell to its most informative cluster label.
+  #' 
+  #' @param records: a list of three data.frames: 'meta', 'cells' and 'markers'.
+  #' @param ground_truth: a boolean. If TRUE, cell names must follow the {ground_truth}_{i} format.
+  #' Add a column corresponding to the ground truth labels.
+  #' 
+  #' @return a data.frame with two columns: 'cell' and 'pred'. 
+  #' If ground_truth is TRUE, there is a third column 'ground'.
+  #' 
+  all_cells <- rownames(records$cells)
+  classification <- data.frame(cell=all_cells, pred="C")
+  for (cluster in colnames(records$cells)) {
+    is_in_cluster <- records$cells[, cluster]==1
+    cells_in_cluster <- all_cells[is_in_cluster]
+    classification[classification$cell %in% cells_in_cluster, "pred"] <- cluster
+  }
+  
+  if (ground_truth) {
+    ground_truth <- sapply(strsplit(classification$cell, split="_"), "[", 1)
+    classification$ground <- ground_truth
+  }
+  return(classification)
+}
+
+get_piecharts.population <- function(population, classification, records) {
+  #' Get the number of individuals from each ground truth group within a population.
+  #'
+  #' @param population: a character.
+  #' @param classification: a data.frame with three columns: 'cell', 'pred' and 'ground'. 
+  #' @param records: a list of three data.frames: 'meta', 'cells' and 'markers'.
+  #'
+  #' @return a vector of numeric.
+  #' 
+  cells_of_interest <- rownames(records$cells[records$cells[population]==1,])
+  data <- classification[classification$cell %in% cells_of_interest,]
+  
+  data <- data %>% count(ground)
+  piechart <- setNames(object = data$n, data$ground)
+  ground_groups <- unique(classification$ground)
+  missing_groups <- setdiff(ground_groups, data$ground)
+  
+  piechart[missing_groups] <- 0
+  piechart <- piechart[ground_groups]
+  return(piechart)
+}
+
+get_piecharts <- function(records, classification) {
+  #' For each population, get the number of individuals composing it, split by ground truth groups.
+  #' 
+  #' @param records: a list of three data.frames: 'meta', 'cells' and 'markers'.
+  #' @param classification: a data.frame with three columns: 'cell', 'pred' and 'ground'. 
+  #' 
+  #' @return a list of vectors.
+  #' The vector elements are ordered and correspond to the number of individuals in each ground truth group.
+  #'
+  pred_groups <- colnames(records$cells)
+  piecharts <- lapply(X=pred_groups,
+                      FUN=get_piecharts.population,
+                      records=records,
+                      classification=classification)
+  names(piecharts) <- (pred_groups)
+  return(piecharts)
+}
+
+draw_scEVE <- function(records) {
+  #' Draw a graph with pie charts as vertices.
+  #' The vertices are the cell population and the edges their hierarchy.
+  #' 
+  #' @param records: a list of three data.frames: 'meta', 'cells' and 'markers'.
+  #' 
+  #' @return a graph.
+  #'
+  data <- data.frame(parent=records$meta$parent,
+                     child=row.names(records$meta), 
+                     consensus=records$meta$consensus,
+                     size=records$meta$n)
+  hierarchy_graph <- graph.data.frame(data[-1,], directed=TRUE)
+  E(hierarchy_graph)$label <- data[-1,]$consensus
+  nodes_order <- vertex_attr(hierarchy_graph)$name
+  
+  # set nodes sizes w.r.t. population sizes
+  ########################################
+  sizes <- log(as.numeric(data$size), base=10) **1.2 * 10
+  vertex.size <- setNames(sizes, data$child)
+  vertex.size <- vertex.size[nodes_order]
+  
+  # set nodes pie charts w.r.t. ground truth
+  ##########################################
+  classification <- get_classification(records, ground_truth = TRUE)
+  ground_groups <- unique(classification$ground)
+  colors <- hue_pal()(length(ground_groups))
+  piecharts <- get_piecharts(records, classification)
+  piecharts <- piecharts[nodes_order]
+
+  g <- plot(hierarchy_graph,
+       layout=layout_as_tree,
+       root=-1,
+       vertex.shape="pie",
+       vertex.pie=piecharts,
+       vertex.pie.color=list(colors),
+       vertex.size=vertex.size)
+  
+  return(g)
 }

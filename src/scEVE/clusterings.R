@@ -65,7 +65,8 @@ do_SHARP <- function(expression.count, random_state) {
   #'
   results <- SHARP(scExp=expression.count,
                    exp.type="count",
-                   rN.seed=random_state)
+                   rN.seed=random_state,
+                   n.cores=2)
   labels <- results$pred_clusters
   return(labels)
 }

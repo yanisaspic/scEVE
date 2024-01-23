@@ -1,6 +1,6 @@
 "Main functions to run a scEVE analysis.
 
-	2024/01/19 @yanisaspic"
+	2024/01/23 @yanisaspic"
 
 source("./src/scEVE/misc.R")
 source("./src/scEVE/genes.R")
@@ -76,6 +76,7 @@ do_scEVE <- function(expression.init,
       
       break()
     } #=========================================================================
+    gc()
 
     merge_pdfs(population)
     if (length(seeds) > 0) {
@@ -90,24 +91,13 @@ do_scEVE <- function(expression.init,
   is_marker <- as.logical(apply(X=records$markers, MARGIN=1, FUN=sum))
   records$markers <- records$markers[is_marker,]
   write.xlsx(records, "./records.xlsx", rowNames=TRUE)
+  
+  pdf(file="./figures/all.pdf")
+  fig <- draw_scEVE(records)
+  print(fig)
+  dev.off()
+  
   return(records)
-}
-
-get_classification <- function(records) {
-  #' Get a data.frame associating every unique cell to its most informative cluster label.
-  #' 
-  #' @param records: a list of three data.frames: 'meta', 'cells' and 'markers'.
-  #' 
-  #' @return a data.frame with two columns: 'cell' and 'label'.
-  #' 
-  all_cells <- rownames(records$cells)
-  classification <- data.frame(cell=all_cells, label="C")
-  for (cluster in colnames(records$cells)) {
-    is_in_cluster <- records$cells[, cluster]==1
-    cells_in_cluster <- all_cells[is_in_cluster]
-    classification[classification$cell %in% cells_in_cluster, "label"] <- cluster
-  }
-  return(classification)
 }
 
 benchmark_scEVE <- function(expression.init, params, random_state) {
