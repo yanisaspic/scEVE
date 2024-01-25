@@ -16,6 +16,8 @@ suppressPackageStartupMessages({
   library(densitycut)
   
   library(SAFEclustering)
+  library(SAMEclustering)
+  library(clusterExperiment)
 })
 source("./src/scEVE/misc.R")
 source("./src/scEVE/clusterings.R")
@@ -74,7 +76,8 @@ benchmark_Seurat <- function(SeurObj.count, random_state) {
   #' @return a list of three elements: 'time', 'memory' and 'labels'.
   #'
   start_time <- Sys.time()
-  max_memory_used.default <- gc(reset=TRUE)[12]
+  memory_data <- gc(reset=TRUE)
+  max_memory_used.default <- memory_data[11] + memory_data[12]
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   SeurObj.count <- RunPCA(SeurObj.count,
                           features=VariableFeatures(SeurObj.count), 
@@ -83,10 +86,11 @@ benchmark_Seurat <- function(SeurObj.count, random_state) {
                                  features=VariableFeatures(SeurObj.count))
   SeurObj.count <- FindClusters(SeurObj.count,
                                 random.seed=random_state)
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   labels <- unname(Idents(SeurObj.count))
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  memory_data <- gc()
   results <- list(time=Sys.time()-start_time,
-                  memory=gc()[12] - max_memory_used.default,
+                  memory=(memory_data[11] + memory_data[12]) - max_memory_used.default,
                   labels=labels)
   return(results)
 }
@@ -101,17 +105,19 @@ benchmark_monocle3 <- function(SeurObj.count, random_state) {
   #' @return a list of three elements: 'time', 'memory' and 'labels'.
   #'
   start_time <- Sys.time()
-  max_memory_used.default <- gc(reset=TRUE)[12]
+  memory_data <- gc(reset=TRUE)
+  max_memory_used.default <- memory_data[11] + memory_data[12]
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   SeurObj.count <- RunUMAP(SeurObj.count,
                            features=VariableFeatures(SeurObj.count),
                            seedd.use=random_state)
   CelDatSet <- as.cell_data_set(SeurObj.count)
   CelDatSet <- cluster_cells(CelDatSet, random_seed=random_state)
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   labels <- unname(CelDatSet@clusters@listData$UMAP$clusters)
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  memory_data <- gc()
   results <- list(time=Sys.time()-start_time,
-                  memory=gc()[12] - max_memory_used.default,
+                  memory=(memory_data[11] + memory_data[12]) - max_memory_used.default,
                   labels=labels)
   return(results)
 }
@@ -126,15 +132,17 @@ benchmark_SHARP <- function(expression.count, random_state) {
   #' @return a list of three elements: 'time', 'memory' and 'labels'.
   #'
   start_time <- Sys.time()
-  max_memory_used.default <- gc(reset=TRUE)[12]
+  memory_data <- gc(reset=TRUE)
+  max_memory_used.default <- memory_data[11] + memory_data[12]
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   results <- SHARP(scExp=expression.count,
                   exp.type="count",
                   rN.seed=random_state)  
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   labels <- results$pred_clusters
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  memory_data <- gc()
   results <- list(time=Sys.time()-start_time,
-                  memory=gc()[12]-max_memory_used.default,
+                  memory=(memory_data[11] + memory_data[12]) - max_memory_used.default,
                   labels=labels)
   return(results)
 }
@@ -149,16 +157,18 @@ benchmark_densityCut <- function(expression.count, random_state) {
   #' @return a list of three elements: 'time', 'memory' and 'labels'.
   #'
   start_time <- Sys.time()
-  max_memory_used.default <- gc(reset=TRUE)[12]
+  memory_data <- gc(reset=TRUE)
+  max_memory_used.default <- memory_data[11] + memory_data[12]
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   set.seed(random_state)
   log.expression.tpm <- log2(calculateTPM(expression.count) + 1)
   data <- t(log.expression.tpm)
   results <- DensityCut(data, show.plot = FALSE)
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   labels <- results$cluster
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  memory_data <- gc()
   results <- list(time=Sys.time()-start_time,
-                  memory=gc()[12] - max_memory_used.default,
+                  memory=(memory_data[11] + memory_data[12]) - max_memory_used.default,
                   labels=labels)
   return(results)
 }
@@ -169,6 +179,46 @@ benchmark_densityCut <- function(expression.count, random_state) {
 #     E N S E M B L E     #
 #      M E T H O D S      #
 ###########################
+benchmark_scEVE <- function(expression.init, params, random_state) {
+  #' Apply a SHARP clustering algorithm for the benchmark.
+  #' 
+  #' @param expression.init: a scRNA-seq dataset of raw count expression, without selected genes:
+  #' genes are rows | cells are cols.
+  #' @param params: a list of parameters.
+  #' @param random_state: a numeric.
+  #' 
+  #' @return a list of three elements: 'time', 'memory' and 'labels'.
+  #'
+  start_time <- Sys.time()
+  memory_data <- gc(reset=TRUE)
+  max_memory_used.default <- memory_data[11] + memory_data[12]
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  records <- do_scEVE(expression.init,
+                      params=params,
+                      figures=FALSE,
+                      random_state=random_state)
+  classification <- get_classification(records)
+  labels <- classification$pred
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  memory_data <- gc()
+  results <- list(time=log10(as.numeric(Sys.time()-start_time, units="secs")),
+                  memory=log10((memory_data[11] + memory_data[12]) - max_memory_used.default),
+                  labels=labels)
+  return(results)
+}
+
+setup_SAxE <- function(clusterings) {
+  #' Set up a table of clusterings for SAFE and SAME methods.
+  #' 
+  #' @param clusterings: a data.frame where: rows are cells | cols are methods | cells are labels.
+  #' 
+  #' @return a matrix where: rows are methods | cols are cells | cells are a numeric.
+  #' 
+  setup_SAxE.col <- function(col) {as.numeric(as.factor(col))}
+  result <- apply(X=clusterings, MARGIN=2, FUN=setup_SAxE.col)
+  return(result)
+}
+
 benchmark_SAFE <- function(expression.count, SeurObj.count, random_state,
                            clustering_methods=c()) {
   #' Apply a SAFE clustering algorithm for the benchmark, with the default individual methods.
@@ -183,19 +233,65 @@ benchmark_SAFE <- function(expression.count, SeurObj.count, random_state,
   #' @return a list of three elements: 'time', 'memory' and 'labels'.
   #'
   start_time <- Sys.time()
-  max_memory_used.default <- gc(reset=TRUE)[12]
+  memory_data <- gc(reset=TRUE)
+  max_memory_used.default <- memory_data[11] + memory_data[12]
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  if (length(clustering_methods)) {
+  if (length(clustering_methods) == 0) {
     clusterings <- individual_clustering(expression.count)
     }
-  else{clusterings <- apply_clustering_algorithms(expression.count, SeurObj.count,
+  else{
+    SeurObj.count <- RunUMAP(SeurObj.count,
+                             features=VariableFeatures(SeurObj.count),
+                             seed.use=random_state)
+    clusterings <- apply_clustering_algorithms(expression.count, SeurObj.count,
                                                clustering_methods, random_state)
+    clusterings <- setup_SAxE(clusterings)
   }
   cluster.ensemble <- SAFE(clusterings)
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  labels <- unname(Idents(SeurObj.count))
+  memory_data <- gc()
   results <- list(time=Sys.time()-start_time,
-                  memory=gc()[12] - max_memory_used.default,
+                  memory=(memory_data[11] + memory_data[12]) - max_memory_used.default,
+                  labels=labels)
+  return(results)
+}
+
+benchmark_SAME <- function(expression.count, SeurObj.count, random_state,
+                           clustering_methods=c(), criterion="BIC") {
+  #' Apply a SAFE clustering algorithm for the benchmark, with the default individual methods.
+  #' 
+  #' @param expression.count: a scRNA-seq dataset of raw count expression, with HVGs only:
+  #' genes are rows | cells are cols.
+  #' @param SeurObj.count: a Seurat Object of raw count expression, with selected genes.
+  #' FindVariableFeatures() and ScaleData() have been applied already.
+  #' @param random_state: a numeric.
+  #' @param clustering_methods: a vector of valid method names. If empty, uses default SAFE methods.
+  #' @param criterion: a character indicating if the best clustering corresponds to the best 'AIC' or 'BIC'.
+  #' 
+  #' @return a list of three elements: 'time', 'memory' and 'labels'.
+  #'
+  start_time <- Sys.time()
+  memory_data <- gc(reset=TRUE)
+  max_memory_used.default <- memory_data[11] + memory_data[12]
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  if (length(clustering_methods) == 0) {
+    clusterings <- individual_clustering(expression.count)
+  }
+  else{
+    SeurObj.count <- RunUMAP(SeurObj.count,
+                             features=VariableFeatures(SeurObj.count),
+                             seed.use=random_state)
+    clusterings <- apply_clustering_algorithms(expression.count, SeurObj.count,
+                                               clustering_methods, random_state)
+  }
+  clusterings <- setup_SAxE(clusterings)
+  cluster.ensemble <- SAMEclustering(Y=t(clusterings), rep=3, SEED=random_state)
+  solution <- glue("{criterion}cluster")
+  labels <- cluster.ensemble[[solution]]
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  memory_data <- gc()
+  results <- list(time=Sys.time()-start_time,
+                  memory=(memory_data[11] + memory_data[12]) - max_memory_used.default,
                   labels=labels)
   return(results)
 }

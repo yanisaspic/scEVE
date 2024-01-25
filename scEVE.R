@@ -78,11 +78,11 @@ do_scEVE <- function(expression.init,
     } #=========================================================================
     gc()
 
-    merge_pdfs(population)
     if (length(seeds) > 0) {
       records <- update_records(records, seeds, population)
       write.xlsx(records, "./records.xlsx", rowNames=TRUE)
     }
+    if (figures) {merge_pdfs(population)}
     
     seeds <- list()
     population <- get_undug_population(records)
@@ -92,36 +92,10 @@ do_scEVE <- function(expression.init,
   records$markers <- records$markers[is_marker,]
   write.xlsx(records, "./records.xlsx", rowNames=TRUE)
   
-  pdf(file="./figures/all.pdf")
+  pdf(file="./results.pdf")
   fig <- draw_scEVE(records)
   print(fig)
   dev.off()
   
   return(records)
-}
-
-benchmark_scEVE <- function(expression.init, params, random_state) {
-  #' Apply a SHARP clustering algorithm for the benchmark.
-  #' 
-  #' @param expression.init: a scRNA-seq dataset of raw count expression, without selected genes:
-  #' genes are rows | cells are cols.
-  #' @param params: a list of parameters.
-  #' @param random_state: a numeric.
-  #' 
-  #' @return a list of three elements: 'time', 'memory' and 'labels'.
-  #'
-  start_time <- Sys.time()
-  max_memory_used.default <- gc(reset=TRUE)[12]
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  records <- do_scEVE(expression.init,
-                      params=params,
-                      figures=FALSE,
-                      random_state=random_state)
-  classification <- get_classification(records)
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  labels <- classification$label
-  results <- list(time=Sys.time()-start_time,
-                  memory=gc()[12] - max_memory_used.default,
-                  labels=labels)
-  return(results)
 }

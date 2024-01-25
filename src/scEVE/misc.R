@@ -311,12 +311,6 @@ draw_scEVE <- function(records) {
   E(hierarchy_graph)$label <- data[-1,]$consensus
   nodes_order <- vertex_attr(hierarchy_graph)$name
   
-  # set nodes sizes w.r.t. population sizes
-  ########################################
-  sizes <- log(as.numeric(data$size), base=10) **1.2 * 10
-  vertex.size <- setNames(sizes, data$child)
-  vertex.size <- vertex.size[nodes_order]
-  
   # set nodes pie charts w.r.t. ground truth
   ##########################################
   classification <- get_classification(records, ground_truth = TRUE)
@@ -330,8 +324,7 @@ draw_scEVE <- function(records) {
        root=-1,
        vertex.shape="pie",
        vertex.pie=piecharts,
-       vertex.pie.color=list(colors),
-       vertex.size=vertex.size)
+       vertex.pie.color=list(colors))
   
   return(g)
 }
