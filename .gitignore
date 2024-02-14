@@ -1,3 +1,6 @@
 figures/*
 setup/samples/*
 data/*
+records.xlsx
+*.Rhistory
+*pycache*
