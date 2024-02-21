@@ -1,4 +1,4 @@
-"Functions called by get_seeds.R to identify seeds, i.e. groups of cells unambiguously assigned to a unique meta-clusters.
+"Functions used to identify seeds, i.e. groups of cells unambiguously assigned together.
 
 	2024/01/10 @yanisaspic"
 
@@ -270,6 +270,22 @@ get_minimal_support <- function(expression.init, clusterings, params) {
   return(minimal_support)
 }
 
+draw_seeds <- function(data.loop, seeds, population) {
+  #' Draw the seeds identified with a U-MAP.
+  #'
+  #' @param data.loop: a list of three data.frames: 'expression.loop' and 'SeurObj.loop', and 'ranked_genes.loop'.
+  #' @param seeds: a nested list, where each sub-list has three keys: 'consensus', 'cells' and 'clusters'.
+  #' @param population: a character.
+  #' 
+  data.loop$SeurObj.loop <- add_seeds(data.loop$SeurObj.loop, seeds)
+  pdf(file = glue("./figures/{population}_seeds.pdf"))
+  seeds_plot <- do_DimPlot(data.loop$SeurObj.loop,
+                           split.by="seeds",
+                           legend.position="none")
+  print(seeds_plot)
+  dev.off()
+}
+
 get_seeds <- function(expression.init, data.loop, clusterings, params, records, population, figures) {
   #' Get consensual seeds from a table of cluster labels.
   #'
@@ -334,13 +350,7 @@ get_seeds <- function(expression.init, data.loop, clusterings, params, records, 
     # draw the seeds
     ################
     if (figures) {
-      data.loop$SeurObj.loop <- add_seeds(data.loop$SeurObj.loop, seeds)
-      pdf(file = glue("./figures/{population}_seeds.pdf"))
-      seeds_plot <- do_DimPlot(data.loop$SeurObj.loop,
-                               split.by="seeds",
-                               legend.position="none")
-      print(seeds_plot)
-      dev.off()
+      draw_seeds(data.loop, seeds, population)
     }
     break() 
   }

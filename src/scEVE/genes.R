@@ -1,4 +1,4 @@
-"Functions called by get_genes.R to identify characteristic genes of seeds.
+"Functions called to identify characteristic genes of seeds.
 
 	2024/01/10 @yanisaspic"
 
@@ -167,27 +167,27 @@ get_markers <- function(seeds, occurrences.population) {
   #' 
   #' @return a nested list with two keys: 'seed' and 'all'.
   #' 
-  specific_markers <- lapply(X=seeds, 
-                             FUN=get_markers.seed, 
-                             occurrences.population=occurrences.population)
-  all_markers <- unlist(specific_markers)
-  markers <- list(seed=specific_markers, all=all_markers)
+  respective_markers <- lapply(X=seeds, 
+                               FUN=get_markers.seed, 
+                               occurrences.population=occurrences.population)
+  all_markers <- unlist(respective_markers)
+  markers <- list(seed=respective_markers, all=all_markers)
   return(markers)
 }
 
 add_specific_markers <- function(seeds, markers) {
   #' Add the markers w.r.t. the seeds.
   #'
-  #' @param seeds: a nested list, where each sub-list has four keys: 'consensus', 'cells', 'clusters' and 'genes'.
+  #' @param seeds: a nested list, where each sub-list has four keys: 'consensus', 'cells', 'clusters' and 'markers'.
   #' @param markers: a nested list with two keys: 'seed' and 'all'.
   #'
-  #' @return a nested list, where each sub-list has five keys: 'consensus', 'cells', 'clusters', 'genes' and 'markers'.
+  #' @return a nested list, where each sub-list has five keys: 'consensus', 'cells', 'clusters', 'markers' and 'specific_markers'.
   #'
   all_markers <- markers[["all"]]
   unspecific_markers <- unique(all_markers[duplicated(all_markers)])
   for (i in 1:length(seeds)) {
     specific_markers <- setdiff(markers$seed[[i]], unspecific_markers)
-    seeds[[i]]$markers <- specific_markers
+    seeds[[i]]$specific_markers <- specific_markers
   }
   return(seeds)
 }
@@ -242,7 +242,7 @@ get_genes <- function(data.loop, seeds, params, population, figures) {
   #' @param population: a character.
   #' @param figures: a boolean. If TRUE, draw figures summarizing the genes identification.
   #'
-  #' @return a nested list, where each sub-list has four keys: 'consensus', 'cells', 'clusters' and 'markers'.
+  #' @return a nested list, where each sub-list has five keys: 'consensus', 'cells', 'clusters', 'markers' and 'specific_markers'.
   #'
   
   # get seed-specific markers
@@ -254,6 +254,7 @@ get_genes <- function(data.loop, seeds, params, population, figures) {
     seeds[[i]]$markers <- markers.loop$seed[[i]]
     seeds[[i]]$occurrences <- NULL
   }
+  seeds <- add_specific_markers(seeds, markers.loop)
 
   if (figures) {
     efforts.frame <- get_efforts.frame(data.loop$ranked_genes.loop, seeds)

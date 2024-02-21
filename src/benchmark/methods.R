@@ -58,7 +58,7 @@ get_SeurObj.count <- function(expression.count) {
 }
 get_labels <- function(results){results$labels}
 save_time <- function(results){rep(results$time, length(results$labels))}
-save_memory <- function(results){rep(results$memory, length(results$labels))}
+save_peakRAM <- function(results){rep(results$peakRAM, length(results$labels))}
 
 
 
@@ -73,7 +73,7 @@ benchmark_Seurat <- function(SeurObj.count, random_state) {
   #' FindVariableFeatures() and ScaleData() have been applied already.
   #' @param random_state: a numeric.
   #' 
-  #' @return a list of three elements: 'time', 'memory' and 'labels'.
+  #' @return a list of three elements: 'time', 'peakRAM' and 'labels'.
   #'
   start_time <- Sys.time()
   memory_data <- gc(reset=TRUE)
@@ -89,8 +89,8 @@ benchmark_Seurat <- function(SeurObj.count, random_state) {
   labels <- unname(Idents(SeurObj.count))
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   memory_data <- gc()
-  results <- list(time=Sys.time()-start_time,
-                  memory=(memory_data[11] + memory_data[12]) - max_memory_used.default,
+  results <- list(time=as.numeric(Sys.time()-start_time, units="secs"),
+                  peakRAM=(memory_data[11] + memory_data[12]) - max_memory_used.default,
                   labels=labels)
   return(results)
 }
@@ -102,7 +102,7 @@ benchmark_monocle3 <- function(SeurObj.count, random_state) {
   #' FindVariableFeatures() and ScaleData() have been applied already.
   #' @param random_state: a numeric.
   #' 
-  #' @return a list of three elements: 'time', 'memory' and 'labels'.
+  #' @return a list of three elements: 'time', 'peakRAM' and 'labels'.
   #'
   start_time <- Sys.time()
   memory_data <- gc(reset=TRUE)
@@ -116,8 +116,8 @@ benchmark_monocle3 <- function(SeurObj.count, random_state) {
   labels <- unname(CelDatSet@clusters@listData$UMAP$clusters)
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   memory_data <- gc()
-  results <- list(time=Sys.time()-start_time,
-                  memory=(memory_data[11] + memory_data[12]) - max_memory_used.default,
+  results <- list(time=as.numeric(Sys.time()-start_time, units="secs"),
+                  peakRAM=(memory_data[11] + memory_data[12]) - max_memory_used.default,
                   labels=labels)
   return(results)
 }
@@ -129,7 +129,7 @@ benchmark_SHARP <- function(expression.count, random_state) {
   #' genes are rows | cells are cols.
   #' @param random_state: a numeric.
   #' 
-  #' @return a list of three elements: 'time', 'memory' and 'labels'.
+  #' @return a list of three elements: 'time', 'peakRAM' and 'labels'.
   #'
   start_time <- Sys.time()
   memory_data <- gc(reset=TRUE)
@@ -141,8 +141,8 @@ benchmark_SHARP <- function(expression.count, random_state) {
   labels <- results$pred_clusters
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   memory_data <- gc()
-  results <- list(time=Sys.time()-start_time,
-                  memory=(memory_data[11] + memory_data[12]) - max_memory_used.default,
+  results <- list(time=as.numeric(Sys.time()-start_time, units="secs"),
+                  peakRAM=(memory_data[11] + memory_data[12]) - max_memory_used.default,
                   labels=labels)
   return(results)
 }
@@ -154,7 +154,7 @@ benchmark_densityCut <- function(expression.count, random_state) {
   #' genes are rows | cells are cols.
   #' @param random_state: a numeric.
   #' 
-  #' @return a list of three elements: 'time', 'memory' and 'labels'.
+  #' @return a list of three elements: 'time', 'peakRAM' and 'labels'.
   #'
   start_time <- Sys.time()
   memory_data <- gc(reset=TRUE)
@@ -167,8 +167,8 @@ benchmark_densityCut <- function(expression.count, random_state) {
   labels <- results$cluster
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   memory_data <- gc()
-  results <- list(time=Sys.time()-start_time,
-                  memory=(memory_data[11] + memory_data[12]) - max_memory_used.default,
+  results <- list(time=as.numeric(Sys.time()-start_time, units="secs"),
+                  peakRAM=(memory_data[11] + memory_data[12]) - max_memory_used.default,
                   labels=labels)
   return(results)
 }
@@ -187,7 +187,7 @@ benchmark_scEVE <- function(expression.init, params, random_state) {
   #' @param params: a list of parameters.
   #' @param random_state: a numeric.
   #' 
-  #' @return a list of three elements: 'time', 'memory' and 'labels'.
+  #' @return a list of three elements: 'time', 'peakRAM' and 'labels'.
   #'
   start_time <- Sys.time()
   memory_data <- gc(reset=TRUE)
@@ -201,8 +201,8 @@ benchmark_scEVE <- function(expression.init, params, random_state) {
   labels <- classification$pred
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   memory_data <- gc()
-  results <- list(time=log10(as.numeric(Sys.time()-start_time, units="secs")),
-                  memory=log10((memory_data[11] + memory_data[12]) - max_memory_used.default),
+  results <- list(time=as.numeric(Sys.time()-start_time, units="secs"),
+                  peakRAM=(memory_data[11] + memory_data[12]) - max_memory_used.default,
                   labels=labels)
   return(results)
 }
@@ -230,7 +230,7 @@ benchmark_SAFE <- function(expression.count, SeurObj.count, random_state,
   #' @param random_state: a numeric.
   #' @param clustering_methods: a vector of valid method names. If empty, uses default SAFE methods.
   #' 
-  #' @return a list of three elements: 'time', 'memory' and 'labels'.
+  #' @return a list of three elements: 'time', 'peakRAM' and 'labels'.
   #'
   start_time <- Sys.time()
   memory_data <- gc(reset=TRUE)
@@ -250,8 +250,8 @@ benchmark_SAFE <- function(expression.count, SeurObj.count, random_state,
   cluster.ensemble <- SAFE(clusterings)
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   memory_data <- gc()
-  results <- list(time=Sys.time()-start_time,
-                  memory=(memory_data[11] + memory_data[12]) - max_memory_used.default,
+  results <- list(time=as.numeric(Sys.time()-start_time, units="secs"),
+                  peakRAM=(memory_data[11] + memory_data[12]) - max_memory_used.default,
                   labels=labels)
   return(results)
 }
@@ -268,7 +268,7 @@ benchmark_SAME <- function(expression.count, SeurObj.count, random_state,
   #' @param clustering_methods: a vector of valid method names. If empty, uses default SAFE methods.
   #' @param criterion: a character indicating if the best clustering corresponds to the best 'AIC' or 'BIC'.
   #' 
-  #' @return a list of three elements: 'time', 'memory' and 'labels'.
+  #' @return a list of three elements: 'time', 'peakRAM' and 'labels'.
   #'
   start_time <- Sys.time()
   memory_data <- gc(reset=TRUE)
@@ -290,8 +290,8 @@ benchmark_SAME <- function(expression.count, SeurObj.count, random_state,
   labels <- cluster.ensemble[[solution]]
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   memory_data <- gc()
-  results <- list(time=Sys.time()-start_time,
-                  memory=(memory_data[11] + memory_data[12]) - max_memory_used.default,
+  results <- list(time=as.numeric(Sys.time()-start_time, units="secs"),
+                  peakRAM=(memory_data[11] + memory_data[12]) - max_memory_used.default,
                   labels=labels)
   return(results)
 }

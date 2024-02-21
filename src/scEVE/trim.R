@@ -17,7 +17,7 @@ suppressPackageStartupMessages({
   library(cowplot)
 })
 
-init_records <- function(expression.init, params) {
+init_records <- function(expression.init) {
   #' Get a named list of three data.frames, with: 
   #' - 'cells': rows are cells | cols are populations. 
   #' The value of the cell i,j corresponds to the probability that a cell i belongs to a population j.
@@ -26,7 +26,6 @@ init_records <- function(expression.init, params) {
   #' - 'meta': rows are populations | cols are 'consensus', 'parent', 'n' and 'to_do'.
   #' 
   #' @param expression.init: the base scRNA-seq dataset: rows are genes | cols are cells.
-  #' @param params: a list of parameters, with 'root_consensus'.
   #' 
   #' @return a named list of three data.frames: 'cells', 'markers' and 'meta'.
   #' 
@@ -40,7 +39,7 @@ init_records <- function(expression.init, params) {
     )
   meta <- data.frame(
     consensus=0,
-    parent=as.character(NA),
+    parent="?",
     n=as.numeric(ncol(expression.init)),
     to_dig=as.numeric(1),
     row.names="C"
@@ -109,60 +108,45 @@ filter_expressed_genes <- function(ranked_genes, expression) {
   return(ranked_genes)
 }
 
-get_existing_pdfs <- function(population) {
-  #' Get the names of the existing pdf files (intermediate figures) w.r.t a population.
-  #'
-  #' @param population: a character.
-  #'
-  #' @return a vector of filenames.
-  #'
-  files <- c()
-  for (cat in c("trim", "clusterings", "seeds", "genes")) {
-    filename <- glue("./figures/{population}_{cat}.pdf")
-    if (file.exists(filename)) {
-      files <- c(files, filename)
-    }
-  }
-  return(files)
+get_populations_at_resolution <- function(sheet.cells, resolution) {
+  #' Get all the populations at a specific resolution.
+  #' The root population is resolution 1, and its children populations are resolution 2, etc.
+  #' 
+  #' @param sheet.cells: a data.frame where rows are cells | cols are populations | values are membership likelihood.
+  #' @param resolution: an integer.
+  #' 
+  #' @return a vector of population labels.
+  #' 
+  populations <- colnames(sheet.cells)
+  populations_at_resolution <- populations[nchar(populations)==resolution]
+  return(populations_at_resolution)
 }
 
-merge_pdfs <- function(population) {
-  #' Merge a group of pdf files together.
+get_cells_of_interest <- function(population, sheet.cells, params) {
+  #' Get all the cells of interest for the current iteration.
+  #' It corresponds to the cells most likely to belong to a target population.
+  #' A filter on minimum likelihood is applied: the threshold is defined in params.
   #' 
   #' @param population: a character.
+  #' @param sheet.cells: a data.frame where rows are cells | cols are populations | values are membership likelihood.
+  #' @param params: a list of parameters, with 'min_likelihood'.
   #' 
-  files <- get_existing_pdfs(population)
-  pdf_combine(input = files, output = glue("./figures/{population}.pdf"))
-  unlink(files)
-}
-
-update_records <- function(records, seeds, population) {
-  #' Add the results of a loop to the records.
-  #'
-  #' @param records: a named list of three data.frames: 'cells', 'markers' and 'meta'.
-  #' @param seeds: a nested list, where each sub-list has five keys: 'clusters', 'consensus', 'cells', 'genes' and 'markers'.
-  #' @param population: a character.
-  #'
-  #' @return a named list of three data.frames: 'cells', 'meta' and 'markers'.
-  #'
-  for (i in 1:length(seeds)) {
-    s <- seeds[[i]]
-    cluster_label <- glue("{population}{i}")
-    
-    # meta
-    ######
-    row.meta <- c(round(s$consensus,2), population, length(s$cells), TRUE)
-    records$meta[cluster_label,] <- row.meta
-    records$meta$consensus <- as.numeric(records$meta$consensus)
-    
-    # cells & markers
-    #################
-    col.cells <- rownames(records$cells) %in% s$cells
-    records$cells[, cluster_label] <- as.numeric(col.cells)
-    col.markers <- rownames(records$markers) %in% s$markers
-    records$markers[, cluster_label] <- as.numeric(col.markers)
+  #' @return a vector of cell labels.
+  #' 
+  if (population=="C") {return(rownames(sheet.cells))}  # all cells belong to the root population
+  sheet.cells <- sheet.cells[, get_populations_at_resolution(sheet.cells, nchar(population))]
+  
+  cell_is_interesting <- function(cell_likelihoods) {
+    max_likelihood <- max(cell_likelihoods)
+    most_likely_population <- names(which.max(cell_likelihoods))
+    is_interesting <- (max_likelihood > 0) &
+      (max_likelihood >= params$min_likelihood) &
+      (most_likely_population == population)
   }
-  return(records)
+  
+  cells_are_interesting <- apply(X=sheet.cells, MARGIN=1, FUN=cell_is_interesting)
+  cells_of_interest <- rownames(sheet.cells[cells_are_interesting, ])
+  return(cells_of_interest)
 }
 
 trim_data <- function(expression.init, 
@@ -187,7 +171,7 @@ trim_data <- function(expression.init,
   #' @return a list of three data.frames: 'expression.loop' and 'SeurObj.loop', and 'ranked_genes.loop'.
   #' 
   data.loop <- list()
-  cells_of_interest <- rownames(records$cells)[records$cells[, population]==1]
+  cells_of_interest <- get_cells_of_interest(population, records$cells, params)
   
   if (length(cells_of_interest)>=100) {
     
@@ -226,105 +210,5 @@ trim_data <- function(expression.init,
     print(trim_plot)
     dev.off()
   }
-    
   return(data.loop)
-}
-
-get_classification <- function(records, ground_truth=FALSE) {
-  #' Get a data.frame associating every unique cell to its most informative cluster label.
-  #' 
-  #' @param records: a list of three data.frames: 'meta', 'cells' and 'markers'.
-  #' @param ground_truth: a boolean. If TRUE, cell names must follow the {ground_truth}_{i} format.
-  #' Add a column corresponding to the ground truth labels.
-  #' 
-  #' @return a data.frame with two columns: 'cell' and 'pred'. 
-  #' If ground_truth is TRUE, there is a third column 'ground'.
-  #' 
-  all_cells <- rownames(records$cells)
-  classification <- data.frame(cell=all_cells, pred="C")
-  for (cluster in colnames(records$cells)) {
-    is_in_cluster <- records$cells[, cluster]==1
-    cells_in_cluster <- all_cells[is_in_cluster]
-    classification[classification$cell %in% cells_in_cluster, "pred"] <- cluster
-  }
-  
-  if (ground_truth) {
-    ground_truth <- sapply(strsplit(classification$cell, split="_"), "[", 1)
-    classification$ground <- ground_truth
-  }
-  return(classification)
-}
-
-get_piecharts.population <- function(population, classification, records) {
-  #' Get the number of individuals from each ground truth group within a population.
-  #'
-  #' @param population: a character.
-  #' @param classification: a data.frame with three columns: 'cell', 'pred' and 'ground'. 
-  #' @param records: a list of three data.frames: 'meta', 'cells' and 'markers'.
-  #'
-  #' @return a vector of numeric.
-  #' 
-  cells_of_interest <- rownames(records$cells[records$cells[population]==1,])
-  data <- classification[classification$cell %in% cells_of_interest,]
-  
-  data <- data %>% count(ground)
-  piechart <- setNames(object = data$n, data$ground)
-  ground_groups <- unique(classification$ground)
-  missing_groups <- setdiff(ground_groups, data$ground)
-  
-  piechart[missing_groups] <- 0
-  piechart <- piechart[ground_groups]
-  return(piechart)
-}
-
-get_piecharts <- function(records, classification) {
-  #' For each population, get the number of individuals composing it, split by ground truth groups.
-  #' 
-  #' @param records: a list of three data.frames: 'meta', 'cells' and 'markers'.
-  #' @param classification: a data.frame with three columns: 'cell', 'pred' and 'ground'. 
-  #' 
-  #' @return a list of vectors.
-  #' The vector elements are ordered and correspond to the number of individuals in each ground truth group.
-  #'
-  pred_groups <- colnames(records$cells)
-  piecharts <- lapply(X=pred_groups,
-                      FUN=get_piecharts.population,
-                      records=records,
-                      classification=classification)
-  names(piecharts) <- (pred_groups)
-  return(piecharts)
-}
-
-draw_scEVE <- function(records) {
-  #' Draw a graph with pie charts as vertices.
-  #' The vertices are the cell population and the edges their hierarchy.
-  #' 
-  #' @param records: a list of three data.frames: 'meta', 'cells' and 'markers'.
-  #' 
-  #' @return a graph.
-  #'
-  data <- data.frame(parent=records$meta$parent,
-                     child=row.names(records$meta), 
-                     consensus=records$meta$consensus,
-                     size=records$meta$n)
-  hierarchy_graph <- graph.data.frame(data[-1,], directed=TRUE)
-  E(hierarchy_graph)$label <- data[-1,]$consensus
-  nodes_order <- vertex_attr(hierarchy_graph)$name
-  
-  # set nodes pie charts w.r.t. ground truth
-  ##########################################
-  classification <- get_classification(records, ground_truth = TRUE)
-  ground_groups <- unique(classification$ground)
-  colors <- hue_pal()(length(ground_groups))
-  piecharts <- get_piecharts(records, classification)
-  piecharts <- piecharts[nodes_order]
-
-  g <- plot(hierarchy_graph,
-       layout=layout_as_tree,
-       root=-1,
-       vertex.shape="pie",
-       vertex.pie=piecharts,
-       vertex.pie.color=list(colors))
-  
-  return(g)
 }

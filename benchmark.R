@@ -23,7 +23,7 @@ expression.count <- get_expression.count(expression.init, N_HVGs)
 SeurObj.count <- get_SeurObj.count(expression.count)
 
 data <- list(expr=expression.count, seurobj=SeurObj.count, 
-             ground=ground_truth, time=0, memory=0)
+             ground=ground_truth, time=0, peakRAM=0)
 bd <- BenchDesign(data=data)
 
 ########################
@@ -32,22 +32,22 @@ bd <- BenchDesign(data=data)
 bd <- bd %>%
   addMethod(label="Seurat",
             func=benchmark_Seurat,
-            post=list(labels=get_labels, time=save_time, memory=save_memory),
+            post=list(labels=get_labels, time=save_time, peakRAM=save_peakRAM),
             params=rlang::quos(SeurObj.count=seurobj,
                                random_state=RANDOM_STATE)) %>%
   addMethod(label="densityCut",
             func=benchmark_densityCut,
-            post=list(labels=get_labels, time=save_time, memory=save_memory),
+            post=list(labels=get_labels, time=save_time, peakRAM=save_peakRAM),
             params=rlang::quos(expression.count=expr,
                                random_state=RANDOM_STATE)) %>%
   addMethod(label="monocle3",
             func=benchmark_monocle3,
-            post=list(labels=get_labels, time=save_time, memory=save_memory),
+            post=list(labels=get_labels, time=save_time, peakRAM=save_peakRAM),
             params=rlang::quos(SeurObj.count=seurobj,
                                random_state=RANDOM_STATE)) %>%
   addMethod(label="SHARP",
             func=benchmark_SHARP,
-            post=list(labels=get_labels, time=save_time, memory=save_memory),
+            post=list(labels=get_labels, time=save_time, peakRAM=save_peakRAM),
             params=rlang::quos(expression.count=expr,
                                random_state=RANDOM_STATE))
 
@@ -55,31 +55,33 @@ bd <- bd %>%
 # add ensemble methods
 ######################
 bd <- bd %>%
-  addMethod(label="SAME.AIC",
+  addMethod(label="SAME",
             func=benchmark_SAME,
-            post=list(labels=get_labels, time=save_time, memory=save_memory),
-            params=rlang::quos(expression.count=expr,
-                               SeurObj.count=seurobj,
-                               clustering_methods=get_default_hyperparameters()$clustering_methods,
-                               random_state=RANDOM_STATE,
-                               criterion="AIC")) %>%
-  addMethod(label="SAME.BIC",
-            func=benchmark_SAME,
-            post=list(labels=get_labels, time=save_time, memory=save_memory),
+            post=list(labels=get_labels, time=save_time, peakRAM=save_peakRAM),
             params=rlang::quos(expression.count=expr,
                                SeurObj.count=seurobj,
                                clustering_methods=get_default_hyperparameters()$clustering_methods,
                                random_state=RANDOM_STATE,
                                criterion="BIC"))
 
-# the iterative pre-processing steps of scEVE are incompatible with SummarizedBenchmark
-scEVE_results <- benchmark_scEVE(expression.init = expression.init,
-                                 params = get_default_hyperparameters(),
-                                 random_state = RANDOM_STATE)
-
 # run the benchmark
 ###################
-sb <- buildBench(bd=bd, truthCols=c(labels="ground", time="time", memory="memory"))
+sb <- buildBench(bd=bd, truthCols=c(labels="ground", time="time", peakRAM="peakRAM"))
+
+# the iterative pre-processing steps of scEVE
+# are incompatible with SummarizedBenchmark
+# -> we benchmark it separately below
+###
+params <- get_default_hyperparameters()
+benchmark_scEVE.strategy <- function(strategy) {
+  params$leftovers_strategy <- strategy
+  results <- benchmark_scEVE(expression.init=expression.init,
+                             params=params,
+                             random_state=RANDOM_STATE)
+  return(results)
+}
+leftovers_strategy <- c("default", "assign", "assign_weighted")
+scEVE.results <- lapply(X=leftovers_strategy, FUN=benchmark_scEVE.with_leftovers_strategy)
 
 #############
 # add metrics
@@ -89,7 +91,7 @@ sb <- sb %>%
   addPerformanceMetric(assay="labels", evalMetric="AMI", evalFunction=get_AMI) %>%
   addPerformanceMetric(assay="labels", evalMetric="NMI", evalFunction=get_NMI) %>%
   addPerformanceMetric(assay="time", evalMetric="time", evalFunction=get_time) %>%
-  addPerformanceMetric(assay="memory", evalMetric="peakRAM", evalFunction=get_memory)
+  addPerformanceMetric(assay="peakRAM", evalMetric="peakRAM", evalFunction=get_peakRAM)
 metrics <- estimatePerformanceMetrics(sb, tidy=TRUE)[, c("label", "value", "performanceMetric")]
 metrics$highlight <- "no"
 metrics <- add_scEVE_metrics(metrics, scEVE_results, ground_truth)
