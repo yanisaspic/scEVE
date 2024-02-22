@@ -252,7 +252,6 @@ get_genes <- function(data.loop, seeds, params, population, figures) {
   markers.loop <- get_markers(seeds, occurrences.loop)
   for (i in 1:length(seeds)) {
     seeds[[i]]$markers <- markers.loop$seed[[i]]
-    seeds[[i]]$occurrences <- NULL
   }
   seeds <- add_specific_markers(seeds, markers.loop)
 

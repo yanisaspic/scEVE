@@ -36,7 +36,7 @@ merge_pdfs <- function(population) {
   unlink(files)
 }
 
-update_records.cells <- function(records, seeds, population, data.loop, params) {
+get_sheet.cells <- function(records, seeds, population, data.loop, params) {
   #' Get a sheet of cell membership likelihood w.r.t. populations.
   #' The value i,j in the results indicates the likelihood of a cell i belonging to the population j.
   #'
@@ -51,15 +51,17 @@ update_records.cells <- function(records, seeds, population, data.loop, params) 
   #' 
   #' @return a data.frame where rows are cells | cols are populations | values are membership likelihood.
   #' 
-  if(params$leftovers_strategy=="default"){sheet.cells <- get_sheet.cells.default(records, seeds, population)}
-  if(params$leftovers_strategy=="soft"){sheet.cells <- get_sheet.cells.soft(records, seeds, population, data.loop)}
+  if (params$leftovers_strategy=="default") {sheet.cells <- 
+    get_sheet.cells.default(records, seeds, population)}
+  else {sheet.cells <- 
+    get_sheet.cells.soft(records, seeds, population, data.loop, params)}
   
   records$cells <- cbind(records$cells, sheet.cells)
   records$cells <- apply(X=records$cells, MARGIN=c(1,2), FUN=as.numeric)
   return(records$cells)
 }
 
-update_records.meta <- function(records, seeds, population, sheet.cells, params) {
+get_sheet.meta <- function(records, seeds, population, sheet.cells, params) {
   #' Get a sheet of metadata w.r.t. populations.
   #' 
   #' @param records: a named list of three data.frames: 'cells', 'markers' and 'meta'.
@@ -128,15 +130,10 @@ update_records <- function(records, seeds, population, data.loop, params) {
   #' @return a named list of three data.frames: 'cells', 'meta' and 'markers'.
   #'
   sheet.cells <- get_sheet.cells(records, seeds, population, data.loop, params)
-  sheet.meta <- get_sheet.meta(records, seeds, population, sheet.cells)
-  if(params$leftovers_strategy != "default"){seeds <- update_markers(data.loop, sheet.cells)}
-  sheet.markers <- get_sheet.markers(records, seeds, population)
+  sheet.meta <- get_sheet.meta(records, seeds, population, sheet.cells, params)
+  sheet.markers <- get_sheet.markers(records, seeds, population, data.loop)
   
-  records <- list(
-    cells=sheet.cells,
-    meta=sheet.meta,
-    markers=sheet.markers
-  )
+  records <- list(cells=sheet.cells, meta=sheet.meta, markers=sheet.markers)
   return(records)
 }
 
