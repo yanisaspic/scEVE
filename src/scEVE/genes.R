@@ -206,6 +206,26 @@ get_markers.plot <- function(markers) {
   return(markers.plot)
 }
 
+draw_genes <- function(data.loop, seeds, population) {
+  #' Draw two plots corresponding to:
+  #' - a boxplot, with populations as x-axis and number of HVGs measured as y-axis.
+  #' - an upsetplot, where each bar corresponds to a set of marker genes. 
+  #' The marker genes specific to a population are colorized.
+  #' 
+  #' @param data.loop: a list of three data.frames: 'expression.loop' and 'SeurObj.loop', and 'ranked_genes.loop'.
+  #' @param seeds: a nested list, where each sub-list has three keys: 'consensus', 'cells' and 'clusters'.
+  #' @param population: a character.
+  #' 
+  efforts.frame <- get_efforts.frame(data.loop$ranked_genes.loop, seeds)
+  efforts.plot <- get_efforts.plot(efforts.frame)
+  markers.plot <- get_markers.plot(markers.loop)
+  
+  pdf(file = glue("./figures/{population}_genes.pdf"))
+  composite_genes_plot <- do.call(grid.arrange, list(efforts=efforts.plot, markers=markers.plot))
+  print(composite_genes_plot)
+  dev.off()
+}
+
 get_genes <- function(data.loop, seeds, params, population, figures) {
   #' Identify relevant genes to characterize the seeds found.
   #' If too little genes are identified, the iteration is considered seedless.
@@ -228,17 +248,7 @@ get_genes <- function(data.loop, seeds, params, population, figures) {
     seeds[[i]]$markers <- markers.loop$seed[[i]]
   }
   seeds <- add_specific_markers(seeds, markers.loop)
-
-  if (figures) {
-    efforts.frame <- get_efforts.frame(data.loop$ranked_genes.loop, seeds)
-    efforts.plot <- get_efforts.plot(efforts.frame)
-    markers.plot <- get_markers.plot(markers.loop)
-    
-    pdf(file = glue("./figures/{population}_genes.pdf"))
-    composite_genes_plot <- do.call(grid.arrange, list(efforts=efforts.plot, markers=markers.plot))
-    print(composite_genes_plot)
-    dev.off() 
-  }
+  if (figures) {draw_genes(data.loop, seeds, population)}
   
   # if any seed is poorly characterized, the iteration is fruitless
   #################################################################

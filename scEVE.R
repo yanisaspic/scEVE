@@ -92,12 +92,13 @@ do_scEVE <- function(expression.init,
     population <- get_undug_population(records)
     seeds <- list()
     gc()
+    
   } #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
   # is_marker <- as.logical(apply(X=records$markers, MARGIN=1, FUN=sum))
   # records$markers <- records$markers[is_marker,]
   write.xlsx(records, "./records.xlsx", rowNames=TRUE)
-  return(record)
+  return(records)
   
   pdf(file="./results.pdf")
   fig <- draw_scEVE(records)

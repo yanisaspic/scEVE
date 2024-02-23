@@ -102,6 +102,21 @@ f1_score <- function(TP, FN, FP) {
   return(F1)
 }
 
+add_genes_to_f1_scores.seed <- function(f1_scores.seed, genes) {
+  #' Add a set of genes to a named vector of F1 scores.
+  #' Their value is 0.
+  #'
+  #' @param f1_scores.seed: a named vector of f1-scores. The names are genes.
+  #' @param genes: a vector of characters.
+  #' 
+  #' @return a named vector of f1-scores. The names are genes.
+  #' 
+  f1_scores.seed[genes] <- 0
+  # the vector is sorted alphabetically for the downstream cbind:
+  f1_scores.seed <- f1_scores.seed[order(names(f1_scores.seed))]
+  return(f1_scores.seed)
+}
+
 get_f1_scores.seed <- function(seed, occurrences.population) {
   #' Get the F1-scores of every marker genes of a seed. Its value is between 0 and 1, 
   #' and the higher it is, the better a marker gene is to characterize a subpopulation.
@@ -113,7 +128,6 @@ get_f1_scores.seed <- function(seed, occurrences.population) {
   #' 
   occ.seed <- seed$occurrences[seed$markers,]
   occ.pop <- occurrences.population[seed$markers,]
-  non_markers <- setdiff(rownames(occurrences.population), seed$markers)
   
   TP <- occ.seed[, ncol(occ.seed)]
   data <- data.frame(TP=TP,
@@ -123,9 +137,9 @@ get_f1_scores.seed <- function(seed, occurrences.population) {
   
   get_f1_score.marker <- function(row) {f1_score(row['TP'], row['FN'], row['FP'])}
   f1_scores.seed <- apply(X=data, MARGIN=1, FUN=get_f1_score.marker)
-  
-  f1_scores.seed[non_markers] <- 0
-  f1_scores.seed <- f1_scores.seed[order(names(f1_scores.seed))]
+
+  non_markers <- setdiff(rownames(occurrences.population), seed$markers)
+  f1_scores.seed <- add_genes_to_f1_scores.seed(f1_scores.seed, non_markers)
   return(f1_scores.seed)
 }
 
@@ -143,12 +157,8 @@ get_sheet.markers <- function(records, seeds, population, occurrences.population
   get_f1_scores.seed.wrapper <- function(i) {get_f1_scores.seed(seeds[[i]], occurrences.population)}
   f1_scores <- lapply(X=1:length(seeds), FUN=get_f1_scores.seed.wrapper)
   
-  # non_HVGs <- setdiff(rownames(records$markers), rownames(occurrences.population))
-  # add_non_HVGs <- function(f1_scores.seed) {
-  #   f1_scores.seed[non_HVGs] <- 0
-  #   return(f1_scores.seed)
-  # }
-  
+  non_HVGs <- setdiff(rownames(records$markers), rownames(occurrences.population))
+  f1_scores <- lapply(X=f1_scores, FUN=add_genes_to_f1_scores.seed, genes=non_HVGs)
   sheet.markers <- do.call(cbind, f1_scores)
   
   name_subpopulation <- function(i){glue("{population}{i}")}
@@ -178,6 +188,8 @@ update_records <- function(records, seeds, population, data.loop, params) {
   
   if (params$leftovers_strategy != "default") {
     seeds <- update_all_seeds(seeds, population, data.loop, sheet.cells)
+    draw_seeds(data.loop, seeds, population)
+    draw_genes(data.loop, seeds, population)
   }
   # leftover cells have been soft-clustered and some cells have been displaced;
   # the cells and the occurrences of each seed must be updated.

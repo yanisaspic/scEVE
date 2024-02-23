@@ -349,9 +349,8 @@ get_seeds <- function(expression.init, data.loop, clusterings, params, records, 
     
     # draw the seeds
     ################
-    if (figures) {
-      draw_seeds(data.loop, seeds, population)
-    }
+    if (figures) {draw_seeds(data.loop, seeds, population)}
+    
     break() 
   }
   return(seeds)
