@@ -10,33 +10,7 @@ suppressPackageStartupMessages({
   library(ggplotify)
   library(ggVennDiagram)
 })
-
-get_occurrences <- function(ranked_genes) {
-  #' Get the genes sampled w.r.t. effort, i.e. the number of top ranking genes sampled.
-  #' 
-  #' @param ranked_genes: a data.frame where: ranks are rows | cells are cols | cells are genes.
-  #' 
-  #' @return a data.frame where: genes are rows | sampling effort is cols | cells are number of occurrences. 
-  #'
-  max_effort <- max(apply(X=!is.na(ranked_genes), MARGIN=2, FUN=sum))
-  all_genes <- sort(unique(as.vector(ranked_genes)))
-  
-  get_occurrences_at_effort <- function(effort) {
-    data <- ranked_genes[1:effort,]
-    occurrences_at_effort <- table(as.vector(data))
-    unsampled_genes <- setdiff(all_genes, names(occurrences_at_effort))
-    occurrences_at_effort[unsampled_genes] <- 0
-    return(occurrences_at_effort[all_genes])
-  }
-  
-  results <- lapply(X=1:max_effort, FUN=get_occurrences_at_effort)
-  occurrences <- as.data.frame(do.call(cbind, results))
-  occurrences <- as.data.frame(occurrences)
-  colnames(occurrences) <- 1:max_effort
-  occurrences[] <- lapply(occurrences, as.numeric)
-  
-  return(occurrences)
-}
+source("./src/scEVE/utils/misc.R")
 
 add_occurrences_to_seeds <- function(ranked_genes, seeds) {
   #' Add the occurrences respective to each seed. This information is used for the overrepresentation test.

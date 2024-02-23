@@ -5,7 +5,7 @@
 suppressPackageStartupMessages({
   library(glue)
 })
-source("./src/scEVE/trim.R")
+source("./src/scEVE/utils/misc.R")
 source("./src/scEVE/leftovers_strategy/soft.R")
 source("./src/scEVE/leftovers_strategy/default.R")
 
@@ -36,7 +36,8 @@ merge_pdfs <- function(population) {
   unlink(files)
 }
 
-get_sheet.cells <- function(records, seeds, population, data.loop, params) {
+get_sheet.cells <- function(records, seeds, population,
+                            data.loop, params, occurrences.population) {
   #' Get a sheet of cell membership likelihood w.r.t. populations.
   #' The value i,j in the results indicates the likelihood of a cell i belonging to the population j.
   #'
@@ -47,72 +48,114 @@ get_sheet.cells <- function(records, seeds, population, data.loop, params) {
   #' @param params: a list of parameters, with 'leftovers_strategy'.
   #' Currently, 2 strategies exist:
   #' + default: leftover cells stay in the leftover seed.
-  #' + soft: leftover cells are soft-clustered w.r.t. marker genes they express.
+  #' + naive: leftover cells are soft-clustered w.r.t. markers they express, regardless of their expression level.
+  #' @param occurrences.population: a data.frame where: genes are rows | sampling effort is cols | cells are occurrences.
   #' 
   #' @return a data.frame where rows are cells | cols are populations | values are membership likelihood.
   #' 
   if (params$leftovers_strategy=="default") {sheet.cells <- 
     get_sheet.cells.default(records, seeds, population)}
   else {sheet.cells <- 
-    get_sheet.cells.soft(records, seeds, population, data.loop, params)}
+    get_sheet.cells.soft(records, seeds, population, data.loop, params, occurrences.population)}
   
   records$cells <- cbind(records$cells, sheet.cells)
   records$cells <- apply(X=records$cells, MARGIN=c(1,2), FUN=as.numeric)
   return(records$cells)
 }
 
-get_sheet.meta <- function(records, seeds, population, sheet.cells, params) {
+get_sheet.meta <- function(records, seeds, population) {
   #' Get a sheet of metadata w.r.t. populations.
   #' 
   #' @param records: a named list of three data.frames: 'cells', 'markers' and 'meta'.
   #' @param seeds: a nested list, where each sub-list has five keys: 'consensus', 'cells', 'clusters', 'markers' and 'specific_markers'.
   #' @param population: a character.
-  #' @param sheet.cells: a data.frame where rows are cells | cols are populations | values are membership likelihood.
-  #' @param params: a list of parameters, with 'min_likelihood' and 'leftovers_strategy'.
-  #' Currently, 2 strategies exist:
-  #' + default: leftover cells stay in the leftover seed.
-  #' + soft: leftover cells are soft-clustered w.r.t. marker genes they express.
   #'
   #' @return a data.frame with four columns: 'consensus', 'parent', 'n', and 'to_dig'.
   #'
   name_subpopulation <- function(i){glue("{population}{i}")}
   get_row <- function(i) {
     subpopulation <- name_subpopulation(i)
-    cells_of_interest <- get_cells_of_interest(subpopulation, sheet.cells, params)
-    row <- c(consensus=seeds[[i]]$consensus,
-             parent=population,
-             n=length(cells_of_interest),
-             to_dig=TRUE)
+    row <- c(consensus=seeds[[i]]$consensus, parent=population, 
+                  n=length(seeds[[i]]$cells), to_dig=TRUE)
     return(row)
   }
-  rows <- lapply(X=1:length(seeds), FUN=get_row)
   
+  rows <- lapply(X=1:length(seeds), FUN=get_row)
   sheet.meta <- do.call(rbind, rows)
   rownames(sheet.meta) <- name_subpopulation(1:length(seeds))
-  
   records$meta <- rbind(records$meta, sheet.meta)
   records$meta$consensus <- as.numeric(records$meta$consensus)
   return(records$meta)
 }
 
-get_sheet.markers <- function(records, seeds, population) {
+f1_score <- function(TP, FN, FP) {
+  #' Get the F1-score. Its formula is: 2*TP / (2*TP + FN + FP), with:
+  #'
+  #' @TP: a numeric. The number of cells expressing marker i within population j.
+  #' @FN: a numeric. The number of cells not expressing marker i within population j.
+  #' @FP: a numeric. The number of cells expressing marker i outside of population j.
+  #' 
+  #' @return a numeric between 0 and 1.
+  #' 
+  F1 <- 2*TP / (2*TP + FN + FP)
+  F1 <- round(F1, 2)
+  return(F1)
+}
+
+get_f1_scores.seed <- function(seed, occurrences.population) {
+  #' Get the F1-scores of every marker genes of a seed. Its value is between 0 and 1, 
+  #' and the higher it is, the better a marker gene is to characterize a subpopulation.
+  #' 
+  #' @param seed: a list with six keys: 'consensus', 'cells', 'clusters', 'markers', 'specific_markers' and 'occurrences'.
+  #' @param occurrences.population: a data.frame where: genes are rows | sampling effort is cols | cells are occurrences.
+  #'
+  #' @return a named vector of f1-scores. The names are marker genes.
+  #' 
+  occ.seed <- seed$occurrences[seed$markers,]
+  occ.pop <- occurrences.population[seed$markers,]
+  non_markers <- setdiff(rownames(occurrences.population), seed$markers)
+  
+  TP <- occ.seed[, ncol(occ.seed)]
+  data <- data.frame(TP=TP,
+                     FN=length(seed$cells) - TP,
+                     FP=occ.pop[, ncol(occ.pop)] - TP)
+  rownames(data) <- seed$markers
+  
+  get_f1_score.marker <- function(row) {f1_score(row['TP'], row['FN'], row['FP'])}
+  f1_scores.seed <- apply(X=data, MARGIN=1, FUN=get_f1_score.marker)
+  
+  f1_scores.seed[non_markers] <- 0
+  f1_scores.seed <- f1_scores.seed[order(names(f1_scores.seed))]
+  return(f1_scores.seed)
+}
+
+get_sheet.markers <- function(records, seeds, population, occurrences.population) {
   #' Get a sheet of marker genes w.r.t. populations.
-  #' The value i,j is 1 if the gene i is marker for the population j. It is 0 otherwise.
+  #' The value i,j is the F1-score of marker i w.r.t. population j (see get_f1_score.gene).
   #' 
   #' @param records: a named list of three data.frames: 'cells', 'markers' and 'meta'.
-  #' @param seeds: a nested list, where each sub-list has four keys: 'consensus', 'cells', 'clusters' and 'markers'.
+  #' @param seeds: a nested list, where each sub-list has six keys: 'consensus', 'cells', 'clusters', 'markers', 'specific_markers' and 'occurrences'.
   #' @param population: a character.
+  #' @param occurrences.population: a data.frame where: genes are rows | sampling effort is cols | cells are occurrences.
   #' 
   #' @return a data.frame where rows are genes | cols are populations | values are binary.
   #' 
-  sheet.markers <- records$markers
-  for (i in 1:length(seeds)) {
-    s <- seeds[[i]]
-    cluster_label <- glue("{population}{i}")
-    col.markers <- rownames(sheet.markers) %in% s$markers
-    sheet.markers[, cluster_label] <- as.numeric(col.markers)
-  }
-  return(sheet.markers)
+  get_f1_scores.seed.wrapper <- function(i) {get_f1_scores.seed(seeds[[i]], occurrences.population)}
+  f1_scores <- lapply(X=1:length(seeds), FUN=get_f1_scores.seed.wrapper)
+  
+  # non_HVGs <- setdiff(rownames(records$markers), rownames(occurrences.population))
+  # add_non_HVGs <- function(f1_scores.seed) {
+  #   f1_scores.seed[non_HVGs] <- 0
+  #   return(f1_scores.seed)
+  # }
+  
+  sheet.markers <- do.call(cbind, f1_scores)
+  
+  name_subpopulation <- function(i){glue("{population}{i}")}
+  colnames(sheet.markers) <- sapply(X=1:length(seeds), FUN=name_subpopulation)
+  records$markers <- cbind(records$markers, sheet.markers)
+  records$markers <- apply(X=records$markers, MARGIN=c(1,2), FUN=as.numeric)
+  return(records$markers)
 }
 
 update_records <- function(records, seeds, population, data.loop, params) {
@@ -122,17 +165,25 @@ update_records <- function(records, seeds, population, data.loop, params) {
   #' @param seeds: a nested list, where each sub-list has five keys: 'clusters', 'consensus', 'cells', 'genes' and 'markers'.
   #' @param population: a character.
   #' @param data.loop: a list of three data.frames: 'expression.loop' and 'SeurObj.loop', and 'ranked_genes.loop'.
-  #' @param params: a list of parameters, with 'min_likelihood' and 'leftovers_strategy'.
+  #' @param params: a list of parameters with 'leftovers_strategy'.
   #' Currently, 2 strategies exist:
   #' + default: leftover cells stay in the leftover seed.
-  #' + soft: leftover cells are soft-clustered w.r.t. marker genes they express.
+  #' + naive: leftover cells are soft-clustered w.r.t. markers they express, regardless of their expression level.
   #'
   #' @return a named list of three data.frames: 'cells', 'meta' and 'markers'.
   #'
-  sheet.cells <- get_sheet.cells(records, seeds, population, data.loop, params)
-  sheet.meta <- get_sheet.meta(records, seeds, population, sheet.cells, params)
-  sheet.markers <- get_sheet.markers(records, seeds, population, data.loop)
+  occurrences.population <- get_occurrences(data.loop$ranked_genes.loop)
+  sheet.cells <- get_sheet.cells(records, seeds, population,
+                                 data.loop, params, occurrences.population)
   
+  if (params$leftovers_strategy != "default") {
+    seeds <- update_all_seeds(seeds, population, data.loop, sheet.cells)
+  }
+  # leftover cells have been soft-clustered and some cells have been displaced;
+  # the cells and the occurrences of each seed must be updated.
+  
+  sheet.meta <- get_sheet.meta(records, seeds, population)
+  sheet.markers <- get_sheet.markers(records, seeds, population, occurrences.population)
   records <- list(cells=sheet.cells, meta=sheet.meta, markers=sheet.markers)
   return(records)
 }

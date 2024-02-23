@@ -1,4 +1,4 @@
-"Misc. functions called by multiple R scripts.
+"Functions called to trim the data specific to an iteration.
 
 	2024/01/23 @yanisaspic"
 
@@ -16,6 +16,7 @@ suppressPackageStartupMessages({
   library(ggplot2)
   library(cowplot)
 })
+source("./src/scEVE/utils/misc.R")
 
 init_records <- function(expression.init) {
   #' Get a named list of three data.frames, with: 
@@ -122,33 +123,6 @@ get_populations_at_resolution <- function(sheet.cells, resolution) {
   return(populations_at_resolution)
 }
 
-get_cells_of_interest <- function(population, sheet.cells, params) {
-  #' Get all the cells of interest for the current iteration.
-  #' It corresponds to the cells most likely to belong to a target population.
-  #' A filter on minimum likelihood is applied: the threshold is defined in params.
-  #' 
-  #' @param population: a character.
-  #' @param sheet.cells: a data.frame where rows are cells | cols are populations | values are membership likelihood.
-  #' @param params: a list of parameters, with 'min_likelihood'.
-  #' 
-  #' @return a vector of cell labels.
-  #' 
-  if (population=="C") {return(rownames(sheet.cells))}  # all cells belong to the root population
-  sheet.cells <- sheet.cells[, get_populations_at_resolution(sheet.cells, nchar(population))]
-  
-  cell_is_interesting <- function(cell_likelihoods) {
-    max_likelihood <- max(cell_likelihoods)
-    most_likely_population <- names(which.max(cell_likelihoods))
-    is_interesting <- (max_likelihood > 0) &
-      (max_likelihood >= params$min_likelihood) &
-      (most_likely_population == population)
-  }
-  
-  cells_are_interesting <- apply(X=sheet.cells, MARGIN=1, FUN=cell_is_interesting)
-  cells_of_interest <- rownames(sheet.cells[cells_are_interesting, ])
-  return(cells_of_interest)
-}
-
 trim_data <- function(expression.init, 
                       population, 
                       records, 
@@ -171,7 +145,7 @@ trim_data <- function(expression.init,
   #' @return a list of three data.frames: 'expression.loop' and 'SeurObj.loop', and 'ranked_genes.loop'.
   #' 
   data.loop <- list()
-  cells_of_interest <- get_cells_of_interest(population, records$cells, params)
+  cells_of_interest <- get_cells_of_interest(population, records$cells)
   
   if (length(cells_of_interest)>=100) {
     

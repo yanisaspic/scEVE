@@ -18,7 +18,6 @@ get_default_hyperparameters <- function() {
   #' - leftovers_strategy: a valid strategy to handle leftover cells. Currently, 2 strategies exist:
   #' + default: leftover cells are in the leftover seed
   #' + soft: a leftover cell is soft-clustered w.r.t. marker genes it expresses
-  #' - min_likelihood: minimum likelihood expected to include a cell in a subsequent iteration
   #' 
   #' @return a list of hyperparameters.
   #' 
@@ -27,8 +26,7 @@ get_default_hyperparameters <- function() {
     min_prop_cells=0.001, # rare cells subpopulation: 1/1000
     root_consensus=0.17, # 0.17: >2 methods
     clustering_methods=c("Seurat", "monocle3", "SHARP", "densityCut"),
-    leftovers_strategy="default",
-    min_likelihood=0
+    leftovers_strategy="default"
   )
   return(params)
 }
@@ -84,21 +82,22 @@ do_scEVE <- function(expression.init,
       
       break()
     } #=========================================================================
-    gc()
-
+    
     if (length(seeds)>0) {
       records <- update_records(records, seeds, population, data.loop, params)
       write.xlsx(records, "./records.xlsx", rowNames=TRUE)
     }
     if (figures){merge_pdfs(population)}
     
-    seeds <- list()
     population <- get_undug_population(records)
+    seeds <- list()
+    gc()
   } #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  is_marker <- as.logical(apply(X=records$markers, MARGIN=1, FUN=sum))
-  records$markers <- records$markers[is_marker,]
+  # is_marker <- as.logical(apply(X=records$markers, MARGIN=1, FUN=sum))
+  # records$markers <- records$markers[is_marker,]
   write.xlsx(records, "./records.xlsx", rowNames=TRUE)
+  return(record)
   
   pdf(file="./results.pdf")
   fig <- draw_scEVE(records)
