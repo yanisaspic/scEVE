@@ -1,4 +1,5 @@
-"Functions called to generate results with the default strategy: leftover cells are in the leftover seed.
+"Functions called to generate cell clusters with the default strategy: 
+  leftover cells are in the leftover seed.
 
 	2024/02/20 @yanisaspic"
 

@@ -15,18 +15,26 @@ get_default_hyperparameters <- function() {
   #' - root_consensus: minimum consensus threshold to consider a seed.
   #' - clustering_methods: a vector of valid method names. Currently, 8 methods are implemented:
   #' Seurat, monocle3, SHARP, densityCut, CIDR, scLCA, scCCESS.Kmeans, scCCESS.SIMLR.
-  #' - leftovers_strategy: a valid strategy to handle leftover cells. Currently, 2 strategies exist:
+  #' 
+  #' -> leftovers_strategy: a valid strategy to handle leftover cells. Currently, 2 strategies exist:
   #' + default: leftover cells are in the leftover seed
-  #' + soft: a leftover cell is soft-clustered w.r.t. marker genes it expresses
+  #' + naive: a leftover cell is soft-clustered w.r.t. marker genes it expresses. 
+  #' All markers expressed contribute equally.
+  #' + weighted: similar to naive, but the contribution of a marker gene is weighted by its expression level.
+  #' 
+  #' -> markers_strategy: a valid strategy to report marker genes. Currently, 2 strategies exist:
+  #' + default: markers are reported in a binary matrix. If marker i is over-represented in population j, it is 1.
+  #' + weighted: markers are reported with a value between 0 and 1. It corresponds to the F1 score.
   #' 
   #' @return a list of hyperparameters.
   #' 
   params <- list(
-    n_HVGs=500,
+    n_HVGs=500, # see Theis et al.
     min_prop_cells=0.001, # rare cells subpopulation: 1/1000
     root_consensus=0.17, # 0.17: >2 methods
-    clustering_methods=c("Seurat", "monocle3", "SHARP", "densityCut"),
-    leftovers_strategy="default"
+    clustering_methods=c("Seurat", "monocle3", "SHARP", "densityCut"), # see Yu et al.
+    leftovers_strategy="default",
+    markers_strategy="default"
   )
   return(params)
 }

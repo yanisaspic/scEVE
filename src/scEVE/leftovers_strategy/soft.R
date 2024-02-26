@@ -5,6 +5,7 @@
 
 suppressPackageStartupMessages({
   library(glue)
+  library(pracma)
 })
 source("./src/scEVE/genes.R")
 source("./src/scEVE/utils/misc.R")
@@ -37,7 +38,7 @@ update_leftover_seed <- function(seeds, population, sheet.cells, data.loop, occu
 
 get_likelihoods.cell.naive <- function(ranked_genes.cell, seeds) {
   #' Get the membership likelihoods of a leftover cell according to the genes it expresses.
-  #' It corresponds to the percentage of specific markers expressed by the cell.
+  #' It corresponds to the percentage of specific markers expressed.
   #' The likelihoods are normalized so that their sum is equal to 1.
   #'
   #' @param ranked_genes.cell: a vector of genes expressed.
@@ -45,13 +46,36 @@ get_likelihoods.cell.naive <- function(ranked_genes.cell, seeds) {
   #' 
   #' @return a vector of numeric.
   #' 
-  get_likelihood <- function(seed) {
+  get_likelihood.seed <- function(seed) {
     specific_markers_expressed <- intersect(ranked_genes.cell, seed$specific_markers)
     likelihood <- length(specific_markers_expressed) / length(seed$specific_markers)
     return(likelihood)
   }
-  likelihoods.cell <- sapply(X=seeds, FUN=get_likelihood)
-  likelihoods.cell <- likelihoods.cell / sum(likelihoods.cell)
+  likelihoods.cell <- sapply(X=seeds, FUN=get_likelihood.seed)
+  return(likelihoods.cell)
+}
+
+get_likelihoods.cell.weighted <- function(ranked_genes.cell, seeds) {
+  #' Get the membership likelihoods of a leftover cell according to the genes it expresses.
+  #' It corresponds to the AUC of the cumulative percentage of specific markers expressed w.r.t. the effort.
+  #' The likelihoods are normalized so that their sum is equal to 1.
+  #' 
+  #' @param ranked_genes.cell: a vector of genes expressed.
+  #' @param seeds: a nested list, where each sub-list has five keys: 'consensus', 'cells', 'clusters', 'markers' and 'specific_markers'.
+  #' 
+  #' @return a vector of numeric.
+  #' 
+  maximal_effort <- sum(!is.na(ranked_genes.cell))
+  get_likelihoods.effort <- function(effort) {get_likelihoods.cell.naive(ranked_genes.cell[1:effort], seeds)}
+  likelihoods.efforts <- sapply(X=1:maximal_effort, get_likelihoods.effort)
+  # get the likelihoods with a variable effort (i.e. a variable number of top genes sampled)
+  
+  likelihoods.efforts <- cbind(0, likelihoods.efforts) # -> area calculation requires at least two points
+  get_likelihoods.seed <- function(i) {trapz(x=0:maximal_effort, y=likelihoods.efforts[i,])}
+  likelihoods.cell <- sapply(X=1:nrow(likelihoods.efforts), FUN=get_likelihoods.seed)
+  # the average likelihoods regardless of effort is the area under curve of a plot
+  # where the x-axis is the effort and the y-axis is the likelihood.
+  
   return(likelihoods.cell)
 }
 
@@ -59,7 +83,8 @@ get_leftover_likelihoods <- function(ranked_genes, fun_likelihoods.cell, seeds, 
   #' Get a sheet of cell membership likelihood w.r.t. populations specific to cells.
   #' The value i,j in the results indicates the likelihood of a cell i belonging to the population j.
   #' The leftover cells are soft-clustered to the existing seeds according to the specific markers they express.
-  #' The likelihood is a value between 0 and 1 related to the percentage of specific markers expressed by a leftover cell.
+  #' The likelihoods are normalized for each cell so that their sum is equal to 1.
+  #' Thus, the likelihood is a value between 0 and 1 related to the percentage of specific markers expressed by a leftover cell.
   #'
   #' @param ranked_genes: a data.frame where: ranks are rows | cells are cols | cells are genes.
   #' @param fun_likelihoods.cell: a function namespace. It is specific to the strategy used to compute the likelihood ("naive" or "weighted).
@@ -69,6 +94,16 @@ get_leftover_likelihoods <- function(ranked_genes, fun_likelihoods.cell, seeds, 
   #' @return a data.frame where rows are cells | cols are populations | values are membership likelihood.
   #'
   leftover_likelihoods <- apply(X=ranked_genes, MARGIN=2, FUN=fun_likelihoods.cell, seeds=seeds)
+  total_likelihoods <- apply(X=leftover_likelihoods, MARGIN=2, FUN=sum)
+  get_normalized_likelihoods <- function(cell) {leftover_likelihoods[, cell] / total_likelihoods[cell]}
+  leftover_likelihoods <- sapply(X=colnames(leftover_likelihoods), FUN=get_normalized_likelihoods)
+  # normalize the likelihoods so that their sum is equal to 1 for each cell.
+  
+  remove_infinites <- function(x) {if(!is.finite(x)) 0}
+  leftover_likelihoods <- apply(X=leftover_likelihoods, MARGIN=c(1,2), FUN=remove_infinites)
+  # if no marker gene is expressed by a cell, the normalized leftover likelihoods is not finite.
+  # these values are replaced with 0: no marker gene is expressed at all, so all the likelihoods are 0.
+  
   name_subpopulation <- function(i){glue("{population}{i}")}
   rownames(leftover_likelihoods) <- sapply(X=1:nrow(leftover_likelihoods),
                                            FUN=name_subpopulation)
@@ -153,5 +188,3 @@ update_all_seeds <- function(seeds, population, data.loop, sheet.cells) {
   seeds <- lapply(X=1:length(seeds), FUN=update_seed)
   return(seeds)
 }
-  
-plot_something <- function() {}
