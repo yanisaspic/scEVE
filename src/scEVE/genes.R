@@ -206,18 +206,17 @@ get_markers.plot <- function(markers) {
   return(markers.plot)
 }
 
-draw_genes <- function(data.loop, seeds, population, occurrences.population) {
+draw_genes <- function(data.loop, seeds, population) {
   #' Draw two plots corresponding to:
   #' - a boxplot, with populations as x-axis and number of HVGs measured as y-axis.
   #' - an upsetplot, where each bar corresponds to a set of marker genes. 
   #' The marker genes specific to a population are colorized.
   #' 
-  #' @param data.loop: a list of three data.frames: 'expression.loop' and 'SeurObj.loop', and 'ranked_genes.loop'.
+  #' @param data.loop: a list of four data.frames: 'expression.loop', 'occurrences.loop', 'SeurObj.loop', and 'ranked_genes.loop'.
   #' @param seeds: a nested list, where each sub-list has three keys: 'consensus', 'cells' and 'clusters'.
   #' @param population: a character.
-  #' @param occurrences.population: a data.frame where: genes are rows | sampling effort is cols | cells are occurrences.
   #' 
-  markers.loop <- get_markers(seeds, occurrences.population)
+  markers.loop <- get_markers(seeds, data.loop$occurrences.loop)
   efforts.frame <- get_efforts.frame(data.loop$ranked_genes.loop, seeds)
   efforts.plot <- get_efforts.plot(efforts.frame)
   markers.plot <- get_markers.plot(markers.loop)
@@ -232,7 +231,7 @@ get_genes <- function(data.loop, seeds, params, population, figures) {
   #' Identify relevant genes to characterize the seeds found.
   #' If too little genes are identified, the iteration is considered seedless.
   #' 
-  #' @param data.loop: a list of three data.frames: 'expression.loop' and 'SeurObj.loop', and 'ranked_genes.loop'.
+  #' @param data.loop: a list of four data.frames: 'expression.loop', 'occurrences.loop', 'SeurObj.loop', and 'ranked_genes.loop'.
   #' @param seeds: a nested list, where each sub-list has three keys: 'consensus', 'cells' and 'clusters'.
   #' @param params: a list of parameters, with 'n_HVGs'.
   #' @param population: a character.
@@ -244,11 +243,10 @@ get_genes <- function(data.loop, seeds, params, population, figures) {
   # get seed-specific markers
   ###########################
   seeds <- add_occurrences_to_seeds(data.loop$ranked_genes.loop, seeds)
-  occurrences.population <- get_occurrences(data.loop$ranked_genes.loop)
-  markers.loop <- get_markers(seeds, occurrences.population)
+  markers.loop <- get_markers(seeds, data.loop$occurrences.loop)
   for (i in 1:length(seeds)) {seeds[[i]]$markers <- markers.loop$seed[[i]]}
   seeds <- add_specific_markers(seeds, markers.loop)
-  if (figures) {draw_genes(data.loop, seeds, population, occurrences.population)}
+  if (figures) {draw_genes(data.loop, seeds, population)}
   
   # if any seed is poorly characterized, the iteration is fruitless
   #################################################################

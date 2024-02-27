@@ -6,6 +6,7 @@ source("./src/scEVE/trim.R")
 source("./src/scEVE/genes.R")
 source("./src/scEVE/seeds.R")
 source("./src/scEVE/results.R")
+source("./src/scEVE/utils/misc.R")
 source("./src/scEVE/clusterings.R")
 
 get_default_hyperparameters <- function() {
@@ -86,6 +87,7 @@ do_scEVE <- function(expression.init,
                          records, population, figures)
       
       if (length(seeds)==0){break()}
+      data.loop$occurrences.loop <- get_occurrences(data.loop$ranked_genes.loop)
       seeds <- get_genes(data.loop, seeds, params, population, figures)
       
       break()
@@ -103,8 +105,8 @@ do_scEVE <- function(expression.init,
     
   } #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-  # is_marker <- as.logical(apply(X=records$markers, MARGIN=1, FUN=sum))
-  # records$markers <- records$markers[is_marker,]
+  is_marker <- function(row) {sum(row) > 0}
+  records$markers <- records$markers[apply(X=records$markers, MARGIN=1, FUN=is_marker),]
   write.xlsx(records, "./records.xlsx", rowNames=TRUE)
   return(records)
   

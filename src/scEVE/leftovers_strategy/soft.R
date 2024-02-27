@@ -11,14 +11,13 @@ source("./src/scEVE/genes.R")
 source("./src/scEVE/utils/misc.R")
 source("./src/scEVE/leftovers_strategy/default.R")
 
-update_leftover_seed <- function(seeds, population, sheet.cells, data.loop, occurrences.population) {
+update_leftover_seed <- function(seeds, population, sheet.cells, data.loop) {
   #' Update the cells and the markers of the leftover seed to account for cells displaced after the soft-clustering.
   #' 
   #' @param seeds: a nested list, where each sub-list has five keys: 'clusters', 'consensus', 'cells', 'genes' and 'markers'.
   #' @param population: a character.
-  #' @param data.loop: a list of three data.frames: 'expression.loop' and 'SeurObj.loop', and 'ranked_genes.loop'.
   #' @param sheet.cells: a data.frame where rows are cells | cols are populations | values are membership likelihood.
-  #' @param occurrences.population: a data.frame where: genes are rows | sampling effort is cols | cells are occurrences.
+  #' @param data.loop: a list of four data.frames: 'expression.loop', 'occurrences.loop', 'SeurObj.loop', and 'ranked_genes.loop'.
   #' 
   #' @return a nested list, where each sub-list has five keys: 'clusters', 'consensus', 'cells', 'genes' and 'markers'.
   #'
@@ -27,7 +26,7 @@ update_leftover_seed <- function(seeds, population, sheet.cells, data.loop, occu
   leftover_seed$cells <- get_cells_of_interest(leftover_subpopulation, sheet.cells)
   leftover_seed$occurrences <- get_occurrences(data.loop$ranked_genes.loop[, leftover_seed$cells])
   
-  markers_after_update <- get_markers.seed(leftover_seed, occurrences.population)
+  markers_after_update <- get_markers.seed(leftover_seed, data.loop$occurrences.loop)
   leftover_seed$markers <- intersect(leftover_seed$markers, markers_after_update) 
   leftover_seed$specific_markers <- intersect(leftover_seed$markers, leftover_seed$specific_markers)
   # the markers kept after the update are also over-represented before the update.
@@ -96,23 +95,46 @@ get_leftover_likelihoods <- function(ranked_genes, fun_likelihoods.cell, seeds, 
   leftover_likelihoods <- apply(X=ranked_genes, MARGIN=2, FUN=fun_likelihoods.cell, seeds=seeds)
   total_likelihoods <- apply(X=leftover_likelihoods, MARGIN=2, FUN=sum)
   get_normalized_likelihoods <- function(cell) {leftover_likelihoods[, cell] / total_likelihoods[cell]}
-  leftover_likelihoods <- sapply(X=colnames(leftover_likelihoods), FUN=get_normalized_likelihoods)
+  normalized_likelihoods <- sapply(X=colnames(leftover_likelihoods), FUN=get_normalized_likelihoods)
   # normalize the likelihoods so that their sum is equal to 1 for each cell.
   
-  remove_infinites <- function(x) {if(!is.finite(x)) 0}
-  leftover_likelihoods <- apply(X=leftover_likelihoods, MARGIN=c(1,2), FUN=remove_infinites)
+  replace_infinites <- function(x) {ifelse(is.finite(x), x, 0)}
+  normalized_likelihoods <- apply(X=normalized_likelihoods, MARGIN=c(1,2), FUN=replace_infinites)
   # if no marker gene is expressed by a cell, the normalized leftover likelihoods is not finite.
   # these values are replaced with 0: no marker gene is expressed at all, so all the likelihoods are 0.
   
   name_subpopulation <- function(i){glue("{population}{i}")}
-  rownames(leftover_likelihoods) <- sapply(X=1:nrow(leftover_likelihoods),
-                                           FUN=name_subpopulation)
-  leftover_likelihoods <- t(leftover_likelihoods)
-  return(leftover_likelihoods)
+  rownames(normalized_likelihoods) <- sapply(X=1:nrow(normalized_likelihoods),
+                                             FUN=name_subpopulation)
+  normalized_likelihoods <- t(normalized_likelihoods)
+  return(normalized_likelihoods)
 }
 
-get_sheet.cells.soft <- function(records, seeds, population,
-                                 data.loop, params, occurrences.population) {
+update_all_seeds <- function(seeds, population, data.loop, sheet.cells) {
+  #' Update the cells and the occurrences of all the seeds to account for the cells dispatched after soft-clustering.
+  #' This function must be called before generating the meta and markers sheets.
+  #' 
+  #' @param seeds: a nested list, where each sub-list has five keys: 'clusters', 'consensus', 'cells', 'genes' and 'markers'.
+  #' @param population: a character.
+  #' @param data.loop: a list of four data.frames: 'expression.loop', 'occurrences.loop', 'SeurObj.loop', and 'ranked_genes.loop'.
+  #' @param sheet.cells: a data.frame where rows are cells | cols are populations | values are membership likelihood.
+  #' 
+  #' @return a nested list, where each sub-list has five keys: 'clusters', 'consensus', 'cells', 'genes' and 'markers'.
+  #'
+  name_subpopulation <- function(i){glue("{population}{i}")}
+  update_seed <- function(i) {
+    seed <- seeds[[i]]
+    subpopulation <- name_subpopulation(i)
+    seed$cells <- get_cells_of_interest(subpopulation, sheet.cells)
+    seed$occurrences <- get_occurrences(data.loop$ranked_genes.loop[, seed$cells])
+    return(seed)
+  }
+  
+  seeds <- lapply(X=1:length(seeds), FUN=update_seed)
+  return(seeds)
+}
+
+get_sheet.cells.soft <- function(records, seeds, population, data.loop, params) {
   #' Get a sheet of cell membership likelihood w.r.t. populations.
   #' The value i,j in the results indicates the likelihood of a cell i belonging to the population j.
   #' The leftover cells are soft-clustered to the existing seeds according to the specific markers they express.
@@ -122,9 +144,8 @@ get_sheet.cells.soft <- function(records, seeds, population,
   #' @param records: a named list of three data.frames: 'cells', 'markers' and 'meta'.
   #' @param seeds: a nested list, where each sub-list has five keys: 'consensus', 'cells', 'clusters', 'markers' and 'specific_markers'.
   #' @param population: a character.
-  #' @param data.loop: a list of three data.frames: 'expression.loop' and 'SeurObj.loop', and 'ranked_genes.loop'.
+  #' @param data.loop: a list of four data.frames: 'expression.loop', 'occurrences.loop', 'SeurObj.loop', and 'ranked_genes.loop'.
   #' @param params: a list of parameters, with 'leftovers_strategy'.
-  #' @param occurrences.population: a data.frame where: genes are rows | sampling effort is cols | cells are occurrences.
   #' 
   #' @return a data.frame where rows are cells | cols are populations | values are membership likelihood.
   #' 
@@ -145,8 +166,7 @@ get_sheet.cells.soft <- function(records, seeds, population,
                                                              fun_likelihoods.cell, 
                                                              seeds, population)
     
-    seeds <- update_leftover_seed(seeds, population, leftover_likelihoods.current,
-                                  data.loop, occurrences.population)
+    seeds <- update_leftover_seed(seeds, population, leftover_likelihoods.current, data.loop)
     # the leftover seed is updated (cells, markers and specific_markers)
     # to account for cells displaced w.r.t. their maximum likelihood
     
@@ -163,28 +183,4 @@ get_sheet.cells.soft <- function(records, seeds, population,
   
   sheet.cells[leftover_cells.init,] <- leftover_likelihoods.init
   return(sheet.cells)
-}
-
-update_all_seeds <- function(seeds, population, data.loop, sheet.cells) {
-  #' Update the cells and the occurrences of all the seeds to account for the cells dispatched after soft-clustering.
-  #' This function must be called before generating the meta and markers sheets.
-  #' 
-  #' @param seeds: a nested list, where each sub-list has five keys: 'clusters', 'consensus', 'cells', 'genes' and 'markers'.
-  #' @param population: a character.
-  #' @param data.loop: a list of three data.frames: 'expression.loop' and 'SeurObj.loop', and 'ranked_genes.loop'.
-  #' @param sheet.cells: a data.frame where rows are cells | cols are populations | values are membership likelihood.
-  #' 
-  #' @return a nested list, where each sub-list has five keys: 'clusters', 'consensus', 'cells', 'genes' and 'markers'.
-  #'
-  name_subpopulation <- function(i){glue("{population}{i}")}
-  update_seed <- function(i) {
-    seed <- seeds[[i]]
-    subpopulation <- name_subpopulation(i)
-    seed$cells <- get_cells_of_interest(subpopulation, sheet.cells)
-    seed$occurrences <- get_occurrences(data.loop$ranked_genes.loop[, seed$cells])
-    return(seed)
-  }
-  
-  seeds <- lapply(X=1:length(seeds), FUN=update_seed)
-  return(seeds)
 }
