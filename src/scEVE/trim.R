@@ -109,20 +109,6 @@ filter_expressed_genes <- function(ranked_genes, expression) {
   return(ranked_genes)
 }
 
-get_populations_at_resolution <- function(sheet.cells, resolution) {
-  #' Get all the populations at a specific resolution.
-  #' The root population is resolution 1, and its children populations are resolution 2, etc.
-  #' 
-  #' @param sheet.cells: a data.frame where rows are cells | cols are populations | values are membership likelihood.
-  #' @param resolution: an integer.
-  #' 
-  #' @return a vector of population labels.
-  #' 
-  populations <- colnames(sheet.cells)
-  populations_at_resolution <- populations[nchar(populations)==resolution]
-  return(populations_at_resolution)
-}
-
 trim_data <- function(expression.init, 
                       population, 
                       records, 

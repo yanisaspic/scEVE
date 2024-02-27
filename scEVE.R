@@ -52,7 +52,9 @@ do_scEVE <- function(expression.init,
   #' @param figures: a boolean. If TRUE, draw figures summarizing the iterative clustering of populations.
   #' @param random_state: a numeric.
   #' 
-  #' @return a list of three data.frames: 'meta', 'cells', 'markers'.
+  #' @return a list with two elements: 
+  #' - records: a list of three data.frames: 'meta', 'cells', 'markers'. It corresponds to the generated xlsx.
+  #' - labels: a named factor, where names are cells and values are cluster labels.
   #' 
   
   ## I N I T
@@ -108,12 +110,6 @@ do_scEVE <- function(expression.init,
   is_marker <- function(row) {sum(row) > 0}
   records$markers <- records$markers[apply(X=records$markers, MARGIN=1, FUN=is_marker),]
   write.xlsx(records, "./records.xlsx", rowNames=TRUE)
-  return(records)
-  
-  pdf(file="./results.pdf")
-  fig <- draw_scEVE(records)
-  print(fig)
-  dev.off()
-  
-  return(records)
+  results <- list(records=records, labels=factor(get_leaves(records$cells)))
+  return(results)
 }

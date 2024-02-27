@@ -19,8 +19,8 @@ suppressPackageStartupMessages({
   library(SAMEclustering)
   library(clusterExperiment)
 })
-source("./src/scEVE/misc.R")
-source("./src/scEVE/clusterings.R")
+source("./src/scEVE/trim.R")        # get_n_HVGs
+source("./src/scEVE/clusterings.R") # individual methods
 
 get_expression.count <- function(expression.init, n_HVGs) {
   #' Get a raw count expression matrix with HVGs only.

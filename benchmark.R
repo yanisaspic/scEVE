@@ -6,12 +6,11 @@ suppressPackageStartupMessages({
   library(glue)
   library(SummarizedBenchmark)
 })
-
 source("./scEVE.R")
 source("./src/benchmark/metrics.R")
 source("./src/benchmark/methods.R")
 
-N_HVGs=5000
+N_HVGs_FOR_INDIVIDUAL_METHODS=5000
 RANDOM_STATE=0
 
 ####################

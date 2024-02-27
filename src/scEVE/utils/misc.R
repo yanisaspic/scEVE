@@ -2,6 +2,20 @@
 
 	2024/02/22 @yanisaspic"
 
+get_populations_at_resolution <- function(sheet.cells, resolution) {
+  #' Get all the populations at a specific resolution.
+  #' The root population is resolution 1, and its children populations are resolution 2, etc.
+  #' 
+  #' @param sheet.cells: a data.frame where rows are cells | cols are populations | values are membership likelihood.
+  #' @param resolution: an integer.
+  #' 
+  #' @return a vector of population labels.
+  #' 
+  populations <- colnames(sheet.cells)
+  populations_at_resolution <- populations[nchar(populations)==resolution]
+  return(populations_at_resolution)
+}
+
 get_cells_of_interest <- function(population, sheet.cells) {
   #' Get all the cells of interest for the current iteration.
   #' It corresponds to the cells most likely to belong to a target population.
