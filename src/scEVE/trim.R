@@ -109,13 +109,44 @@ filter_expressed_genes <- function(ranked_genes, expression) {
   return(ranked_genes)
 }
 
-trim_data <- function(expression.init, 
-                      population, 
-                      records, 
-                      params,
-                      figures,
-                      random_state,
-                      SeurObj.init) {
+get_expression.count <- function(expression.init, n_HVGs) {
+  #' Get a raw count expression matrix with HVGs only.
+  #' This pre-processing step is required for SHARP, CIDR and scLCA.
+  #' It is also required to get a log2 tpm matrix for scCCESS.Kmeans, scCCESS.SIMLR, densityCut.
+  #' 
+  #' @param expression.init: a scRNA-seq dataset of raw count expression, without selected genes:
+  #' genes are rows | cells are cols.
+  #' @param n_HVGs: a numeric.
+  #' 
+  #' @return a scRNA-seq dataset of raw count expression, with HVGs only:
+  #' genes are rows | cells are cols.
+  #' 
+  HVGs <- get_n_HVGs(expression.init, n=n_HVGs)
+  expression.count <- expression.init[HVGs,]
+  return(expression.count)
+}
+
+get_SeurObj.count <- function(expression.count) {
+  #' Get a Seurat Object from a raw count expression matrix with HVGs only.
+  #' This pre-processing step is required for Seurat and monocle3 methods.
+  #' 
+  #' @param expression.count: a scRNA-seq dataset of raw count expression, with HVGs only:
+  #' genes are rows | cells are cols.
+  #' @param n_HVGs: a numeric.
+  #' 
+  #' @return a Seurat Object of raw count expression, with selected genes.
+  #' FindVariableFeatures() and ScaleData() have been applied already.
+  #' 
+  SeurObj.count <- CreateSeuratObject(expression.count)
+  VariableFeatures(SeurObj.count) <- rownames(expression.count)
+  SeurObj.count <- NormalizeData(SeurObj.count)
+  SeurObj.count <- ScaleData(SeurObj.count,
+                             features=VariableFeatures(SeurObj.count))
+  return(SeurObj.count)
+}
+
+trim_data <- function(expression.init, population, records, params,
+                      figures, random_state, SeurObj.init) {
   #' Trim a scRNA-seq dataset to keep only the cells of interest and a subset of their HVGs.
   #' 
   #' @param expression.init: the base scRNA-seq dataset: rows are genes | cols are cells.
@@ -135,23 +166,17 @@ trim_data <- function(expression.init,
   
   if (length(cells_of_interest)>=100) {
     
-    # get discriminant transcriptome of the subpopulation
+    # trim the matrix to account for the cells of interest only and their HVGs
     #####################################################
     expression.loop <- expression.init[, cells_of_interest]
-    HVGs.loop <- get_n_HVGs(expression.loop, n=params$n_HVGs)
-    expression.loop <- expression.loop[HVGs.loop,]
+    expression.loop <- get_expression.count(expression.loop, params$n_HVGs)
     
-    # set-up data for SeurObj-dependent clustering algorithms
-    #########################################################
-    SeurObj.loop <- CreateSeuratObject(expression.loop)
-    VariableFeatures(SeurObj.loop) <- HVGs.loop
-    SeurObj.loop <- NormalizeData(SeurObj.loop)
-    SeurObj.loop <- ScaleData(SeurObj.loop,
-                              features=VariableFeatures(SeurObj.loop))
-    SeurObj.loop <- RunUMAP(SeurObj.loop,
-                            features=VariableFeatures(SeurObj.loop),
+    # set-up a SeuratObject for downstream methods and visualizations
+    #####################################################
+    SeurObj.loop <- get_SeurObj.count(expression.loop)
+    SeurObj.loop <- RunUMAP(SeurObj.loop, features=VariableFeatures(SeurObj.loop),
                             seed.use=random_state)
-   
+
     # rank and filter the expressed genes
     #####################################
     ranked_genes.loop <- get_ranked_genes(expression.loop)

@@ -37,7 +37,7 @@ do_Seurat <- function(SeurObj.count, random_state) {
   #' Apply a Seurat clustering algorithm.
   #' 
   #' @param SeurObj.count: a Seurat Object of raw count expression, with selected genes.
-  #' FindVariableFeatures() and ScaleData() must have been applied already.
+  #' VariableFeatures() and ScaleData() must have been applied already.
   #' @param random_state: a numeric.
   #' 
   #' @return a named factor, where names are cells and values are cluster labels.
@@ -57,11 +57,15 @@ do_monocle3 <- function(SeurObj.count, random_state) {
   #' Apply a monocle3 clustering algorithm.
   #' 
   #' @param SeurObj.count: a Seurat Object of raw count expression, with selected genes.
-  #' FindVariableFeatures() and ScaleData() must have been applied already.
+  #' VariableFeatures() and ScaleData() must have been applied already.
   #' @param random_state: a numeric.
   #' 
   #' @return a named factor, where names are cells and values are cluster labels.
   #'
+  if (!"umap" %in% names(SeurObj.count@reductions)) {
+    SeurObj.count <- RunUMAP(SeurObj.count, features=VariableFeatures(SeurObj.count),
+                             seed.use=random_state) 
+  }
   CelDatSet <- as.cell_data_set(SeurObj.count)
   CelDatSet <- cluster_cells(CelDatSet, random_seed=random_state)
   preds <- CelDatSet@clusters@listData$UMAP$clusters

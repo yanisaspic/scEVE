@@ -10,6 +10,36 @@ source("./scEVE.R")
 source("./src/benchmark/metrics.R")
 source("./src/benchmark/methods.R")
 
+get_benchmark.scEVE <- function(expression.init, params, random_state) {
+  #' Get the results of scEVE by applying it with a given set of parameters on a scRNA-seq raw count matrix.
+  #' These results include:
+  #' - peakRAM (Mo): the maximum memory usage of the method.
+  #' - time (s): the computation time in seconds.
+  #' - preds: a named factor, where names are cells and values are cluster labels.
+  #' 
+  #' @param expression.init: a scRNA-seq raw-count matrix.
+  #' @param params: a list of parameters.
+  #' @param random_state: a numeric.
+  #' 
+  #' @return a list of three elements: 'peakRAM', 'time' and 'preds'.
+  #' 
+  time.before <- Sys.time()
+  memory_summary <- gc(reset=TRUE)
+  peakRAM.before <- memory_summary[11] + memory_summary[12]
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  results <- do_scEVE(expression.init, params, figures=FALSE, random_state=random_state)
+  preds <- results$preds
+  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  time.after <- Sys.time()
+  memory_summary <- gc()
+  peakRAM.after <- memory_summary[11] + memory_summary[12]
+  
+  results <- list(peakRAM = peakRAM.after - peakRAM.before,
+                  time = as.numeric(time.after - time.before, units="secs"),
+                  preds = preds)
+  return(results)
+}
+
 N_HVGs_FOR_INDIVIDUAL_METHODS=5000
 RANDOM_STATE=0
 
