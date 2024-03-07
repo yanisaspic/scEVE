@@ -1,56 +1,21 @@
 "Run this script to generate the benchmark of scEVE.
 
-	2023/01/20 @yanisaspic"
+	2024/02/28 @yanisaspic"
 
 suppressPackageStartupMessages({
   library(glue)
   library(SummarizedBenchmark)
 })
-source("./scEVE.R")
-source("./src/benchmark/metrics.R")
 source("./src/benchmark/methods.R")
+source("./src/benchmark/metrics.R")
 
-get_benchmark.scEVE <- function(expression.init, params, random_state) {
-  #' Get the results of scEVE by applying it with a given set of parameters on a scRNA-seq raw count matrix.
-  #' These results include:
-  #' - peakRAM (Mo): the maximum memory usage of the method.
-  #' - time (s): the computation time in seconds.
-  #' - preds: a named factor, where names are cells and values are cluster labels.
-  #' 
-  #' @param expression.init: a scRNA-seq raw-count matrix.
-  #' @param params: a list of parameters.
-  #' @param random_state: a numeric.
-  #' 
-  #' @return a list of three elements: 'peakRAM', 'time' and 'preds'.
-  #' 
-  time.before <- Sys.time()
-  memory_summary <- gc(reset=TRUE)
-  peakRAM.before <- memory_summary[11] + memory_summary[12]
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  results <- do_scEVE(expression.init, params, figures=FALSE, random_state=random_state)
-  preds <- results$preds
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  time.after <- Sys.time()
-  memory_summary <- gc()
-  peakRAM.after <- memory_summary[11] + memory_summary[12]
-  
-  results <- list(peakRAM = peakRAM.after - peakRAM.before,
-                  time = as.numeric(time.after - time.before, units="secs"),
-                  preds = preds)
-  return(results)
-}
-
-N_HVGs_FOR_INDIVIDUAL_METHODS=5000
+N_HVGs=5000
 RANDOM_STATE=0
+EXPRESSION.INIT <- read.csv("./data/datasets/Li_HumCRC.csv", header=TRUE, row.names=1)
+GROUND_TRUTH <- sapply(strsplit(colnames(EXPRESSION.INIT), split="_"), "[", 1:2)
 
-####################
 # init the benchmark
 ####################
-expression.init <- read.csv("./data/Jerby-Arnon_MLM.csv", header=TRUE, row.names=1)
-ground_truth <- sapply(strsplit(colnames(expression.init), split="_"), "[", 1)
-expression.count <- get_expression.count(expression.init, N_HVGs)
-SeurObj.count <- get_SeurObj.count(expression.count)
-
 data <- list(expr=expression.count, seurobj=SeurObj.count, 
              ground=ground_truth, time=0, peakRAM=0)
 bd <- BenchDesign(data=data)

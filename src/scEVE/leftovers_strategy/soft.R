@@ -25,7 +25,7 @@ update_leftover_seed <- function(seeds, population, sheet.cells, data.loop) {
   leftover_seed <- seeds[[length(seeds)]]
   leftover_seed$cells <- get_cells_of_interest(leftover_subpopulation, sheet.cells)
   leftover_seed$occurrences <- get_occurrences(data.loop$ranked_genes.loop[, leftover_seed$cells])
-  
+
   markers_after_update <- get_markers.seed(leftover_seed, data.loop$occurrences.loop)
   leftover_seed$markers <- intersect(leftover_seed$markers, markers_after_update) 
   leftover_seed$specific_markers <- intersect(leftover_seed$markers, leftover_seed$specific_markers)
@@ -92,16 +92,18 @@ get_leftover_likelihoods <- function(ranked_genes, fun_likelihoods.cell, seeds, 
   #'
   #' @return a data.frame where rows are cells | cols are populations | values are membership likelihood.
   #'
+  replace_infinites <- function(x) {ifelse(is.finite(x), x, 0)}
+  # prevent NaN and infinites due to the absence of marker genes expressed.
+  # weird that I have to call it twice: IT NEEDS TO BE CHECKED.
+
   leftover_likelihoods <- apply(X=ranked_genes, MARGIN=2, FUN=fun_likelihoods.cell, seeds=seeds)
+  leftover_likelihoods <- apply(X=leftover_likelihoods, MARGIN=c(1,2), FUN=replace_infinites)
+  
   total_likelihoods <- apply(X=leftover_likelihoods, MARGIN=2, FUN=sum)
   get_normalized_likelihoods <- function(cell) {leftover_likelihoods[, cell] / total_likelihoods[cell]}
   normalized_likelihoods <- sapply(X=colnames(leftover_likelihoods), FUN=get_normalized_likelihoods)
-  # normalize the likelihoods so that their sum is equal to 1 for each cell.
-  
-  replace_infinites <- function(x) {ifelse(is.finite(x), x, 0)}
   normalized_likelihoods <- apply(X=normalized_likelihoods, MARGIN=c(1,2), FUN=replace_infinites)
-  # if no marker gene is expressed by a cell, the normalized leftover likelihoods is not finite.
-  # these values are replaced with 0: no marker gene is expressed at all, so all the likelihoods are 0.
+  # normalize the likelihoods so that their sum is equal to 1 for each cell.
   
   name_subpopulation <- function(i){glue("{population}{i}")}
   rownames(normalized_likelihoods) <- sapply(X=1:nrow(normalized_likelihoods),

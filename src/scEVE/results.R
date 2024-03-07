@@ -142,6 +142,18 @@ update_records <- function(records, seeds, population, data.loop, params) {
   return(records)
 }
 
+get_max_resolution <- function(sheet.cells) {
+  #' Get the maximum resolution of a scEVE clustering analysis.
+  #' 
+  #' @param sheet.cells: a data.frame where rows are cells | cols are populations | values are membership likelihood.
+  #' 
+  #' @return a numeric.
+  #' 
+  labels <- colnames(sheet.cells)
+  max_resolution <- max(nchar(labels))
+  return(max_resolution)
+}
+
 get_leaves <- function(sheet.cells) {
   #' Get a named vector associating each cell to its most informative cluster label.
   #' 
@@ -149,9 +161,17 @@ get_leaves <- function(sheet.cells) {
   #' 
   #' @return a named vector where cells are names and cluster labels are values.
   #' 
+
+  if (is.vector(sheet.cells)) {
+    leaves <- setNames(object = rep("C", length(sheet.cells)), nm = names(sheet.cells))
+    leaves <- leaves[order(names(leaves))]
+    return(leaves)
+    # sheet.cells is a vector at the 1st resolution only:
+    # all cells belong to the root population C.
+  }
+    
   cells <- rownames(sheet.cells)
-  labels <- colnames(sheet.cells)
-  max_resolution <- max(nchar(labels))
+  max_resolution <- get_max_resolution(sheet.cells)
   
   get_cells_of_interest.wrapper <- function(population) {
     cells_of_interest <- get_cells_of_interest(population, sheet.cells)
@@ -171,5 +191,21 @@ get_leaves <- function(sheet.cells) {
   labels <- unlist(labels)
   leaves <- labels[!duplicated(names(labels))]
   # if a cell has multiple labels, duplicates are lower resolution ones.
+  
+  leaves <- leaves[order(names(leaves))]
+  # sort cells alphabetically to facilitate benchmarking.
   return(leaves)
+}
+
+get_leaves_at_resolution <- function(sheet.cells, resolution) {
+  #' Get a named vector associating each cell to its cluster label at a given resolution.
+  #' 
+  #' @param sheet.cells: a data.frame where rows are cells | cols are populations | values are membership likelihood.
+  #' @param resolution: a numeric. Resolution 1 corresponds to the root cluster C.
+  #'
+  #' @return a named vector where cells are names and cluster labels are values.
+  #' 
+  sheet.cells_at_resolution <- sheet.cells[, nchar(colnames(sheet.cells))<=resolution]
+  leaves_at_resolution <- get_leaves(sheet.cells_at_resolution)
+  return(leaves_at_resolution)
 }

@@ -1,4 +1,4 @@
-"Functions used to get individual clusterings, set up for the benchmark.
+"Functions used to get the results (preds, time and peakRAM) for the benchmark.
 
 	2024/02/28 @yanisaspic"
 
@@ -6,11 +6,8 @@ suppressPackageStartupMessages({
   library(glue)
   library(scater)
   library(SeuratWrappers)
-  
-  library(SAFEclustering)
-  library(SAMEclustering)
-  library(clusterExperiment)
 })
+source("./scEVE.R")
 source("./src/scEVE/trim.R")          # pre-processing
 source("./src/scEVE/clusterings.R")   # individual methods
 source("./src/benchmark/ensemble.R")  # ensemble methods
@@ -18,7 +15,7 @@ source("./src/benchmark/ensemble.R")  # ensemble methods
 get_benchmark.method <- function(input, fun, random_state) {
   #' Get the results of a clustering method by applying its function to a specific input.
   #' These results include:
-  #' - peakRAM (Mo): the maximum memory usage of the method.
+  #' - peakRAM (Mbytes): the maximum memory usage of the method.
   #' - time (s): the computation time in seconds.
   #' - preds: a named factor, where names are cells and values are cluster labels.
   #' 
@@ -66,7 +63,8 @@ get_input.method <- function(expression.init, method, n_HVGs) {
 get_benchmark.method.wrapper <- function(expression.init, method, n_HVGs, random_state) {
   #' Get the results of a clustering method on a scRNA-seq dataset.
   #'
-  #' @param expression.init: a scRNA-seq raw count matrix, without selected genes.
+  #' @param expression.init: a scRNA-seq raw count matrix, without selected genes:
+  #' genes are rows | cells are cols.
   #' @param method: a valid method name, i.e. one of:
   #' 'Seurat', 'monocle3', 'CIDR', 'SHARP', 'scLCA', 'densityCut', 'scCCESS.Kmeans', 'scCCESS.SIMLR'.
   #' @param n_HVGs: a numeric.
@@ -75,100 +73,82 @@ get_benchmark.method.wrapper <- function(expression.init, method, n_HVGs, random
   #' @return a list of three elements: 'peakRAM', 'time' and 'preds'.
   #'
   input <- get_input.method(expression.init, method, n_HVGs)
-  fun <- glue("do_{method}")
-  results <- get_results.method(input, fun, random_state)
+  fun <- get(glue("do_{method}"))
+  results <- get_benchmark.method(input, fun, random_state)
   return(results)
 }
 
-###########################
-#     E N S E M B L E     #
-#      M E T H O D S      #
-###########################
-setup_SAxE <- function(clusterings) {
-  #' Set up a table of clusterings for SAFE and SAME methods.
+get_benchmark.scEVE <- function(expression.init, params, random_state) {
+  #' Get the results of scEVE by applying it with a given set of parameters on a scRNA-seq raw count matrix.
+  #' These results include:
+  #' - peakRAM (Mbytes): the maximum memory usage of the method.
+  #' - time (s): the computation time in seconds.
+  #' - preds: a named factor, where names are cells and values are cluster labels.
   #' 
-  #' @param clusterings: a data.frame where: rows are cells | cols are methods | cells are labels.
-  #' 
-  #' @return a matrix where: rows are methods | cols are cells | cells are a numeric.
-  #' 
-  setup_SAxE.col <- function(col) {as.numeric(as.factor(col))}
-  result <- apply(X=clusterings, MARGIN=2, FUN=setup_SAxE.col)
-  return(result)
-}
-
-benchmark_SAFE <- function(expression.count, SeurObj.count, random_state,
-                           clustering_methods=c()) {
-  #' Apply a SAFE clustering algorithm for the benchmark, with the default individual methods.
-  #' 
-  #' @param expression.count: a scRNA-seq dataset of raw count expression, with HVGs only:
+  #' @param expression.init: a scRNA-seq raw-count matrix:
   #' genes are rows | cells are cols.
-  #' @param SeurObj.count: a Seurat Object of raw count expression, with selected genes.
-  #' FindVariableFeatures() and ScaleData() have been applied already.
+  #' @param params: a list of parameters.
   #' @param random_state: a numeric.
-  #' @param clustering_methods: a vector of valid method names. If empty, uses default SAFE methods.
   #' 
-  #' @return a list of three elements: 'time', 'peakRAM' and 'labels'.
-  #'
-  start_time <- Sys.time()
-  memory_data <- gc(reset=TRUE)
-  max_memory_used.default <- memory_data[11] + memory_data[12]
+  #' @return a list of three elements: 'peakRAM', 'time' and 'preds'.
+  #' 
+  time.before <- Sys.time()
+  memory_summary <- gc(reset=TRUE)
+  peakRAM.before <- memory_summary[11] + memory_summary[12]
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  if (length(clustering_methods) == 0) {
-    clusterings <- individual_clustering(expression.count)
-    }
-  else{
-    SeurObj.count <- RunUMAP(SeurObj.count,
-                             features=VariableFeatures(SeurObj.count),
-                             seed.use=random_state)
-    clusterings <- apply_clustering_algorithms(expression.count, SeurObj.count,
-                                               clustering_methods, random_state)
-    clusterings <- setup_SAxE(clusterings)
-  }
-  cluster.ensemble <- SAFE(clusterings)
+  results <- do_scEVE(expression.init, params, figures=FALSE, random_state=random_state)
+  preds <- results$preds
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  memory_data <- gc()
-  results <- list(time=as.numeric(Sys.time()-start_time, units="secs"),
-                  peakRAM=(memory_data[11] + memory_data[12]) - max_memory_used.default,
-                  labels=labels)
+  time.after <- Sys.time()
+  memory_summary <- gc()
+  peakRAM.after <- memory_summary[11] + memory_summary[12]
+  
+  results <- list(peakRAM = peakRAM.after - peakRAM.before,
+                  time = as.numeric(time.after - time.before, units="secs"),
+                  preds = preds)
   return(results)
 }
 
-benchmark_SAME <- function(expression.count, SeurObj.count, random_state,
-                           clustering_methods=c(), criterion="BIC") {
-  #' Apply a SAFE clustering algorithm for the benchmark, with the default individual methods.
+get_benchmark.scEVE.default <- function(expression.init, random_state) {
+  #' Get the results of scEVE with the default leftovers strategy.
   #' 
-  #' @param expression.count: a scRNA-seq dataset of raw count expression, with HVGs only:
+  #' @param expression.init: a scRNA-seq raw-count matrix:
   #' genes are rows | cells are cols.
-  #' @param SeurObj.count: a Seurat Object of raw count expression, with selected genes.
-  #' FindVariableFeatures() and ScaleData() have been applied already.
   #' @param random_state: a numeric.
-  #' @param clustering_methods: a vector of valid method names. If empty, uses default SAFE methods.
-  #' @param criterion: a character indicating if the best clustering corresponds to the best 'AIC' or 'BIC'.
   #' 
-  #' @return a list of three elements: 'time', 'peakRAM' and 'labels'.
-  #'
-  start_time <- Sys.time()
-  memory_data <- gc(reset=TRUE)
-  max_memory_used.default <- memory_data[11] + memory_data[12]
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  if (length(clustering_methods) == 0) {
-    clusterings <- individual_clustering(expression.count)
-  }
-  else{
-    SeurObj.count <- RunUMAP(SeurObj.count,
-                             features=VariableFeatures(SeurObj.count),
-                             seed.use=random_state)
-    clusterings <- apply_clustering_algorithms(expression.count, SeurObj.count,
-                                               clustering_methods, random_state)
-  }
-  clusterings <- setup_SAxE(clusterings)
-  cluster.ensemble <- SAMEclustering(Y=t(clusterings), rep=3, SEED=random_state)
-  solution <- glue("{criterion}cluster")
-  labels <- cluster.ensemble[[solution]]
-  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  memory_data <- gc()
-  results <- list(time=as.numeric(Sys.time()-start_time, units="secs"),
-                  peakRAM=(memory_data[11] + memory_data[12]) - max_memory_used.default,
-                  labels=labels)
+  #' @return a list of three elements: 'peakRAM', 'time' and 'preds'.
+  #' 
+  params <- get_default_hyperparameters()
+  results <- get_benchmark.scEVE(expression.init, params, random_state)
+  return(results)
+}
+
+get_benchmark.scEVE.naive <- function(expression.init, random_state) {
+  #' Get the results of scEVE with the naive leftovers strategy.
+  #' 
+  #' @param expression.init: a scRNA-seq raw-count matrix:
+  #' genes are rows | cells are cols.
+  #' @param random_state: a numeric.
+  #' 
+  #' @return a list of three elements: 'peakRAM', 'time' and 'preds'.
+  #' 
+  params <- get_default_hyperparameters()
+  params$leftovers_strategy <- "naive"
+  results <- get_benchmark.scEVE(expression.init, params, random_state)
+  return(results)
+}
+
+get_benchmark.scEVE.weighted <- function(expression.init, random_state) {
+  #' Get the results of scEVE with the weighted leftovers strategy.
+  #' 
+  #' @param expression.init: a scRNA-seq raw-count matrix:
+  #' genes are rows | cells are cols.
+  #' @param random_state: a numeric.
+  #' 
+  #' @return a list of three elements: 'peakRAM', 'time' and 'preds'.
+  #' 
+  params <- get_default_hyperparameters()
+  params$leftovers_strategy <- "weighted"
+  results <- get_benchmark.scEVE(expression.init, params, random_state)
   return(results)
 }

@@ -1,6 +1,6 @@
 "Main functions to run a scEVE analysis.
 
-	2024/02/20 @yanisaspic"
+	2024/03/07 @yanisaspic"
 
 source("./src/scEVE/trim.R")
 source("./src/scEVE/genes.R")
@@ -40,11 +40,52 @@ get_default_hyperparameters <- function() {
   return(params)
 }
 
-do_scEVE <- function(expression.init, 
-                     params=get_default_hyperparameters(),
-                     figures=TRUE,
-                     random_state=0) {
-  #' Conduct a scRNA-seq cluster analysis with the scEVE algorithm.
+scEVE.iteration <- function(expression.init, population, records, params,
+                            figures, random_state, SeurObj.init) {
+  #' Conduct an iteration of the scEVE algorithm.
+  #' 
+  #' @param expression.init: a scRNA-seq dataset of raw count expression, without selected genes:
+  #' genes are rows | cells are cols.
+  #' @param population: a character.
+  #' @param records: a named list of three data.frames: 'cells', 'markers' and 'meta'.
+  #' @param params: a list of parameters.
+  #' @param figures: a boolean. If TRUE, draw figures summarizing the iterative clustering of populations.
+  #' @param random_state: a numeric.
+  #' @param SeurObj.init: a SeuratObject generated from the base scRNA-seq dataset. 
+  #' A U-MAP has already been applied on the object.
+  #' 
+  #' @return a named list of three data.frames: 'cells', 'markers' and 'meta'.
+  #'
+  
+  while (TRUE) {
+    data.loop <- trim_data(expression.init, population, records, params, 
+                           figures, random_state, SeurObj.init)
+    if (length(data.loop)==0){break()}
+    # _______________________________________if too little cells, do not cluster
+    
+    clusterings <- get_clusterings(data.loop, population, params, figures, random_state)
+    seeds <- get_seeds(expression.init, data.loop, clusterings, params, 
+                       records, population, figures)
+    if (length(seeds)==0){break()}
+    # ______________________________if too little consensus, do not characterize
+    
+    data.loop$occurrences.loop <- get_occurrences(data.loop$ranked_genes.loop)
+    seeds <- get_genes(data.loop, seeds, params, population, figures)
+    if (length(seeds)==0){break()}
+    # _____________________________if too little characterization, do not report
+    
+    records <- update_records(records, seeds, population, data.loop, params)
+    write.xlsx(records, "./records.xlsx", rowNames=TRUE)
+    break()
+  }
+  
+  if (figures){merge_pdfs(population)}
+  return(records)
+}
+
+do_scEVE <- function(expression.init, params=get_default_hyperparameters(),
+                     figures=TRUE, random_state=0) {
+  #' Conduct a scRNA-seq clustering analysis with the scEVE algorithm.
   #' 
   #' @param expression.init: a scRNA-seq dataset of raw count expression, without selected genes:
   #' genes are rows | cells are cols.
@@ -57,11 +98,9 @@ do_scEVE <- function(expression.init,
   #' - labels: a named factor, where names are cells and values are cluster labels.
   #' 
   
-  ## I N I T
+  #_________________________________________________________________________init
   records <- init_records(expression.init)
-  SeurObj.init <- NA
-
-  if (figures) { #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  if (figures) {
     dir.create("figures")
     SeurObj.init <- CreateSeuratObject(expression.init)
     SeurObj.init <- FindVariableFeatures(SeurObj.init, nfeatures=params$n_HVGs)
@@ -70,46 +109,22 @@ do_scEVE <- function(expression.init,
     SeurObj.init <- RunUMAP(SeurObj.init,
                             features=VariableFeatures(SeurObj.init),
                             seed.use=random_state)
-  } #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  
-  ## M A I N
-  population <- get_undug_population(records)
-  
-  while (!is.na(population)) { #++++++++++++++++++++++++++++++++++++++++++++++++
-    records$meta[population, "to_dig"] <- FALSE
-    
-    while (TRUE) { #============================================================
-      data.loop <- trim_data(expression.init, population, records, params, 
-                             figures, random_state, SeurObj.init)
-      
-      if (length(data.loop)==0){break()}
-      clusterings <- get_clusterings(data.loop, population, params, figures,
-                                     random_state)
-      seeds <- get_seeds(expression.init, data.loop, clusterings, params, 
-                         records, population, figures)
-      
-      if (length(seeds)==0){break()}
-      data.loop$occurrences.loop <- get_occurrences(data.loop$ranked_genes.loop)
-      seeds <- get_genes(data.loop, seeds, params, population, figures)
-      
-      break()
-    } #=========================================================================
-    
-    if (length(seeds)>0) {
-      records <- update_records(records, seeds, population, data.loop, params)
-      write.xlsx(records, "./records.xlsx", rowNames=TRUE)
-    }
-    if (figures){merge_pdfs(population)}
-    
-    population <- get_undug_population(records)
-    seeds <- list()
-    gc()
-    
-  } #+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+  } else {SeurObj.init <- NA}
 
+  #____________________________________________________________________main loop
+  population <- "C"
+  while (!is.na(population)) {
+    records <- scEVE.iteration(expression.init, population, records, params,
+                               figures, random_state, SeurObj.init)
+    records$meta[population, "to_dig"] <- FALSE
+    population <- get_undug_population(records)
+    gc()
+  }
+
+  #_______________________________________________________________________finale
   is_marker <- function(row) {sum(row) > 0}
   records$markers <- records$markers[apply(X=records$markers, MARGIN=1, FUN=is_marker),]
   write.xlsx(records, "./records.xlsx", rowNames=TRUE)
-  results <- list(records=records, labels=factor(get_leaves(records$cells)))
+  results <- list(records=records, preds=factor(get_leaves(records$cells)))
   return(results)
 }

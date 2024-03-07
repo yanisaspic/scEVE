@@ -164,8 +164,9 @@ trim_data <- function(expression.init, population, records, params,
   data.loop <- list()
   cells_of_interest <- get_cells_of_interest(population, records$cells)
   
-  if (length(cells_of_interest)>=100) {
-    
+  if (length(cells_of_interest)>=100) { 
+    # sncells=100 by default (SHARP).
+
     # trim the matrix to account for the cells of interest only and their HVGs
     #####################################################
     expression.loop <- expression.init[, cells_of_interest]

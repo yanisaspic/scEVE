@@ -1,109 +1,47 @@
 "Functions used to compute metrics for the benchmark.
 
-	2024/01/21 @yanisaspic"
+	2024/03/07 @yanisaspic"
 
 suppressPackageStartupMessages({
   library(aricode)
 })
 
-get_ARI <- function(query, truth) {
-  #' Compute the ARI score from two vectors.
+get_ground_truth <- function(expression.init) {
+  #' Get a vector of labels corresponding to the ground truth from an expression matrix.
+  #' The columns correspond to a unique cell id, and a cell id has the following structure:
+  #' {ground_truth}_{i}, where i is a numeric.
   #' 
-  #' @param query: a vector of labels being evaluated.
-  #' @param truth: a vector of ground truths.
+  #' @param expression.init: a scRNA-seq count matrix:
+  #' genes are rows | cells are cols.
   #' 
-  #' @return a numeric.
+  #' @return a vector of ground truths.
   #' 
-  result <- ARI(query, truth)
-  return(result)
-}
-
-get_AMI <- function(query, truth) {
-  #' Compute the AMI score from two vectors.
-  #' 
-  #' @param query: a vector of labels being evaluated.
-  #' @param truth: a vector of ground truths.
-  #' 
-  #' @return a numeric.
-  #' 
-  result <- AMI(query, truth)
-  return(result)
-}
-
-get_NMI <- function(query, truth) {
-  #' Compute the NMI score from two vectors.
-  #' 
-  #' @param query: a vector of labels being evaluated.
-  #' @param truth: a vector of ground truths.
-  #' 
-  #' @return a numeric.
-  #' 
-  result <- NMI(query, truth)
-  return(result)
-}
-
-get_time <- function(query, truth) {
-  #' Get the computation time.
-  #' 
-  #' @param query: a vector of identical times (in seconds).
-  #' @param truth: filler for SummarizedBenchmark.
-  #' 
-  #' @return a numeric (in seconds).
-  #' 
-  result <- log10(as.numeric(query[1], units="secs")+1)
-  return(result)
-}
-
-get_memory <- function(query, truth) {
-  #' Get the peak RAM.
-  #' 
-  #' @param query: a vector of identical peak RAMs (in Mb).
-  #' @param truth: filler for SummarizedBenchmark.
-  #' 
-  #' @return a numeric (in Mb).
-  #' 
-  result <- log10(query[1]+1)
-  return(result)
-}
-
-frame_scEVE_metrics <- function(scEVE_results, ground_truth) {
-  #' Frame the results of a scEVE analysis to the metrics table.
-  #' 
-  #' @param scEVE_results: a list with three items: 'labels', 'peakRAM' and 'memory'.
-  #' @param ground_truth: a vector of expected labels.
-  #' 
-  #' @return a data.frame with three columns: 'label', 'value' and 'performanceMetric'.
-  #' 
-  metrics <- c("AMI", "ARI", "NMI")
-  for (met in metrics) {
-    scEVE_results[[met]] <- get(glue("get_{met}"))(scEVE_results$labels, ground_truth)
+  get_ground_truth.cell_id <- function(cell_id) {
+    tmp <- strsplit(cell_id, split="_")[[1]]
+    ground_truth.cell_id <- paste(head(tmp, -1), collapse="_")
+    return(ground_truth.cell_id)
   }
-  scEVE_results$labels <- NULL
-  result <- stack(scEVE_results)
-  colnames(result) <- c("value", "performanceMetric")
-  return(result)
+  
+  cell_ids <- colnames(expression.init)
+  ground_truth <- sapply(X=cell_ids, FUN=get_ground_truth.cell_id)
+
+  ground_truth <- ground_truth[order(names(ground_truth))]
+  # sort cells alphabetically to facilitate benchmarking.
+  return(ground_truth)
 }
 
-add_scEVE_metrics <- function(metrics, scEVE_results, ground_truth) {
-  #' Add the results of the scEVE analysis to the metrics table.
+get_metric <- function(preds, ground_truth, metric) {
+  #' Compute a classification metric from a vector of preds and a ground truth.
+  #'
+  #' @param preds: a named vector: names are cell ids and values are cluster labels predicted.
+  #' @param ground_truth: a named vector: names are cell ids and values are cluster labels of the authors.
+  #' @param metric: a valid metric name. One of: 'ARI', 'AMI' and 'NMI'.
   #' 
-  #' @param metrics: a data.frame with three columns: 'label', 'value' and 'performanceMetric'.
-  #' @param scEVE_results: a list with three items: 'labels', 'peakRAM' and 'memory'.
-  #' @param ground_truth: a vector of expected labels.
+  #' @return a numeric.
   #' 
-  #' @return a data.frame with three columns: 'label', 'value' and 'performanceMetric'.
-  #' 
-  get_resolution <- function(label){nchar(label) - 1}
-  resolutions <- sapply(X=scEVE_results$labels, FUN=get_resolution)
-  for (j in 1:max(resolutions)) {
-    data <- scEVE_results
-    data$labels <- sapply(X=scEVE_results$labels, FUN=substr, start=1, stop=1+j)
-    
-    scEVE_metrics <- frame_scEVE_metrics(scEVE_results=data, ground_truth=ground_truth)
-    scEVE_metrics$label <- glue("{j}.scEVE")
-    scEVE_metrics$highlight <- "yes"
-    
-    metrics <- rbind(metrics, scEVE_metrics)
+  if (!identical(names(preds), names(ground_truth))) {
+    stop("The cell ids of the predictions and the ground truth are not aligned.")
   }
-  return(metrics)
+  result <- get(metric)(preds, ground_truth)
+  return(result)
 }
