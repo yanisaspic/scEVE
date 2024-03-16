@@ -32,8 +32,8 @@ get_default_hyperparameters <- function() {
   params <- list(
     n_HVGs=500, # see Theis et al.
     min_prop_cells=0.001, # rare cells subpopulation: 1/1000
-    root_consensus=0.17, # 0.17: >2 methods
-    clustering_methods=c("Seurat", "monocle3", "SHARP", "densityCut"), # see Yu et al.
+    root_consensus=0.17, # 0.17: >2 methods overlapping with 4 total methods. (5: 0.10)
+    clustering_methods=c("Seurat", "monocle3", "SHARP", "densityCut"), # see Yu et al: 4 fastest methods. (5: CIDR)
     leftovers_strategy="default",
     markers_strategy="default"
   )
@@ -67,12 +67,12 @@ scEVE.iteration <- function(expression.init, population, records, params,
     seeds <- get_seeds(expression.init, data.loop, clusterings, params, 
                        records, population, figures)
     if (length(seeds)==0){break()}
-    # ______________________________if too little consensus, do not characterize
+    # ______________________________if too little consensus for all seeds, do not characterize
     
     data.loop$occurrences.loop <- get_occurrences(data.loop$ranked_genes.loop)
     seeds <- get_genes(data.loop, seeds, params, population, figures)
     if (length(seeds)==0){break()}
-    # _____________________________if too little characterization, do not report
+    # _____________________________if too little characterization for any seed, do not report
     
     records <- update_records(records, seeds, population, data.loop, params)
     write.xlsx(records, "./records.xlsx", rowNames=TRUE)

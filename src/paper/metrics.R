@@ -27,6 +27,7 @@ get_ground_truth <- function(expression.init) {
 
   ground_truth <- ground_truth[order(names(ground_truth))]
   # sort cells alphabetically to facilitate benchmarking.
+  ground_truth <- factor(ground_truth)
   return(ground_truth)
 }
 

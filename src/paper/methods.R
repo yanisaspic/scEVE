@@ -6,11 +6,11 @@ suppressPackageStartupMessages({
   library(glue)
   library(scater)
   library(SeuratWrappers)
+  library(SummarizedBenchmark)
 })
 source("./scEVE.R")
 source("./src/scEVE/trim.R")          # pre-processing
 source("./src/scEVE/clusterings.R")   # individual methods
-source("./src/benchmark/ensemble.R")  # ensemble methods
 
 get_benchmark.method <- function(input, fun, random_state) {
   #' Get the results of a clustering method by applying its function to a specific input.
@@ -31,6 +31,8 @@ get_benchmark.method <- function(input, fun, random_state) {
   peakRAM.before <- memory_summary[11] + memory_summary[12]
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   preds <- fun(input, random_state)
+  preds <- preds[order(names(preds))]
+  # sort cells alphabetically to facilitate benchmarking.
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   time.after <- Sys.time()
   memory_summary <- gc()
@@ -42,8 +44,8 @@ get_benchmark.method <- function(input, fun, random_state) {
   return(results)
 }
 
-get_input.method <- function(expression.init, method, n_HVGs) {
-  #' Get the modality of the input specific to the method.
+get_input.individual_method <- function(expression.init, method, n_HVGs) {
+  #' Get the input specific to an individual clustering method.
   #' 
   #' @param expression.init: a scRNA-seq dataset of raw count expression, without selected genes:
   #' genes are rows | cells are cols.
@@ -60,8 +62,8 @@ get_input.method <- function(expression.init, method, n_HVGs) {
   return(input)
 }
 
-get_benchmark.method.wrapper <- function(expression.init, method, n_HVGs, random_state) {
-  #' Get the results of a clustering method on a scRNA-seq dataset.
+get_benchmark.individual_method.wrapper <- function(expression.init, method, n_HVGs, random_state) {
+  #' Get the results of an individual clustering method on a scRNA-seq dataset.
   #'
   #' @param expression.init: a scRNA-seq raw count matrix, without selected genes:
   #' genes are rows | cells are cols.
@@ -72,10 +74,28 @@ get_benchmark.method.wrapper <- function(expression.init, method, n_HVGs, random
   #' 
   #' @return a list of three elements: 'peakRAM', 'time' and 'preds'.
   #'
-  input <- get_input.method(expression.init, method, n_HVGs)
+  input <- get_input.individual_method(expression.init, method, n_HVGs)
   fun <- get(glue("do_{method}"))
   results <- get_benchmark.method(input, fun, random_state)
   return(results)
+}
+
+add.individual_method <- function(bd, method) {
+  #' Add an individual clustering method to a BenchDesign object.
+  #' 
+  #' @param bd: a BenchDesign object with expression.init, n_hvgs and random_state parameters.
+  #' @param method: a valid method name. Currently, 8 methods are implemented:
+  #' "Seurat", "monocle3", "SHARP", "densityCut", "scLCA", "CIDR", "scCCESS.Kmeans", "scCCESS.SIMLR".
+  #' 
+  #' @return a BenchDesign object.
+  #' 
+  print(bd)
+  print(method)
+  bd <- bd %>%
+    addMethod(label=method, func=get_benchmark.individual_method.wrapper,
+              params=rlang::quos(expression.init=expression.init, method=method,
+                                 n_HVGs=n_HVGs, random_state=random_state))
+  return(bd)
 }
 
 get_benchmark.scEVE <- function(expression.init, params, random_state) {
@@ -98,6 +118,8 @@ get_benchmark.scEVE <- function(expression.init, params, random_state) {
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   results <- do_scEVE(expression.init, params, figures=FALSE, random_state=random_state)
   preds <- results$preds
+  preds <- preds[order(names(preds))]
+  # sort cells alphabetically to facilitate benchmarking.
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   time.after <- Sys.time()
   memory_summary <- gc()
@@ -106,49 +128,5 @@ get_benchmark.scEVE <- function(expression.init, params, random_state) {
   results <- list(peakRAM = peakRAM.after - peakRAM.before,
                   time = as.numeric(time.after - time.before, units="secs"),
                   preds = preds)
-  return(results)
-}
-
-get_benchmark.scEVE.default <- function(expression.init, random_state) {
-  #' Get the results of scEVE with the default leftovers strategy.
-  #' 
-  #' @param expression.init: a scRNA-seq raw-count matrix:
-  #' genes are rows | cells are cols.
-  #' @param random_state: a numeric.
-  #' 
-  #' @return a list of three elements: 'peakRAM', 'time' and 'preds'.
-  #' 
-  params <- get_default_hyperparameters()
-  results <- get_benchmark.scEVE(expression.init, params, random_state)
-  return(results)
-}
-
-get_benchmark.scEVE.naive <- function(expression.init, random_state) {
-  #' Get the results of scEVE with the naive leftovers strategy.
-  #' 
-  #' @param expression.init: a scRNA-seq raw-count matrix:
-  #' genes are rows | cells are cols.
-  #' @param random_state: a numeric.
-  #' 
-  #' @return a list of three elements: 'peakRAM', 'time' and 'preds'.
-  #' 
-  params <- get_default_hyperparameters()
-  params$leftovers_strategy <- "naive"
-  results <- get_benchmark.scEVE(expression.init, params, random_state)
-  return(results)
-}
-
-get_benchmark.scEVE.weighted <- function(expression.init, random_state) {
-  #' Get the results of scEVE with the weighted leftovers strategy.
-  #' 
-  #' @param expression.init: a scRNA-seq raw-count matrix:
-  #' genes are rows | cells are cols.
-  #' @param random_state: a numeric.
-  #' 
-  #' @return a list of three elements: 'peakRAM', 'time' and 'preds'.
-  #' 
-  params <- get_default_hyperparameters()
-  params$leftovers_strategy <- "weighted"
-  results <- get_benchmark.scEVE(expression.init, params, random_state)
   return(results)
 }

@@ -1,4 +1,4 @@
-"Run this script to generate the benchmark of scEVE.
+"Run this script to generate the comparisons required for the scEVE paper.
 
 	2024/02/28 @yanisaspic"
 
@@ -6,60 +6,24 @@ suppressPackageStartupMessages({
   library(glue)
   library(SummarizedBenchmark)
 })
-source("./src/benchmark/methods.R")
-source("./src/benchmark/metrics.R")
+source("./src/paper/methods.R")
+source("./src/paper/metrics.R")
 
-N_HVGs=5000
-RANDOM_STATE=0
+#___________________________________________________________________________init
 EXPRESSION.INIT <- read.csv("./data/datasets/Li_HumCRC.csv", header=TRUE, row.names=1)
-GROUND_TRUTH <- sapply(strsplit(colnames(EXPRESSION.INIT), split="_"), "[", 1:2)
+GROUND_TRUTH <- get_ground_truth(EXPRESSION.INIT)
 
-# init the benchmark
-####################
-data <- list(expr=expression.count, seurobj=SeurObj.count, 
-             ground=ground_truth, time=0, peakRAM=0)
-bd <- BenchDesign(data=data)
 
-########################
-# add individual methods
-########################
+DATA <- list(expression.init=EXPRESSION.INIT, ground_truth=GROUND_TRUTH, n_HVGs=5000, random_state=0)
+
+bd <- BenchDesign(data=DATA)
 bd <- bd %>%
-  addMethod(label="Seurat",
-            func=benchmark_Seurat,
-            post=list(labels=get_labels, time=save_time, peakRAM=save_peakRAM),
-            params=rlang::quos(SeurObj.count=seurobj,
-                               random_state=RANDOM_STATE)) %>%
-  addMethod(label="densityCut",
-            func=benchmark_densityCut,
-            post=list(labels=get_labels, time=save_time, peakRAM=save_peakRAM),
-            params=rlang::quos(expression.count=expr,
-                               random_state=RANDOM_STATE)) %>%
-  addMethod(label="monocle3",
-            func=benchmark_monocle3,
-            post=list(labels=get_labels, time=save_time, peakRAM=save_peakRAM),
-            params=rlang::quos(SeurObj.count=seurobj,
-                               random_state=RANDOM_STATE)) %>%
-  addMethod(label="SHARP",
-            func=benchmark_SHARP,
-            post=list(labels=get_labels, time=save_time, peakRAM=save_peakRAM),
-            params=rlang::quos(expression.count=expr,
-                               random_state=RANDOM_STATE))
+  add.individual_method(bd, "Seurat") %>%
+  add.individual_method(bd, "monocle3") %>%
+  add.individual_method(bd, "SHARP") %>%
+  add.individual_method(bd, "densityCut")
 
-######################
-# add ensemble methods
-######################
-bd <- bd %>%
-  addMethod(label="SAME",
-            func=benchmark_SAME,
-            post=list(labels=get_labels, time=save_time, peakRAM=save_peakRAM),
-            params=rlang::quos(expression.count=expr,
-                               SeurObj.count=seurobj,
-                               clustering_methods=get_default_hyperparameters()$clustering_methods,
-                               random_state=RANDOM_STATE,
-                               criterion="BIC"))
-
-# run the benchmark
-###################
+#____________________________________________________________________________run
 sb <- buildBench(bd=bd, truthCols=c(labels="ground", time="time", peakRAM="peakRAM"))
 
 # the iterative pre-processing steps of scEVE
