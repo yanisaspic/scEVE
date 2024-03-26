@@ -1,12 +1,11 @@
 "Functions used to get the results (preds, time and peakRAM) for the benchmark.
 
-	2024/02/28 @yanisaspic"
+	2024/03/18 @yanisaspic"
 
 suppressPackageStartupMessages({
   library(glue)
   library(scater)
   library(SeuratWrappers)
-  library(SummarizedBenchmark)
 })
 source("./scEVE.R")
 source("./src/scEVE/trim.R")          # pre-processing
@@ -80,24 +79,6 @@ get_benchmark.individual_method.wrapper <- function(expression.init, method, n_H
   return(results)
 }
 
-add.individual_method <- function(bd, method) {
-  #' Add an individual clustering method to a BenchDesign object.
-  #' 
-  #' @param bd: a BenchDesign object with expression.init, n_hvgs and random_state parameters.
-  #' @param method: a valid method name. Currently, 8 methods are implemented:
-  #' "Seurat", "monocle3", "SHARP", "densityCut", "scLCA", "CIDR", "scCCESS.Kmeans", "scCCESS.SIMLR".
-  #' 
-  #' @return a BenchDesign object.
-  #' 
-  print(bd)
-  print(method)
-  bd <- bd %>%
-    addMethod(label=method, func=get_benchmark.individual_method.wrapper,
-              params=rlang::quos(expression.init=expression.init, method=method,
-                                 n_HVGs=n_HVGs, random_state=random_state))
-  return(bd)
-}
-
 get_benchmark.scEVE <- function(expression.init, params, random_state) {
   #' Get the results of scEVE by applying it with a given set of parameters on a scRNA-seq raw count matrix.
   #' These results include:
@@ -116,8 +97,8 @@ get_benchmark.scEVE <- function(expression.init, params, random_state) {
   memory_summary <- gc(reset=TRUE)
   peakRAM.before <- memory_summary[11] + memory_summary[12]
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  results <- do_scEVE(expression.init, params, figures=FALSE, random_state=random_state)
-  preds <- results$preds
+  output <- do_scEVE(expression.init, params, figures=FALSE, random_state=random_state)
+  preds <- output$preds
   preds <- preds[order(names(preds))]
   # sort cells alphabetically to facilitate benchmarking.
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
