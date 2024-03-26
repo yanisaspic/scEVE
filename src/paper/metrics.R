@@ -5,7 +5,6 @@
 suppressPackageStartupMessages({
   library(aricode)
   library(ggplot2)
-  library(viridis)
   library(reshape2)
   library(RColorBrewer)
 })
@@ -67,6 +66,20 @@ get_distribution.population <- function(population, sheet.cells, ground_truth) {
   return(distribution)
 }
 
+get_size.population <- function(population, sheet.meta) {
+  #' Get the size of a node for a given population.
+  #' 
+  #' @param population: a character.
+  #' @param sheet.meta: a data.frame with four columns: 'consensus', 'parent', 'n', and 'to_dig'.
+  #' 
+  #' @return a numeric.
+  #' 
+  minimum_size <- 15
+  n_cells <- as.numeric(sheet.meta[population, "n"])
+  size <- minimum_size * log10(n_cells)
+  return(size)
+}
+
 draw_tree <- function(records, ground_truth) {
   #' Draw a hierarchical graph with pie charts as vertices.
   #' The vertices are the cell population and the edges their hierarchy.
@@ -101,9 +114,8 @@ draw_tree <- function(records, ground_truth) {
   distributions <- lapply(X=ordered_nodes, FUN=get_distribution.population,
                           sheet.cells=records$cells, ground_truth=ground_truth)
   sizes <- sapply(X=ordered_nodes, FUN=get_size.population, sheet.meta=records$meta)
-  print(distributions)
   
-  plot(tree, layout=layout_as_tree, root=-1, vertex.shape="pie",
+  plot(tree, layout=layout_as_tree, root=-1, vertex.shape="pie", vertex.size=sizes,
        vertex.pie=distributions, vertex.pie.color=list(colors))
   # this figure is manually screen captured and annotated for the manuscript.
 }
@@ -126,10 +138,10 @@ draw_heatmap <- function(preds, ground_truth) {
   #_________________________________________________________________________draw
   p <- ggplot(data.ggplot2, aes(x=predictions, y=ground_truth)) +
     geom_tile(aes(fill=proportion), color="white", lwd=1.5, linetype=1) +
-    geom_text(aes(label=n), color="white", size=6) +
+    geom_text(aes(label=n), color="black", size=6) +
     coord_fixed() +
-    scale_fill_viridis(begin = 0, end = 1) +
+    scale_fill_gradient(low="white", high="royalblue") +
     guides(fill=guide_colorbar(barwidth=0.5, barheight=20)) +
     theme_bw()
-  ggsave("heatmap.png", p)
+  return(p)
 }
