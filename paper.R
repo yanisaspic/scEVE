@@ -13,7 +13,8 @@ source("./src/paper/metrics.R")
 expression.init <- read.csv("./data/datasets/Darmanis_HumGBM.csv", header=TRUE, row.names=1)
 ground_truth <- get_ground_truth(expression.init)
 output <- do_scEVE(expression.init)
-figure_1.tree <- draw_tree(output$records, ground_truth)
+figure_2.tree <- draw_tree(output$records, ground_truth)
+figure_2.heatmap <- draw_heatmap(output$preds, ground_truth)
 
 #______________________________________________________________________benchmark
 benchmark.scEFSC <- read.csv("./benchmark_scEFSC.csv", header=TRUE, row.names=1)
