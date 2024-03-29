@@ -1,4 +1,4 @@
-# scROB: ensemblist approach to single-cell RNA-seq clustering
+# scEVE: ensemblist approach to single-cell RNA-seq clustering
 
 [![Linux](https://img.shields.io/badge/GNU_bash-5.1.16-89e051.svg)](https://www.gnu.org/software/bash/)
 [![Python](https://img.shields.io/badge/Python-3.10.6-3572A5.svg)](https://www.python.org/)
