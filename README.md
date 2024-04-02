@@ -4,7 +4,8 @@
 
 [![Linux](https://img.shields.io/badge/GNU_bash-5.1.16-ffffff.svg)](https://www.gnu.org/software/bash/)
 
-[![Python](https://img.shields.io/badge/Python-3.10.12-ffffff.svg)](https://www.python.org/)[![Code style: black](https://img.shields.io/badge/code_style-black-000000.svg)](https://github.com/psf/black)
+[![Python](https://img.shields.io/badge/Python-3.10.12-ffffff.svg)](https://www.python.org/)
+[![Code style: black](https://img.shields.io/badge/code_style-black-000000.svg)](https://github.com/psf/black)
 
 ___
 *Clustering analyses play a fundamental role in single-cell data science. Hundreds of methods  
