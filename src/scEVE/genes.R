@@ -1,6 +1,6 @@
 "Functions called to identify characteristic genes of seeds.
 
-	2024/01/10 @yanisaspic"
+	2024/04/02 @yanisaspic"
 
 suppressPackageStartupMessages({
   library(glue)
@@ -57,7 +57,7 @@ get_efforts.plot <- function(efforts.frame) {
   efforts.plot <- ggplot(data=efforts.frame, 
                          aes(x=seed, y=effort, group=seed, fill=seed)) + 
     geom_boxplot(coef=NULL) +
-    ggtitle("Sampling effort of cells, per seed.")
+    ggtitle("Sampling effort of cells, per consensus cluster.")
   return(efforts.plot)
 }
 
@@ -196,7 +196,7 @@ get_markers.plot <- function(markers) {
   intersect_colors.bars[1:length(labels)] <- labels
   markers.plot[[2]] <- markers.plot[[2]] +
     aes(fill=intersect_colors.bars) + theme(legend.position = "none") +
-    ggtitle("Overrepresented HVGs, per seed.")
+    ggtitle("Over-represented HVGs, per consensus cluster.")
   
     # size bars
   markers.plot[[3]] <- markers.plot[[3]] + aes(fill=name) + theme(legend.position = "none")

@@ -1,6 +1,7 @@
 "Functions used to get individual clusterings.
+  In the scEVE JOBIM paper, 4 methods are used: Seurat, monocle3, SHARP and densityCut.
 
-	2024/01/21 @yanisaspic"
+	2024/04/02 @yanisaspic"
 
 suppressPackageStartupMessages({
   library(glue)
@@ -8,13 +9,9 @@ suppressPackageStartupMessages({
   library(scater)
   library(gridExtra)
   library(SeuratWrappers)
-  
-  library(cidr)
-  library(scLCA)
+
   library(SHARP)
-  library(SIMLR)
   library(Seurat)
-  library(scCCESS)
   library(monocle3)
   library(densitycut)
 })
@@ -89,42 +86,6 @@ do_SHARP <- function(expression.count, random_state) {
   return(preds)
 }
 
-do_CIDR <- function(expression.count, random_state) {
-  #' Apply a CIDR clustering algorithm.
-  #' 
-  #' @param expression.count: a scRNA-seq dataset of raw count expression, with selected genes:
-  #' genes are rows | cells are cols.
-  #' @param random_state: a numeric.
-  #' 
-  #' @return a named factor, where names are cells and values are cluster labels.
-  #'
-  set.seed(random_state)
-  SinCelData <- scDataConstructor(as.matrix(expression.count))
-  SinCelData <- determineDropoutCandidates(SinCelData)
-  SinCelData <- wThreshold(SinCelData)
-  SinCelData <- scDissim(SinCelData)
-  SinCelData <- scPCA(SinCelData, plotPC=FALSE)
-  SinCelData <- nPC(SinCelData)
-  results <- scCluster(SinCelData)
-  preds <- format_preds(cells=colnames(expression.count), labels=results@clusters)
-  return(preds)
-}
-
-do_scLCA <- function(expression.count, random_state) {
-  #' Apply a scLCA clustering algorithm.
-  #' 
-  #' @param expression.count: a scRNA-seq dataset of raw count expression, with selected genes:
-  #' genes are rows | cells are cols.
-  #' @param random_state: a numeric random seed.
-  #' 
-  #' @return a named factor, where names are cells and values are cluster labels.
-  #'
-  set.seed(random_state)
-  results <- myscLCA(expression.count)
-  preds <- format_preds(cells=colnames(expression.count), labels=results[[1]])
-  return(preds)
-}
-
 do_densityCut <- function(log.expression.tpm, random_state) {
   #' Apply a densityCut clustering algorithm.
   #' 
@@ -141,56 +102,12 @@ do_densityCut <- function(log.expression.tpm, random_state) {
   return(preds)
 }
 
-do_scCCESS.Kmeans <- function(log.expression.tpm, random_state) {
-  #' Apply a scCCESS with K-means clustering algorithm. 
-  #' Hyperparameters from Yu et al. (2022). 
-  #' 
-  #' @param log.expression.tpm: a scRNA-seq dataset of log2 TPM expression, with selected genes:
-  #' genes are rows | cells are cols.
-  #' @param random_state: a numeric.
-  #' 
-  #' @return a named factor, where names are cells and values are cluster labels.
-  #'
-  data <- t(log.expression.tpm)
-  
-  estimation <- estimate_k(data, krange=2:25, ensemble_sizes=20, seed=random_state,
-    cluster_func=function(x, centers){kmeans(x, centers)})
-  
-  labels <- ensemble_cluster(data, ensemble_sizes=20, seed=random_state,
-    cluster_func=function(x) {kmeans(x, estimation$ngroups)})
-  
-  preds <- format_preds(cells=colnames(log.expression.tpm), labels=labels)
-  return(preds)
-}
-
-do_scCCESS.SIMLR <- function(log.expression.tpm, random_state) {
-  #' Apply a scCCESS with SIMLR clustering algorithm. 
-  #' Hyperparameters from Yu et al. (2022). 
-  #' 
-  #' @param log.expression.tpm: a scRNA-seq dataset of log2 TPM expression, with selected genes:
-  #' genes are rows | cells are cols.
-  #' @param random_state: a numeric.
-  #' 
-  #' @return a named factor, where names are cells and values are cluster labels.
-  #'
-  data <- t(log.expression.tpm)
-  
-  estimation <- estimate_k(data, krange=2:25, ensemble_sizes=20, seed=random_state,
-    cluster_func=function(x, centers){SIMLR_Large_Scale(t(x), c=centers, kk=15)})
-  
-  labels <- ensemble_cluster(data, ensemble_sizes=20, seed=random_state,
-    cluster_func=function(x){SIMLR_Large_Scale(t(x), c=estimation$ngroups, kk=15)})
-  
-  preds <- format_preds(cells=colnames(log.expression.tpm), labels=labels)
-  return(preds)
-}
-
 apply_clustering_algorithms <- function(data.loop, clustering_methods, random_state) {
   #' Apply multiple independent methods of clustering on a scRNA-seq dataset. 
   #' 
   #' @param data.loop: a list of three data.frames: 'expression.loop', 'SeurObj.loop', and 'ranked_genes.loop'.
-  #' @param clustering_methods: a vector of valid clustering method names, i.e. in: 
-  #' 'Seurat', 'monocle3', 'CIDR', 'SHARP', 'scLCA', 'densityCut', 'scCCESS.Kmeans', 'scCCESS.SIMLR'.
+  #' @param clustering_methods: a vector of valid clustering method names.
+  #' In the scEVE JOBIM paper, 4 methods are used: 'Seurat', 'monocle3', 'SHARP' and 'densityCut'.
   #' @param random_state: a numeric.
   #' 
   #' @return a data.frame: cells are rows | methods are cols | a cell is a label.
@@ -198,8 +115,8 @@ apply_clustering_algorithms <- function(data.loop, clustering_methods, random_st
   log.expression.tpm <- log2(calculateTPM(data.loop$expression.loop) + 1)
   inputs <- list(
     Seurat=data.loop$SeurObj.loop, monocle3=data.loop$SeurObj.loop,
-    SHARP=data.loop$expression.loop, CIDR=data.loop$expression.loop, scLCA=data.loop$expression.loop,
-    scCCESS.Kmeans=log.expression.tpm, scCCESS.SIMLR=log.expression.tpm, densityCut=log.expression.tpm
+    SHARP=data.loop$expression.loop,
+    densityCut=log.expression.tpm
   )
   
   get_clusterings.method <- function(method){

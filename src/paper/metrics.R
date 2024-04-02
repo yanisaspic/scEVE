@@ -1,8 +1,9 @@
 "Functions used to compute metrics for the benchmark.
 
-	2024/03/07 @yanisaspic"
+	2024/04/02 @yanisaspic"
 
 suppressPackageStartupMessages({
+  library(scales)
   library(aricode)
   library(ggplot2)
   library(reshape2)
@@ -66,24 +67,9 @@ get_distribution.population <- function(population, sheet.cells, ground_truth) {
   return(distribution)
 }
 
-get_size.population <- function(population, sheet.meta) {
-  #' Get the size of a node for a given population.
-  #' 
-  #' @param population: a character.
-  #' @param sheet.meta: a data.frame with four columns: 'consensus', 'parent', 'n', and 'to_dig'.
-  #' 
-  #' @return a numeric.
-  #' 
-  minimum_size <- 15
-  n_cells <- as.numeric(sheet.meta[population, "n"])
-  size <- minimum_size * log10(n_cells)
-  return(size)
-}
-
 draw_tree <- function(records, ground_truth) {
   #' Draw a hierarchical graph with pie charts as vertices.
   #' The vertices are the cell population and the edges their hierarchy.
-  #' The size of the vertices are related to the number of cells in a population.
   #' The consensus of a population is written over the edge to its parent.
   #' The ground truth labels are represented by the colors in the pie charts.
   #' 
@@ -111,11 +97,10 @@ draw_tree <- function(records, ground_truth) {
   V(tree)$label.dist <- 0.6
   
   colors <- brewer.pal(n=length(levels(ground_truth)), name="Dark2")
+    # Dark2 is color-blind friendly
   distributions <- lapply(X=ordered_nodes, FUN=get_distribution.population,
                           sheet.cells=records$cells, ground_truth=ground_truth)
-  sizes <- sapply(X=ordered_nodes, FUN=get_size.population, sheet.meta=records$meta)
-  
-  plot(tree, layout=layout_as_tree, root=-1, vertex.shape="pie", vertex.size=sizes,
+  plot(tree, layout=layout_as_tree, root=-1, vertex.shape="pie", vertex.size=40,
        vertex.pie=distributions, vertex.pie.color=list(colors))
   # this figure is manually screen captured and annotated for the manuscript.
 }
@@ -131,17 +116,19 @@ draw_heatmap <- function(preds, ground_truth) {
   data <- table(preds, ground_truth)
   maximum_n <- apply(X=data, MARGIN=2, FUN=sum)
   data.ggplot2 <- melt(data)
-  colnames(data.ggplot2) <- c("predictions", "ground_truth", "n")
-  get_proportion.row <- function(row) {as.numeric(row["n"]) / maximum_n[row["ground_truth"]]}
+  colnames(data.ggplot2) <- c("output_clusters", "expected_clusters", "n")
+  get_proportion.row <- function(row) {as.numeric(row["n"]) / maximum_n[row["expected_clusters"]]}
   data.ggplot2$proportion <- apply(X=data.ggplot2, MARGIN=1, FUN=get_proportion.row)
   
   #_________________________________________________________________________draw
-  p <- ggplot(data.ggplot2, aes(x=predictions, y=ground_truth)) +
+  p <- ggplot(data.ggplot2, aes(x=output_clusters, y=expected_clusters)) +
     geom_tile(aes(fill=proportion), color="white", lwd=1.5, linetype=1) +
     geom_text(aes(label=n), color="black", size=6) +
     coord_fixed() +
-    scale_fill_gradient(low="white", high="royalblue") +
-    guides(fill=guide_colorbar(barwidth=0.5, barheight=20)) +
-    theme_bw()
+    scale_fill_gradient(low="#FFFFFF", high="#666666") +
+    guides(fill="none") +
+    theme_bw() +
+    theme(axis.text = element_text(size=12)) +
+    theme(axis.title = element_text(size=15))
   return(p)
 }

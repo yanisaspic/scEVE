@@ -1,6 +1,7 @@
 "Functions used to identify seeds, i.e. groups of cells unambiguously assigned together.
+In the papers, we refer to seeds as consensus clusters.
 
-	2024/01/10 @yanisaspic"
+	2024/04/02 @yanisaspic"
 
 suppressPackageStartupMessages({
   library(glue)
@@ -227,7 +228,7 @@ add_seeds <- function(SeurObj, seeds) {
   #'
   get_cells.seed <- function(i) {
     cells_of_seed <- seeds[[i]]$cells
-    out <- setNames(rep(glue("seed_{i}"), length(cells_of_seed)),
+    out <- setNames(rep(glue("consensus_cluster_{i}"), length(cells_of_seed)),
                     cells_of_seed)
     return(out)
   }

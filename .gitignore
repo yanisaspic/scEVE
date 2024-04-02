@@ -1,7 +1,4 @@
 figures/*
-setup/samples/*
 data/*
-records.xlsx
-results.pdf
 *.Rhistory
 *pycache*

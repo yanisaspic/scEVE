@@ -1,6 +1,6 @@
 "Functions used to get the results (preds, time and peakRAM) for the benchmark.
 
-	2024/03/18 @yanisaspic"
+	2024/04/02 @yanisaspic"
 
 suppressPackageStartupMessages({
   library(glue)
@@ -48,8 +48,7 @@ get_input.individual_method <- function(expression.init, method, n_HVGs) {
   #' 
   #' @param expression.init: a scRNA-seq dataset of raw count expression, without selected genes:
   #' genes are rows | cells are cols.
-  #' @param method: a valid method name, i.e. one of:
-  #' 'Seurat', 'monocle3', 'CIDR', 'SHARP', 'scLCA', 'densityCut', 'scCCESS.Kmeans', 'scCCESS.SIMLR'.
+  #' @param method: a valid method name. In the JOBIM paper, it is one of: 'Seurat', 'monocle3', 'CIDR' and 'SHARP'.
   #' @param n_HVGs: a numeric.
   #'
   #' @return a scRNA-seq dataset. It can be a Seurat Object, a raw-count or a log2-tpm matrix.
@@ -57,7 +56,7 @@ get_input.individual_method <- function(expression.init, method, n_HVGs) {
   #'
   input <- get_expression.count(expression.init, n_HVGs)
   if(method %in% c("Seurat", "monocle3")){input <- get_SeurObj.count(input)}
-  if(method %in% c("scCCESS.Kmeans", "scCCESS.SIMLR", "densityCut")){input <- log2(calculateTPM(input) + 1)}
+  if(method %in% c("densityCut")){input <- log2(calculateTPM(input) + 1)}
   return(input)
 }
 
@@ -66,8 +65,7 @@ get_benchmark.individual_method.wrapper <- function(expression.init, method, n_H
   #'
   #' @param expression.init: a scRNA-seq raw count matrix, without selected genes:
   #' genes are rows | cells are cols.
-  #' @param method: a valid method name, i.e. one of:
-  #' 'Seurat', 'monocle3', 'CIDR', 'SHARP', 'scLCA', 'densityCut', 'scCCESS.Kmeans', 'scCCESS.SIMLR'.
+  #' @param method: a valid method name. In the JOBIM paper, it is one of: 'Seurat', 'monocle3', 'CIDR' and 'SHARP'.
   #' @param n_HVGs: a numeric.
   #' @param random_state: a numeric.
   #' 

@@ -7,9 +7,7 @@ suppressPackageStartupMessages({
 })
 source("./src/scEVE/utils/misc.R")
 source("./src/scEVE/leftovers_strategy/default.R")
-source("./src/scEVE/leftovers_strategy/soft.R")
 source("./src/scEVE/markers_strategy/default.R")
-source("./src/scEVE/markers_strategy/weighted.R")
 
 get_existing_pdfs <- function(population) {
   #' Get the names of the existing pdf files (intermediate figures) w.r.t a population.
@@ -47,17 +45,12 @@ get_sheet.cells <- function(records, seeds, population, data.loop, params) {
   #' @param population: a character.
   #' @param data.loop: a list of four data.frames: 'expression.loop', 'occurrences.loop', 'SeurObj.loop', and 'ranked_genes.loop'.
   #' @param params: a list of parameters, with 'leftovers_strategy'.
-  #' Currently, 2 strategies exist:
+  #' In the scEVE JOBIM paper, 1 strategy exists:
   #' + default: leftover cells stay in the leftover seed.
-  #' + naive: leftover cells are soft-clustered w.r.t. markers they express, regardless of their expression level.
   #' 
   #' @return a data.frame where rows are cells | cols are populations | values are membership likelihood.
   #' 
-  if (params$leftovers_strategy=="default") {sheet.cells <- 
-    get_sheet.cells.default(records, seeds, population)}
-  else {sheet.cells <- 
-    get_sheet.cells.soft(records, seeds, population, data.loop, params)}
-  
+  sheet.cells <- get_sheet.cells.default(records, seeds, population)
   records$cells <- cbind(records$cells, sheet.cells)
   records$cells <- apply(X=records$cells, MARGIN=c(1,2), FUN=as.numeric)
   return(records$cells)
@@ -95,18 +88,14 @@ get_sheet.markers <- function(records, seeds, population, params, occurrences.po
   #' @param records: a named list of three data.frames: 'cells', 'markers' and 'meta'.
   #' @param seeds: a nested list, where each sub-list has four keys: 'consensus', 'cells', 'clusters' and 'markers'.
   #' @param population: a character.
-  #' @param params: a list of parameters, with 'markers_strategy'. Currently, 2 strategies exist:
+  #' @param params: a list of parameters, with 'markers_strategy'. 
+  #' In the scEVE JOBIM paper, 1 strategy exists:
   #' + default: markers are reported in a binary matrix. If marker i is over-represented in population j, it is 1.
-  #' + weighted: markers are reported with a value between 0 and 1. It corresponds to the F1 score.
   #' @param occurrences.population: a data.frame where: genes are rows | sampling effort is cols | cells are occurrences.
   #' 
   #' @return a data.frame where rows are cells | cols are populations | values are membership likelihood.
   #' 
-  if (params$markers_strategy=="default") {sheet.markers <- 
-    get_sheet.markers.default(records, seeds, population)}
-  else {sheet.markers <- 
-    get_sheet.markers.weighted(records, seeds, population, occurrences.population)}
-  
+  sheet.markers <- get_sheet.markers.default(records, seeds, population)
   records$markers <- cbind(records$markers, sheet.markers)
   records$markers <- apply(X=records$markers, MARGIN=c(1,2), FUN=as.numeric)
   return(records$markers)
@@ -119,23 +108,13 @@ update_records <- function(records, seeds, population, data.loop, params) {
   #' @param seeds: a nested list, where each sub-list has five keys: 'clusters', 'consensus', 'cells', 'genes' and 'markers'.
   #' @param population: a character.
   #' @param data.loop: a list of four data.frames: 'expression.loop', 'occurrences.loop', 'SeurObj.loop', and 'ranked_genes.loop'.
-  #' @param params: a list of parameters with 'leftovers_strategy'.
-  #' Currently, 2 strategies exist:
+  #' @param params: a list of parameters, with 'leftovers_strategy'.
+  #' In the scEVE JOBIM paper, 1 strategy exists:
   #' + default: leftover cells stay in the leftover seed.
-  #' + naive: leftover cells are soft-clustered w.r.t. markers they express, regardless of their expression level.
   #'
   #' @return a named list of three data.frames: 'cells', 'meta' and 'markers'.
   #'
   sheet.cells <- get_sheet.cells(records, seeds, population, data.loop, params)
-  
-  if (params$leftovers_strategy != "default") {
-    seeds <- update_all_seeds(seeds, population, data.loop, sheet.cells)
-    draw_seeds(data.loop, seeds, population)
-    draw_genes(data.loop, seeds, population)
-  }
-  # leftover cells have been soft-clustered and some cells have been displaced;
-  # the cells and the occurrences of each seed must be updated.
-  
   sheet.markers <- get_sheet.markers(records, seeds, population, params, data.loop$occurrences.loop)
   sheet.meta <- get_sheet.meta(records, seeds, population)
   records <- list(cells=sheet.cells, meta=sheet.meta, markers=sheet.markers)

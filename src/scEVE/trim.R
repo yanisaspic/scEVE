@@ -1,6 +1,6 @@
 "Functions called to trim the data specific to an iteration.
 
-	2024/01/23 @yanisaspic"
+	2024/04/02 @yanisaspic"
 
 suppressPackageStartupMessages({
   library(qpdf)

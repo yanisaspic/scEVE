@@ -1,6 +1,6 @@
 "Misc. functions called by multiple steps of the pipeline.
 
-	2024/02/22 @yanisaspic"
+	2024/04/02 @yanisaspic"
 
 get_populations_at_resolution <- function(sheet.cells, resolution) {
   #' Get all the populations at a specific resolution.

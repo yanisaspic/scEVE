@@ -1,6 +1,6 @@
 "Main functions to run a scEVE analysis.
 
-	2024/03/07 @yanisaspic"
+	2024/04/02 @yanisaspic"
 
 source("./src/scEVE/trim.R")
 source("./src/scEVE/genes.R")
@@ -12,20 +12,16 @@ source("./src/scEVE/clusterings.R")
 get_default_hyperparameters <- function() {
   #' Get the default hyperparameters for the scEVE algorithm. They include:
   #' - n_HVGs: number of HVGs used at each iteration.
-  #' - min_prop_cells: minimum cells threshold to keep a seed, w.r.t. the full dataset.
-  #' - root_consensus: minimum consensus threshold to consider a seed.
-  #' - clustering_methods: a vector of valid method names. Currently, 8 methods are implemented:
-  #' Seurat, monocle3, SHARP, densityCut, CIDR, scLCA, scCCESS.Kmeans, scCCESS.SIMLR.
+  #' - min_prop_cells: minimum n_cells threshold to consider an overlap, w.r.t. the full dataset.
+  #' - root_consensus: minimum consensus threshold to consider a consensus cluster.
+  #' - clustering_methods: a vector of valid method names. In the scEVE JOBIM paper, 4 methods are used:
+  #' Seurat, monocle3, SHARP and densityCut.
   #' 
-  #' -> leftovers_strategy: a valid strategy to handle leftover cells. Currently, 2 strategies exist:
+  #' -> leftovers_strategy: a valid strategy to handle leftover cells. In the scEVE JOBIM paper, 1 strategy exists:
   #' + default: leftover cells are in the leftover seed
-  #' + naive: a leftover cell is soft-clustered w.r.t. marker genes it expresses. 
-  #' All markers expressed contribute equally.
-  #' + weighted: similar to naive, but the contribution of a marker gene is weighted by its expression level.
   #' 
-  #' -> markers_strategy: a valid strategy to report marker genes. Currently, 2 strategies exist:
+  #' -> markers_strategy: a valid strategy to report marker genes. In the scEVE JOBIM paper, 1 strategy exists:
   #' + default: markers are reported in a binary matrix. If marker i is over-represented in population j, it is 1.
-  #' + weighted: markers are reported with a value between 0 and 1. It corresponds to the F1 score.
   #' 
   #' @return a list of hyperparameters.
   #' 
