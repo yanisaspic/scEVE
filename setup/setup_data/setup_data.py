@@ -6,16 +6,16 @@ import os
 import pandas as pd
 import xml.etree.ElementTree as ET
 
-darmanis_dir = "./datasets/Darmanis"
-baron_dir = "./datasets/scEFSC/Baron"
-li_dir = "./datasets/scEFSC/Li"
+darmanis_dir = "./downloads/Darmanis"
+baron_dir = "./downloads/Baron"
+li_dir = "./downloads/Li"
 
 
-### In the scEVE paper, all cells are associated to a unique id,
-### with the following structure: {label}_{n}, where
-### label corresponds to the ground truth of the authors.
-### n is a value between 1 and the maximum number of cells of a label.
-#######################################################################
+# In the scEVE paper, all cells are associated to a unique id,
+# with the following structure: {label}_{n}, where
+# label corresponds to the ground truth of the authors.
+# n is a value between 1 and the maximum number of cells of a label.
+#__________________________________________________________________________
 def get_cell_id(cell_label: str, label_counter: dict[str, int]) -> str:
     """Given the label of a cell, assign it a unique id."""
     cell_id = f"{cell_label}_{label_counter[cell_label]}"
@@ -30,10 +30,10 @@ def get_cell_ids(cell_labels: list[str]) -> list[str]:
     return cell_ids
 
 
-### Darmanis dataset is set-up with the cell types (e.g. Myeloid)
-### assigned by the authors as labels. Note that for each cell,
-### the t-SNE clusters assigned are also available in the metadata.
-#######################################################################
+# Darmanis dataset is set-up with the cell types (e.g. Myeloid)
+# assigned by the authors as labels. Note that for each cell,
+# the t-SNE clusters assigned are also available in the metadata.
+#__________________________________________________________________________
 def get_smartseq2_metadata(element: ET.Element) -> tuple[str, str]:
     """Read an element tree of a Smart-Seq2 miniML file to get the cell id and the cell type corresponding to a sample."""
     for child in element:
@@ -83,10 +83,10 @@ def setup_darmanis(darmanis_dir):
     data.to_csv("./datasets/Darmanis_HumGBM.csv")
 
 
-### scEFSC datasets are set-up according to the Hemberg Lab pipeline.
-### see:    https://hemberg-lab.github.io/scRNA.seq.datasets/
-###         https://github.com/hemberg-lab/scRNA.seq.datasets
-#######################################################################
+# scEFSC datasets are set-up according to the Hemberg Lab pipeline.
+# see:    https://hemberg-lab.github.io/scRNA.seq.datasets/
+#         https://github.com/hemberg-lab/scRNA.seq.datasets
+#__________________________________________________________________________
 def setup_baron(baron_dir):
     """Set-up the Baron (2016) dataset.
     accession: GSE84133
@@ -127,8 +127,8 @@ def setup_li(li_dir):
     data.to_csv("./datasets/Li_HumCRC.csv")
 
 
-### Run after downloading the required files.
-#############################################
+# Run after downloading the required files.
+#__________________________________________________________________________
 setup_darmanis(darmanis_dir)
 setup_baron(baron_dir)
 setup_li(li_dir)
