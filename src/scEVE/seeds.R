@@ -4,9 +4,9 @@ In the papers, we refer to seeds as consensus clusters.
 	2024/04/02 @yanisaspic"
 
 suppressPackageStartupMessages({
-  library(glue)
-  library(dplyr)
   library(arules)
+  library(dplyr)
+  library(glue)
   library(igraph)
   library(SCpubr)
 })

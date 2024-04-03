@@ -3,11 +3,10 @@
 	2024/04/02 @yanisaspic"
 
 suppressPackageStartupMessages({
-  library(scales)
-  library(aricode)
+  library(aricode)  # packageVersion("aricode")==1.0.3
   library(ggplot2)
-  library(reshape2)
   library(RColorBrewer)
+  library(reshape2)
 })
 source("./src/scEVE/utils/misc.R")
 

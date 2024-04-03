@@ -3,12 +3,11 @@
 	2024/04/02 @yanisaspic"
 
 suppressPackageStartupMessages({
-  library(glue)
-  library(grid)
-  library(stats)
   library(ggplot2)
   library(ggplotify)
   library(ggVennDiagram)
+  library(glue)
+  library(stats)
 })
 source("./src/scEVE/utils/misc.R")
 

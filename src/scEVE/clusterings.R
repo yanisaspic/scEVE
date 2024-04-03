@@ -4,16 +4,15 @@
 	2024/04/02 @yanisaspic"
 
 suppressPackageStartupMessages({
-  library(glue)
-  library(dplyr)
-  library(scater)
-  library(gridExtra)
-  library(SeuratWrappers)
-
-  library(SHARP)
-  library(Seurat)
-  library(monocle3)
   library(densitycut)
+  library(dplyr)
+  library(glue)
+  library(gridExtra) # packageVersion("gridExtra")==2.3
+  library(monocle3)
+  library(scater)
+  library(Seurat)
+  library(SeuratWrappers)
+  library(SHARP)
 })
 
 format_preds <- function(cells, labels) {

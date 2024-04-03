@@ -3,18 +3,12 @@
 	2024/04/02 @yanisaspic"
 
 suppressPackageStartupMessages({
-  library(qpdf)
   library(dplyr)
-  library(readxl)
-  library(openxlsx)
-  
-  library(glue)
-  library(scales)
-  library(igraph)
-  library(Seurat)
-  library(SCpubr)
   library(ggplot2)
-  library(cowplot)
+  library(glue)
+  library(qpdf)
+  library(SCpubr)
+  library(Seurat)
 })
 source("./src/scEVE/utils/misc.R")
 

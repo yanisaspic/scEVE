@@ -1,10 +1,7 @@
 "Run this script to generate the results of the paper submitted to JOBIM2024.
 
-	2024/04/02 @yanisaspic"
+	2024/04/03 @yanisaspic"
 
-suppressPackageStartupMessages({
-  library(glue)
-})
 source("./scEVE.R")
 source("./src/paper/methods.R")
 source("./src/paper/metrics.R")
@@ -13,13 +10,13 @@ source("./src/paper/metrics.R")
 expression.init <- read.csv("./data/datasets/Darmanis_HumGBM.csv", header=TRUE, row.names=1)
 ground_truth <- get_ground_truth(expression.init)
 output <- do_scEVE(expression.init)
+
 draw_tree(output$records, ground_truth)
 figure_2.heatmap <- draw_heatmap(output$preds, ground_truth)
 print(figure_2.heatmap)
-
-print("figure_2: tree is manually annotated")
-print("figure_3: see './figures/C5.pdf'")
-print("figure_4: markers extracted from './records.xlsx'")
+# figure_2: tree is manually annotated
+# figure_3: see './figures/C5.pdf'
+# figure_4: markers extracted from './records.xlsx'
 
 #______________________________________________________________________benchmark
 get_benchmark.dataset <- function(dataset) {

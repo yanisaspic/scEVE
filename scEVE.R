@@ -1,6 +1,10 @@
 "Main functions to run a scEVE analysis.
 
-	2024/04/02 @yanisaspic"
+	2024/04/03 @yanisaspic"
+
+suppressPackageStartupMessages({
+  library(openxlsx) # packageVersion("openxlsx")==4.2.5.2
+})
 
 source("./src/scEVE/trim.R")
 source("./src/scEVE/genes.R")
@@ -16,15 +20,15 @@ get_default_hyperparameters <- function() {
   #' - root_consensus: minimum consensus threshold to consider a consensus cluster.
   #' - clustering_methods: a vector of valid method names. In the scEVE JOBIM paper, 4 methods are used:
   #' Seurat, monocle3, SHARP and densityCut.
-  #' 
+  #'
   #' -> leftovers_strategy: a valid strategy to handle leftover cells. In the scEVE JOBIM paper, 1 strategy exists:
   #' + default: leftover cells are in the leftover seed
-  #' 
+  #'
   #' -> markers_strategy: a valid strategy to report marker genes. In the scEVE JOBIM paper, 1 strategy exists:
   #' + default: markers are reported in a binary matrix. If marker i is over-represented in population j, it is 1.
-  #' 
+  #'
   #' @return a list of hyperparameters.
-  #' 
+  #'
   params <- list(
     n_HVGs=500, # see Theis et al.
     min_prop_cells=0.001, # rare cells subpopulation: 1/1000
@@ -39,7 +43,7 @@ get_default_hyperparameters <- function() {
 scEVE.iteration <- function(expression.init, population, records, params,
                             figures, random_state, SeurObj.init) {
   #' Conduct an iteration of the scEVE algorithm.
-  #' 
+  #'
   #' @param expression.init: a scRNA-seq dataset of raw count expression, without selected genes:
   #' genes are rows | cells are cols.
   #' @param population: a character.
@@ -47,34 +51,34 @@ scEVE.iteration <- function(expression.init, population, records, params,
   #' @param params: a list of parameters.
   #' @param figures: a boolean. If TRUE, draw figures summarizing the iterative clustering of populations.
   #' @param random_state: a numeric.
-  #' @param SeurObj.init: a SeuratObject generated from the base scRNA-seq dataset. 
+  #' @param SeurObj.init: a SeuratObject generated from the base scRNA-seq dataset.
   #' A U-MAP has already been applied on the object.
-  #' 
+  #'
   #' @return a named list of three data.frames: 'cells', 'markers' and 'meta'.
   #'
-  
+
   while (TRUE) {
-    data.loop <- trim_data(expression.init, population, records, params, 
+    data.loop <- trim_data(expression.init, population, records, params,
                            figures, random_state, SeurObj.init)
     if (length(data.loop)==0){break()}
     # _______________________________________if too little cells, do not try to cluster
-    
+
     clusterings <- get_clusterings(data.loop, population, params, figures, random_state)
-    seeds <- get_seeds(expression.init, data.loop, clusterings, params, 
+    seeds <- get_seeds(expression.init, data.loop, clusterings, params,
                        records, population, figures)
     if (length(seeds)==0){break()}
     # ______________________________if too little consensus for every seed, do not characterize
-    
+
     data.loop$occurrences.loop <- get_occurrences(data.loop$ranked_genes.loop)
     seeds <- get_genes(data.loop, seeds, params, population, figures)
     if (length(seeds)==0){break()}
     # _____________________________if too little characterization for any seed, do not report
-    
+
     records <- update_records(records, seeds, population, data.loop, params)
     write.xlsx(records, "./records.xlsx", rowNames=TRUE)
     break()
   }
-  
+
   if (figures){merge_pdfs(population)}
   return(records)
 }
@@ -82,18 +86,18 @@ scEVE.iteration <- function(expression.init, population, records, params,
 do_scEVE <- function(expression.init, params=get_default_hyperparameters(),
                      figures=TRUE, random_state=0) {
   #' Conduct a scRNA-seq clustering analysis with the scEVE algorithm.
-  #' 
+  #'
   #' @param expression.init: a scRNA-seq dataset of raw count expression, without selected genes:
   #' genes are rows | cells are cols.
   #' @param params: a list of parameters.
   #' @param figures: a boolean. If TRUE, draw figures summarizing the iterative clustering of populations.
   #' @param random_state: a numeric.
-  #' 
-  #' @return a list with two elements: 
+  #'
+  #' @return a list with two elements:
   #' - records: a list of three data.frames: 'meta', 'cells', 'markers'. It corresponds to the generated xlsx.
   #' - labels: a named factor, where names are cells and values are cluster labels.
-  #' 
-  
+  #'
+
   #_________________________________________________________________________init
   records <- init_records(expression.init)
   if (figures) {
