@@ -13,22 +13,29 @@ source("./src/paper/metrics.R")
 expression.init <- read.csv("./data/datasets/Darmanis_HumGBM.csv", header=TRUE, row.names=1)
 ground_truth <- get_ground_truth(expression.init)
 output <- do_scEVE(expression.init)
-figure_2.tree <- draw_tree(output$records, ground_truth)
+draw_tree(output$records, ground_truth)
 figure_2.heatmap <- draw_heatmap(output$preds, ground_truth)
+print(figure_2.heatmap)
+
+print("figure_2: tree is manually annotated")
+print("figure_3: see './figures/C5.pdf'")
+print("figure_4: markers extracted from './records.xlsx'")
 
 #______________________________________________________________________benchmark
-datasets <- c("./data/datasets/Baron_HumPan.csv",
-              "./data/datasets/Li_HumCRC.csv")
-for (ds in datasets) {
-  expression.init <- read.csv(ds, header=TRUE, row.names=1)
+get_benchmark.dataset <- function(dataset) {
+  expression.init <- read.csv(dataset, header=TRUE, row.names=1)
   ground_truth <- get_ground_truth(expression.init)
   results <- get_benchmark.scEVE(expression.init, params=get_default_hyperparameters(), random_state=0)
-  print("ARI:")
-  print(get_metric(preds=results$preds, ground_truth=ground_truth, metric="ARI"))
-  print("NMI:")
-  print(get_metric(preds=results$preds, ground_truth=ground_truth, metric="NMI"))
-  print("time:")
-  print(results$time)
-  print("peakRAM")
-  print(results$peakRAM)
+  metrics <- list(ARI=get_metric(results$preds, ground_truth, metric="ARI"),
+                  NMI=get_metric(results$preds, ground_truth, metric="NMI"),
+                  time=results$time,
+                  peakRAM=results$peakRAM)
+  return(metrics)
 }
+
+datasets <- list(Baron="./data/datasets/Baron_HumPan.csv",
+                 Li="./data/datasets/Li_HumCRC.csv",
+                 Darmanis="./data/datasets/Darmanis_HumGBM.csv")
+benchmark <- lapply(X=datasets, FUN=get_benchmark.dataset)
+benchmark.table <- do.call(rbind, benchmark)
+print(benchmark.table)

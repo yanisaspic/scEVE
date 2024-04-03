@@ -48,13 +48,9 @@ if (!require("tensorflow")) {
 }
 
 if (!require("scater")) install("scater", dependencies=T, update=F)
-if (!require("splatter")) install("splatter", dependencies=T, update=F)
 if (!require("Seurat")) install_version("Seurat", version="4.3.0.1", repos=CRAN, dependencies=T)
 if (!require("SeuratWrappers")) install_github('satijalab/seurat-wrappers', dependencies=T)
 if (!require("monocle3")) install_github('cole-trapnell-lab/monocle3', dependencies = T)
-if (!require("cidr")) install_github("VCCRI/CIDR", dependencies=T)
-if (!require("SIMLR")) install_github("yulijia/SIMLR", ref='master', dependencies=T)
-if (!require("scCCESS")) install_github('PYangLab/scCCESS', dependencies=T)
 if (!require("SHARP")) install_github("shibiaowan/SHARP", dependencies=T)
 if (!require("densitycut")) install_bitbucket("jerry00/densitycut_dev", dependencies=T)
 if (!require("Wind")) install_github("haowulab/Wind", dependencies=T)
