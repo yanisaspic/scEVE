@@ -7,7 +7,7 @@ source("./src/paper/methods.R")
 source("./src/paper/metrics.R")
 
 #_______________________________________________________________________showcase
-expression.init <- read.csv("./data/datasets/Darmanis_HumGBM.csv", header=TRUE, row.names=1)
+expression.init <- read.csv("./data/Darmanis_HumGBM.csv", header=TRUE, row.names=1)
 ground_truth <- get_ground_truth(expression.init)
 output <- do_scEVE(expression.init)
 
@@ -30,9 +30,9 @@ get_benchmark.dataset <- function(dataset) {
   return(metrics)
 }
 
-datasets <- list(Baron="./data/datasets/Baron_HumPan.csv",
-                 Li="./data/datasets/Li_HumCRC.csv",
-                 Darmanis="./data/datasets/Darmanis_HumGBM.csv")
+datasets <- list(Baron="./data/Baron_HumPan.csv",
+                 Li="./data/Li_HumCRC.csv",
+                 Darmanis="./data/Darmanis_HumGBM.csv")
 benchmark <- lapply(X=datasets, FUN=get_benchmark.dataset)
 benchmark.table <- do.call(rbind, benchmark)
 print(benchmark.table)

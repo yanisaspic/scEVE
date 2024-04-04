@@ -1,6 +1,8 @@
 """Functions called to set-up the datasets used in the scEVE paper.
 
-    2024/04/03 @yanisaspic"""
+    Run this script after download_data.sh
+
+    2024/04/04 @yanisaspic"""
 
 import os
 import pandas as pd
@@ -72,7 +74,7 @@ def setup_darmanis(darmanis_dir):
     doi: 10.1016/j.celrep.2017.10.030
     """
     data = pd.read_csv(
-        f"{darmanis_dir}/GSE84465_GBM_All_data.csv", index_col=0, sep=" "
+        f"{darmanis_dir}/data.csv", index_col=0, sep=" "
     )
     data = data.drop(data.tail(5).index)
     # drop the rows 'no_feature', 'ambiguous', 'too_low_aQual', 'not_aligned' and 'alignment_not_unique'
@@ -80,7 +82,7 @@ def setup_darmanis(darmanis_dir):
     metadata = GET_SMARTSEQ2_METADATA(f"{darmanis_dir}/GSE84465_family.xml")
     cell_ids = get_cell_ids(metadata.values())
     data.columns = cell_ids
-    data.to_csv("./datasets/Darmanis_HumGBM.csv")
+    data.to_csv("../../data/Darmanis_HumGBM.csv")
 
 
 # scEFSC datasets are set-up according to the Hemberg Lab pipeline.
@@ -106,7 +108,7 @@ def setup_baron(baron_dir):
     data.index = cell_ids
     data = data.drop(["barcode", "assigned_cluster"], axis=1)
     data = data.T
-    data.to_csv("./datasets/Baron_HumPan.csv")
+    data.to_csv("../../data/Baron_HumPan.csv")
 
 
 def setup_li(li_dir):
@@ -124,7 +126,7 @@ def setup_li(li_dir):
     data.columns = [trim_label(cell_label, "__") for cell_label in data.columns]
     data.columns = get_cell_ids(data.columns)
     data = data[~data.index.duplicated(keep="first")]
-    data.to_csv("./datasets/Li_HumCRC.csv")
+    data.to_csv("../../data/Li_HumCRC.csv")
 
 
 # Run after downloading the required files.
