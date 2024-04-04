@@ -17,7 +17,7 @@ li_dir = "./downloads/Li"
 # with the following structure: {label}_{n}, where
 # label corresponds to the ground truth of the authors.
 # n is a value between 1 and the maximum number of cells of a label.
-#__________________________________________________________________________
+# __________________________________________________________________________
 def get_cell_id(cell_label: str, label_counter: dict[str, int]) -> str:
     """Given the label of a cell, assign it a unique id."""
     cell_id = f"{cell_label}_{label_counter[cell_label]}"
@@ -35,7 +35,7 @@ def get_cell_ids(cell_labels: list[str]) -> list[str]:
 # Darmanis dataset is set-up with the cell types (e.g. Myeloid)
 # assigned by the authors as labels. Note that for each cell,
 # the t-SNE clusters assigned are also available in the metadata.
-#__________________________________________________________________________
+# __________________________________________________________________________
 def get_smartseq2_metadata(element: ET.Element) -> tuple[str, str]:
     """Read an element tree of a Smart-Seq2 miniML file to get the cell id and the cell type corresponding to a sample."""
     for child in element:
@@ -73,9 +73,7 @@ def setup_darmanis(darmanis_dir):
     sequencing: Smart-Seq2
     doi: 10.1016/j.celrep.2017.10.030
     """
-    data = pd.read_csv(
-        f"{darmanis_dir}/data.csv", index_col=0, sep=" "
-    )
+    data = pd.read_csv(f"{darmanis_dir}/data.csv", index_col=0, sep=" ")
     data = data.drop(data.tail(5).index)
     # drop the rows 'no_feature', 'ambiguous', 'too_low_aQual', 'not_aligned' and 'alignment_not_unique'
 
@@ -88,7 +86,7 @@ def setup_darmanis(darmanis_dir):
 # scEFSC datasets are set-up according to the Hemberg Lab pipeline.
 # see:    https://hemberg-lab.github.io/scRNA.seq.datasets/
 #         https://github.com/hemberg-lab/scRNA.seq.datasets
-#__________________________________________________________________________
+# __________________________________________________________________________
 def setup_baron(baron_dir):
     """Set-up the Baron (2016) dataset.
     accession: GSE84133
@@ -130,7 +128,7 @@ def setup_li(li_dir):
 
 
 # Run after downloading the required files.
-#__________________________________________________________________________
+# __________________________________________________________________________
 setup_darmanis(darmanis_dir)
 setup_baron(baron_dir)
 setup_li(li_dir)
