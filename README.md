@@ -15,7 +15,7 @@ have been developed to conduct this analysis, but they all generate different re
 ___
 ***1. Dependencies***
 
-The dependencies required to run scEVE, and to generate our results, are reported in the directory `setup/config`.
+The dependencies required to run scEVE, and to generate our results, are reported in the directory `setup/config/`.
 Both Python3 and R dependencies are included. For each dependency, the version used is also reported.
 
 ***2. Datasets***
@@ -30,6 +30,6 @@ This script generates three datasets, stored in the `data/` directory: `Baron_Hu
 ***3. Results***
 
 After completing the two steps above, run `paper.R` interactively (e.g. with Rstudio) to reproduce the results of the JOBIM2024 paper.
-* **Fig.2** is generated interactively
+* **Fig.2** is generated interactively.
 * **Fig.3** is stored in the file `figures/C5.pdf`.
-* **Fig.4** is generated with Cytoscape, but the marker genes are stored in the sheet `markers` of the file `records.xlsx`.
+* **Fig.4** uses marker genes stored in the sheet `markers` of the file `records.xlsx`.
