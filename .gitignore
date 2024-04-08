@@ -1,0 +1,4 @@
+figures/*
+*.Rhistory
+*pycache*
+records.xlsx
