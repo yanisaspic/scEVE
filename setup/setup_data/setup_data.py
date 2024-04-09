@@ -171,8 +171,6 @@ def setup_lake(lake_dir):
     cell_ids = get_cell_ids(annotations.SubGroup)
     data.columns = cell_ids
     data.to_csv("../../data/Lake_MouBra.csv")
-    print(data)
-    print(annotations.SubGroup.unique())
     return data
     
 
