@@ -104,15 +104,6 @@ get_scRNAseq_matrix <- function(scRNAseq_label) {
   # doi: 10.1016/j.cell.2018.09.006
   accessions[["Jerby-Arnon_HumMLM"]] <- "GSE115978"
   
-  # van Galen (2019)____________________________________________________________
-  # accession: GSE116256
-  # cells: 22,600
-  # genes: 27,899
-  # clusters: 17
-  # sequencing: Seq-Well
-  # doi: 10.1016/j.cell.2019.01.031
-  accessions[["vanGalen_HumAML"]] <- "GSE116256"
-  
   # Lambrechts (2018)___________________________________________________________
   # accession: E-MTAB-6149, E-MTAB-6653
   # cells: 51,775
