@@ -143,10 +143,8 @@ def setup_camp(camp_dir):
                        "ip": "ipsc"}
     cell_labels = cell_symbols_1.apply(lambda symbol: symbol_to_label[symbol[:2].lower()])
     cell_ids = get_cell_ids(cell_labels)
-    print(cell_ids)
 
     data.index = cell_ids
-    print(data)
     data = data.T
     data.to_csv("../../data/Camp_MouLiv.csv")
     return data
@@ -155,9 +153,9 @@ def setup_camp(camp_dir):
 def setup_lake(lake_dir):
     """Set-up the Lake (2017) dataset.
     accession: phs000833.v3.p1
-    cells: 777
-    genes: 19,020
-    clusters: 7
+    cells: 3,042
+    genes: 25,051
+    clusters: 16
     sequencing: Fluidigm C1
     doi: 10.1126/science.aaf1204 
     """
@@ -173,6 +171,8 @@ def setup_lake(lake_dir):
     cell_ids = get_cell_ids(annotations.SubGroup)
     data.columns = cell_ids
     data.to_csv("../../data/Lake_MouBra.csv")
+    print(data)
+    print(annotations.SubGroup.unique())
     return data
     
 
@@ -186,4 +186,4 @@ def setup_scEFSC_datasets():
 
 
 # Run after downloading the required files:
-setup_scEFSC_datasets()
+setup_lake(lake_dir)

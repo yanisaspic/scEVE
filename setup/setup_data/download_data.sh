@@ -65,9 +65,9 @@ gunzip $CAMP_DIR/*.gz
 
 # Lake (2016)________________________
 # accession: phs000833.v3.p1
-# cells: 777
-# genes: 19,020
-# clusters: 7
+# cells: 3,042
+# genes: 25,051
+# clusters: 16
 # sequencing: Fluidigm C1
 # doi: 10.1126/science.aaf1204
 # /!\ TPM matrix
