@@ -7,10 +7,12 @@
 import os
 import pandas as pd
 
+
 baron_dir = "./downloads/Baron"
 li_dir = "./downloads/Li"
 tasic_dir = "./downloads/Tasic"
 camp_dir = "./downloads/Camp"
+lake_dir = "./downloads/Lake"
 
 
 # In the scEVE papers, all cells are associated to a unique id,
@@ -141,8 +143,10 @@ def setup_camp(camp_dir):
                        "ip": "ipsc"}
     cell_labels = cell_symbols_1.apply(lambda symbol: symbol_to_label[symbol[:2].lower()])
     cell_ids = get_cell_ids(cell_labels)
+    print(cell_ids)
 
     data.index = cell_ids
+    print(data)
     data = data.T
     data.to_csv("../../data/Camp_MouLiv.csv")
     return data
@@ -154,10 +158,23 @@ def setup_lake(lake_dir):
     cells: 777
     genes: 19,020
     clusters: 7
-    sequencing: -
+    sequencing: Fluidigm C1
     doi: 10.1126/science.aaf1204 
     """
-        
+    data = pd.read_csv(f"{lake_dir}/data.csv", index_col=0, sep="\t")
+    data = data[~data.index.duplicated()]
+
+    # column 1: Published_Sample_Name
+    annotations = pd.read_csv(f"{lake_dir}/annotations.txt", index_col=1, sep="\t")
+    cells_of_interest = annotations.index.intersection(data.columns)
+    annotations = annotations.loc[cells_of_interest]
+    data = data[cells_of_interest]
+
+    cell_ids = get_cell_ids(annotations.SubGroup)
+    data.columns = cell_ids
+    data.to_csv("../../data/Lake_MouBra.csv")
+    return data
+    
 
 def setup_scEFSC_datasets():
     """Set-up the datasets used in the scEFSC paper."""
@@ -165,8 +182,8 @@ def setup_scEFSC_datasets():
     setup_li(li_dir)
     setup_tasic(tasic_dir)
     setup_camp(camp_dir)
+    setup_lake(lake_dir)
 
 
-# # Run after downloading the required files:
-# setup_scEFSC_datasets()
-setup_camp(camp_dir)
+# Run after downloading the required files:
+setup_scEFSC_datasets()

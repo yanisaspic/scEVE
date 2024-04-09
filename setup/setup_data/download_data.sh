@@ -68,7 +68,7 @@ gunzip $CAMP_DIR/*.gz
 # cells: 777
 # genes: 19,020
 # clusters: 7
-# sequencing: -
+# sequencing: Fluidigm C1
 # doi: 10.1126/science.aaf1204
 # /!\ TPM matrix
 LAKE_DIR="./downloads/Lake"
