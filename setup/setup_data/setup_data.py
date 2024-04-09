@@ -10,6 +10,7 @@ import pandas as pd
 baron_dir = "./downloads/Baron"
 li_dir = "./downloads/Li"
 tasic_dir = "./downloads/Tasic"
+camp_dir = "./downloads/Camp"
 
 
 # In the scEVE papers, all cells are associated to a unique id,
@@ -27,7 +28,6 @@ def get_cell_id(cell_label: str, label_counter: dict[str, int]) -> str:
 def get_cell_ids(cell_labels: list[str]) -> list[str]:
     """Given a list of cell labels, assign a unique id to each cell w.r.t. its label."""
     label_counter = {label: 1 for label in set(cell_labels)}
-    print(label_counter)
     cell_ids = [get_cell_id(cell_label, label_counter) for cell_label in cell_labels]
     return cell_ids
 
@@ -113,12 +113,60 @@ def setup_tasic(tasic_dir):
     return data
 
 
+def setup_camp(camp_dir):
+    """Set-up the Camp (2017) dataset.
+    accession: GSE81252
+    cells: 777
+    genes: 19,020
+    clusters: 7
+    sequencing: SMARTer
+    doi: 10.1038/nature22796
+    """
+    datasets = [pd.read_csv(f"{camp_dir}/data_1.csv", index_col=0),
+                pd.read_csv(f"{camp_dir}/data_2.csv", index_col=0)]
+    data = pd.concat(datasets)
+    data = data[~data.index.duplicated()]
+
+    cell_symbols_1 = data.experiment
+    cell_symbols_2 = data.assignment_LB
+    cell_symbols_1[~cell_symbols_2.isna()] = cell_symbols_2
+    data = data.drop(["experiment", "assignment_LB"], axis=1)
+
+    symbol_to_label = {"ih": "immature hepatoblast",
+                       "mh": "mature hepatocyte",
+                       "de": "definitive endoderm",
+                       "ec": "endothelial",
+                       "he": "hepatic endoderm",
+                       "mc": "mesenchymal stem cell",
+                       "ip": "ipsc"}
+    cell_labels = cell_symbols_1.apply(lambda symbol: symbol_to_label[symbol[:2].lower()])
+    cell_ids = get_cell_ids(cell_labels)
+
+    data.index = cell_ids
+    data = data.T
+    data.to_csv("../../data/Camp_MouLiv.csv")
+    return data
+
+
+def setup_lake(lake_dir):
+    """Set-up the Lake (2017) dataset.
+    accession: phs000833.v3.p1
+    cells: 777
+    genes: 19,020
+    clusters: 7
+    sequencing: -
+    doi: 10.1126/science.aaf1204 
+    """
+        
+
 def setup_scEFSC_datasets():
     """Set-up the datasets used in the scEFSC paper."""
     setup_baron(baron_dir)
     setup_li(li_dir)
     setup_tasic(tasic_dir)
+    setup_camp(camp_dir)
 
 
-# Run after downloading the required files:
-setup_scEFSC_datasets()
+# # Run after downloading the required files:
+# setup_scEFSC_datasets()
+setup_camp(camp_dir)
