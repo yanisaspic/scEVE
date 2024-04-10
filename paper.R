@@ -7,7 +7,7 @@ source("./src/paper/methods.R")
 source("./src/paper/metrics.R")
 
 #_______________________________________________________________________showcase
-expression.init <- read.csv("./data/Darmanis_HumGBM.csv", header=TRUE, row.names=1)
+expression.init <- read.csv("./data/Baron_HumPan.csv", header=TRUE, row.names=1)
 ground_truth <- get_ground_truth(expression.init)
 output <- do_scEVE(expression.init)
 

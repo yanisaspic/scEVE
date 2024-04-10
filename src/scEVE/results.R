@@ -65,7 +65,7 @@ get_sheet.meta <- function(records, seeds, population) {
   #'
   #' @return a data.frame with four columns: 'consensus', 'parent', 'n', and 'to_dig'.
   #'
-  name_subpopulation <- function(i){glue("{population}{i}")}
+  name_subpopulation <- function(i){glue("{population}.{i}")}
   get_row <- function(i) {
     subpopulation <- name_subpopulation(i)
     row <- c(consensus=seeds[[i]]$consensus, parent=population, 
@@ -119,18 +119,6 @@ update_records <- function(records, seeds, population, data.loop, params) {
   sheet.meta <- get_sheet.meta(records, seeds, population)
   records <- list(cells=sheet.cells, meta=sheet.meta, markers=sheet.markers)
   return(records)
-}
-
-get_max_resolution <- function(sheet.cells) {
-  #' Get the maximum resolution of a scEVE clustering analysis.
-  #' 
-  #' @param sheet.cells: a data.frame where rows are cells | cols are populations | values are membership likelihood.
-  #' 
-  #' @return a numeric.
-  #' 
-  labels <- colnames(sheet.cells)
-  max_resolution <- max(nchar(labels))
-  return(max_resolution)
 }
 
 get_leaves <- function(sheet.cells) {

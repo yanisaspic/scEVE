@@ -21,13 +21,13 @@ get_sheet.cells.default <- function(records, seeds, population) {
   cells <- rownames(records$cells)
   get_col <- function(i) {
     seed <- seeds[[i]]
-    cluster_label <- glue("{population}{i}")
+    cluster_label <- glue("{population}.{i}")
     col <- as.numeric(cells %in% seed$cells)
     return(col)
   }
   cols <- lapply(X=1:length(seeds), FUN = get_col)
   
-  name_subpopulation <- function(i){glue("{population}{i}")}
+  name_subpopulation <- function(i){glue("{population}.{i}")}
   sheet.cells <- do.call(cbind, cols)
   rownames(sheet.cells) <- cells
   colnames(sheet.cells) <- name_subpopulation(1:length(seeds))

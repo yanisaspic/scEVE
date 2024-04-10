@@ -18,7 +18,7 @@ get_sheet.markers.default <- function(records, seeds, population) {
   sheet.markers <- lapply(X=seeds, FUN=frame_markers.seed)
   sheet.markers <- do.call(cbind, sheet.markers)
   
-  name_subpopulation <- function(i){glue("{population}{i}")}
+  name_subpopulation <- function(i){glue("{population}.{i}")}
   colnames(sheet.markers) <- sapply(X=1:length(seeds), FUN=name_subpopulation)
   rownames(sheet.markers) <- genes
   return(sheet.markers)

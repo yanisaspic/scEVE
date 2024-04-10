@@ -1,19 +1,44 @@
 "Misc. functions called by multiple steps of the pipeline.
 
-	2024/04/02 @yanisaspic"
+	2024/04/10 @yanisaspic"
 
-get_populations_at_resolution <- function(sheet.cells, resolution) {
+get_resolution <- function(population) {
+  #' Get the resolution level of a predicted population.
+  #' 
+  #' @param population: a character.
+  #' 
+  #' @return an integer.
+  #' 
+  resolution <- length(strsplit(population, split=".", fixed=TRUE)[[1]])
+  return(resolution)
+}
+
+get_populations_at_resolution <- function(sheet.cells, target_resolution) {
   #' Get all the populations at a specific resolution.
   #' The root population is resolution 1, and its children populations are resolution 2, etc.
   #' 
   #' @param sheet.cells: a data.frame where rows are cells | cols are populations | values are membership likelihood.
-  #' @param resolution: an integer.
+  #' @param target_resolution: an integer.
   #' 
   #' @return a vector of population labels.
   #' 
   populations <- colnames(sheet.cells)
-  populations_at_resolution <- populations[nchar(populations)==resolution]
+  resolutions <- sapply(X=populations, FUN=get_resolution)
+  populations_at_resolution <- populations[resolutions==target_resolution]
   return(populations_at_resolution)
+}
+
+get_max_resolution <- function(sheet.cells) {
+  #' Get the maximum resolution of a scEVE clustering analysis.
+  #' 
+  #' @param sheet.cells: a data.frame where rows are cells | cols are populations | values are membership likelihood.
+  #' 
+  #' @return an integer.
+  #' 
+  populations <- colnames(sheet.cells)
+  resolutions <- sapply(X=populations, FUN=get_resolution)
+  max_resolution <- max(resolutions)
+  return(max_resolution)
 }
 
 get_cells_of_interest <- function(population, sheet.cells) {
@@ -37,7 +62,8 @@ get_cells_of_interest <- function(population, sheet.cells) {
   }
   # max_likelihood threshold ensures that cells outside of 'population' are not included.
   
-  sheet.cells <- sheet.cells[, get_populations_at_resolution(sheet.cells, nchar(population))]
+  target_resolution <- get_resolution(population)
+  sheet.cells <- sheet.cells[, get_populations_at_resolution(sheet.cells, target_resolution)]
   cells_are_interesting <- apply(X=sheet.cells, MARGIN=1, FUN=cell_is_interesting)
   cells_of_interest <- rownames(sheet.cells[cells_are_interesting, ])
   return(cells_of_interest)
