@@ -5,7 +5,7 @@
 suppressPackageStartupMessages({
   library(dplyr)
   library(glue)
-  library(TMExplorer)
+  library(TMExplorer) # packageVersion("TMExplorer")==1.10.0
 })
 
 get_cell_ids <- function(cell_labels) {

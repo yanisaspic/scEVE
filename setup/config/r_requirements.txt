@@ -35,4 +35,5 @@ sp==2.1.2
 stats==4.3.3
 stats4==4.3.3
 SummarizedExperiment==1.30.2
+TMExplorer==1.10.0
 utils==4.3.3

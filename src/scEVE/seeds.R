@@ -1,5 +1,5 @@
 "Functions used to identify seeds, i.e. groups of cells unambiguously assigned together.
-In the papers, we refer to seeds as consensus clusters.
+In the papers, we refer to seeds as consensus clusters. Rules can refer to overlaps.
 
 	2024/04/02 @yanisaspic"
 
@@ -36,6 +36,7 @@ get_rules <- function(transactions, min_support, min_confidence) {
     confidence=as.numeric(out$confidence)
   )
   rules <- do.call(cbind, rules)
+  rules <- data.frame(rules, row.names = NULL)
   return(rules)
 }
 
@@ -47,33 +48,17 @@ get_symmetric_rules <- function(rules) {
   #' 
   #' @return a data.frame with three columns: 'A', 'B' and 'confidence'.
   #' 
+  rules$confidence <- as.numeric(rules$confidence)
+  rules <- rules[order(rules$confidence, decreasing = TRUE),]
+  # decreasing sort: duplicate keys are symmetric rules with minimum confidence
   
-  # duplicate the rules to filter them #
-  ######################################
-  data <- data.frame(
-    rbind(rules, rules[, c("B", "A", "confidence")])
-  )
+  get_key.row <- function(row) {
+    elements <- sort(row[c("A", "B")])
+    key <- paste(elements, collapse=".")}
+  keys <- apply(X=rules, MARGIN=1, FUN=get_key.row)
   
-  # keep the rules with a symmetric #
-  ###################################
-  data <- data %>%
-    group_by(A, B) %>%
-    filter(n()>1)
-  
-  # keep the least confident symmetric #
-  ######################################
-  data <- data %>%
-    group_by(A, B) %>%
-    slice_min(confidence, with_ties = FALSE)
-  
-  # remove the duplicates #
-  #########################
-  data <- data %>%
-    arrange(confidence)
-  odd_rows <- seq_len(nrow(data)) %% 2
-  symmetric_rules <- data[odd_rows==1, ]
-  
-  return(symmetric_rules)
+  rules <- rules[duplicated(keys),]
+  return(rules)
 }
 
 get_max_consensus <- function(methods) {
@@ -337,8 +322,8 @@ get_seeds <- function(expression.init, data.loop, clusterings, params, records, 
     consensi <- sapply(seeds, "[[", "consensus")
     seeds <- seeds[order(-consensi)]
     
-    # generate a leftover seed: naive approach
-    ##########################################
+    # generate a leftover seed
+    ##########################
     cells.seeds <- unlist(sapply(seeds, "[[", "cells"))
     missing_cells <- setdiff(rownames(clusterings), cells.seeds)
     leftover_seed <- list(
