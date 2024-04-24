@@ -1,6 +1,6 @@
 "Run this script to generate the results of the paper submitted to JOBIM2024.
 
-	2024/04/03 @yanisaspic"
+	2024/04/10 @yanisaspic"
 
 source("./scEVE.R")
 source("./src/paper/methods.R")
@@ -30,9 +30,7 @@ get_benchmark.dataset <- function(dataset) {
   return(metrics)
 }
 
-datasets <- list(Baron="./data/Baron_HumPan.csv",
-                 Li="./data/Li_HumCRC.csv",
-                 Darmanis="./data/Darmanis_HumGBM.csv")
+datasets <- list(Li="./data/Li_HumCRC_a.csv",
+                 Lake="./data/Lake_MouBra.csv")
 benchmark <- lapply(X=datasets, FUN=get_benchmark.dataset)
 benchmark.table <- do.call(rbind, benchmark)
-print(benchmark.table)
