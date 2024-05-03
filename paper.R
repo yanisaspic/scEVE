@@ -1,36 +1,56 @@
-"Run this script to generate the results of the paper submitted to JOBIM2024.
+"Run this script to generate the benchmark comparing scEVE to its component methods.
 
 	2024/04/10 @yanisaspic"
 
 source("./scEVE.R")
+source("./src/paper/data.R")
 source("./src/paper/methods.R")
 source("./src/paper/metrics.R")
 
-#_______________________________________________________________________showcase
-expression.init <- read.csv("./data/Tasic_MouBra.csv", header=TRUE, row.names=1)
-ground_truth <- get_ground_truth(expression.init)
-output <- do_scEVE(expression.init)
+compute_benchmark.dataset <- function(dataset, params, random_state) {
+  #' Get the results of scEVE and the individual clustering methods it uses on a scRNA-seq dataset.
+  #' These results include:
+  #' - peakRAM (Mbytes): the maximum memory usage of the method.
+  #' - time (s): the computation time in seconds.
+  #' - ARI: a clustering performance metric.
+  #' - NMI: a clustering performance metric.
+  #'
+  #' @param dataset: a valid scRNA-seq dataset label.
+  #' @param params: a list of parameters.
+  #' @param random_state: a numeric.
+  #' 
+  #' @return a data.frame with 6 columns: 'peakRAM', 'time', 'ARI', 'NMI', 'method' and 'dataset'.
+  #' 
+  expression.init <- get_expression(dataset)
+  benchmark.list <- get_benchmark.dataset(expression.init, params, random_state)
+  benchmark <- as.data.frame(do.call(rbind, benchmark.list))
 
-draw_tree(output$records, ground_truth)
-figure_2.heatmap <- draw_heatmap(output$preds, ground_truth)
-print(figure_2.heatmap)
-# figure_2: tree is manually annotated
-# figure_3: see './figures/C5.pdf'
-# figure_4: markers extracted from './records.xlsx'
-
-#______________________________________________________________________benchmark
-get_benchmark.dataset <- function(dataset) {
-  expression.init <- read.csv(dataset, header=TRUE, row.names=1)
   ground_truth <- get_ground_truth(expression.init)
-  results <- get_benchmark.scEVE(expression.init, params=get_default_hyperparameters(), random_state=0)
-  metrics <- list(ARI=get_metric(results$preds, ground_truth, metric="ARI"),
-                  NMI=get_metric(results$preds, ground_truth, metric="NMI"),
-                  time=results$time,
-                  peakRAM=results$peakRAM)
-  return(metrics)
+  compute_metric <- function(metric) {sapply(X=benchmark$preds, FUN=get_metric, ground_truth, metric=metric)}
+  for (metric in c("ARI", "NMI")) {benchmark[metric] <- compute_metric(metric)}
+    
+  benchmark["method"] <- rownames(benchmark)
+  benchmark["dataset"] <- dataset
+  benchmark$preds <- NULL
+  return(benchmark)
 }
 
-datasets <- list(Li="./data/Li_HumCRC_a.csv",
-                 Lake="./data/Lake_MouBra.csv")
-benchmark <- lapply(X=datasets, FUN=get_benchmark.dataset)
-benchmark.table <- do.call(rbind, benchmark)
+compute_benchmark <- function(datasets, params, random_state) {
+  #' Get the results of scEVE and its individual clustering methods on multiple scRNA-seq datasets.
+  #'
+  #' @param datasets a vector of valid scRNA-seq dataset labels.
+  #' @param params: a list of parameters.
+  #' @param random_state: a numeric.
+  #'
+  #' @return a data.frame with 6 columns: 'peakRAM', 'time', 'ARI', 'NMI', 'method' and 'dataset'.
+  #' 
+  benchmark.all <- lapply(X=datasets, FUN=compute_benchmark.dataset, params=params, random_state=random_state)
+  benchmark.all <- as.data.frame(do.call(rbind, benchmark.all))
+  return(benchmark.all)
+}
+
+datasets <- list(Li="Li_HumCRC_a")
+#,
+#                 Camp="Camp_MouLiv")
+benchmark <- compute_benchmark(datasets, get_default_hyperparameters(), random_state=0)
+write.csv(benchmark, "benchmark.csv")

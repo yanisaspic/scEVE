@@ -23,6 +23,7 @@ get_cell_ids <- function(cell_labels) {
     cell_ids[n] <- glue("{cell_label}_{label_counter[[cell_label]]}")
     label_counter[[cell_label]] <- label_counter[[cell_label]] + 1
   }
+  print(label_coun)
   return(cell_ids)
 }
 
@@ -75,7 +76,7 @@ get_scRNAseq_matrix.accession <- function(accession) {
   return(scRNAseq_matrix)
 }
 
-get_scRNAseq_matrix <- function(scRNAseq_label) {
+get_expression <- function(scRNAseq_label) {
   #' Get a standard scRNA-seq matrix from a label, e.g. 'Darmanis_HumGBM'.
   #' 
   #' @param scRNAseq_label: a character.
@@ -103,6 +104,15 @@ get_scRNAseq_matrix <- function(scRNAseq_label) {
   # sequencing: SMART-Seq2
   # doi: 10.1016/j.cell.2018.09.006
   accessions[["Jerby-Arnon_HumMLM"]] <- "GSE115978"
+  
+  # Van Galen (2018)___________________________________________________________
+  # accession: GSE116256
+  # cells: 22,600
+  # genes: 27,899
+  # clusters: 17
+  # sequencing: Seq-Well
+  # doi: 10.1016/j.cell.2019.01.031
+  accessions[["VanGalen_HumAML"]] <- "GSE116256"
   
   # Lambrechts (2018)___________________________________________________________
   # accession: E-MTAB-6149, E-MTAB-6653
@@ -134,5 +144,6 @@ get_scRNAseq_matrix <- function(scRNAseq_label) {
   if (scRNAseq_label %in% names(accessions)) {
     return(get_scRNAseq_matrix.accession(accessions[[scRNAseq_label]]))
   }
-  return(glue("./data/{scRNAseq_label}.csv"))
+  return(read.csv(glue("./data/{scRNAseq_label}.csv"), header=TRUE, row.names=1))
 }
+

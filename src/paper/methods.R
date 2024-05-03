@@ -60,12 +60,12 @@ get_input.individual_method <- function(expression.init, method, n_HVGs) {
   return(input)
 }
 
-get_benchmark.individual_method.wrapper <- function(expression.init, method, n_HVGs, random_state) {
+get_benchmark.individual_method.wrapper <- function(method, expression.init, n_HVGs, random_state) {
   #' Get the results of an individual clustering method on a scRNA-seq dataset.
   #'
+  #' @param method: a valid method name. In the JOBIM paper, it is one of: 'Seurat', 'monocle3', 'CIDR' and 'SHARP'.
   #' @param expression.init: a scRNA-seq raw count matrix, without selected genes:
   #' genes are rows | cells are cols.
-  #' @param method: a valid method name. In the JOBIM paper, it is one of: 'Seurat', 'monocle3', 'CIDR' and 'SHARP'.
   #' @param n_HVGs: a numeric.
   #' @param random_state: a numeric.
   #' 
@@ -107,5 +107,31 @@ get_benchmark.scEVE <- function(expression.init, params, random_state) {
   results <- list(peakRAM = peakRAM.after - peakRAM.before,
                   time = as.numeric(time.after - time.before, units="secs"),
                   preds = preds)
+  return(results)
+}
+
+get_benchmark.dataset <- function(expression.init, params, random_state) {
+  #' Get the results of scEVE and the individual clustering methods it uses on a scRNA-seq dataset.
+  #' These results include:
+  #' - peakRAM (Mbytes): the maximum memory usage of the method.
+  #' - time (s): the computation time in seconds.
+  #' - preds: a named factor, where names are cells and values are cluster labels.
+  #'
+  #' @param expression.init: a scRNA-seq raw-count matrix:
+  #' genes are rows | cells are cols.
+  #' @param params: a list of parameters.
+  #' @param random_state: a numeric.
+  #' 
+  #' @return a nested list of three elements: 'peakRAM', 'time' and 'preds'.
+  #' 
+  results.scEVE <- get_benchmark.scEVE(expression.init, params, random_state)
+  individual_methods <- params$clustering_methods
+  results <- lapply(X=individual_methods,
+                    FUN=get_benchmark.individual_method.wrapper,
+                    expression.init=expression.init,
+                    n_HVGs=params$n_HVGs,
+                    random_state=random_state)
+  names(results) <- c(individual_methods)
+  results[["scEVE"]] <- results.scEVE
   return(results)
 }

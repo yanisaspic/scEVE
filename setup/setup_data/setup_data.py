@@ -7,12 +7,8 @@
 import os
 import pandas as pd
 
-
-baron_dir = "./downloads/Baron"
-li_dir = "./downloads/Li"
-tasic_dir = "./downloads/Tasic"
-camp_dir = "./downloads/Camp"
-lake_dir = "./downloads/Lake"
+downloads_dir = "./setup/setup_data/downloads"
+data_dir = "./data"
 
 
 # In the scEVE papers, all cells are associated to a unique id,
@@ -38,7 +34,7 @@ def get_cell_ids(cell_labels: list[str]) -> list[str]:
 # see:    https://hemberg-lab.github.io/scRNA.seq.datasets/
 #         https://github.com/hemberg-lab/scRNA.seq.datasets
 
-def setup_baron(baron_dir):
+def setup_baron():
     """Set-up the Baron (2016) dataset.
     accession: GSE84133
     cells: 8,569
@@ -47,6 +43,7 @@ def setup_baron(baron_dir):
     sequencing: inDrop
     doi: 10.1016/j.cels.2016.08.011
     """
+    baron_dir = f"{downloads_dir}/Baron"
     paths = os.listdir(baron_dir)
     datasets = [pd.read_csv(f"{baron_dir}/{p}", index_col=0) for p in paths]
     data = pd.concat(datasets)
@@ -57,11 +54,11 @@ def setup_baron(baron_dir):
     data.index = cell_ids
     data = data.drop(["barcode", "assigned_cluster"], axis=1)
     data = data.T
-    data.to_csv("../../data/Baron_HumPan.csv")
+    data.to_csv(f"{data_dir}/Baron_HumPan.csv")
     return data
 
 
-def setup_li(li_dir):
+def setup_li():
     """Set-up the Li (2017) dataset.
     accession: GSE81861
     cells: 561
@@ -69,6 +66,7 @@ def setup_li(li_dir):
     clusters: 9
     sequencing: SMARTer
     doi: 10.1038/ng.3818"""
+    li_dir = f"{downloads_dir}/Li"
     data = pd.read_csv(f"{li_dir}/data.csv", index_col=0)
 
     trim_label = lambda label, sep: label.split(sep)[1]
@@ -76,11 +74,11 @@ def setup_li(li_dir):
     data.columns = [trim_label(cell_label, "__") for cell_label in data.columns]
     data.columns = get_cell_ids(data.columns)
     data = data[~data.index.duplicated(keep="first")]
-    data.to_csv("../../data/Li_HumCRC_a.csv")
+    data.to_csv(f"{data_dir}/Li_HumCRC_a.csv")
     return data
 
 
-def setup_tasic(tasic_dir):
+def setup_tasic():
     """Set-up the Tasic (2016) dataset.
     accession: GSE71585
     cells: 1,679
@@ -89,6 +87,7 @@ def setup_tasic(tasic_dir):
     sequencing: SMARTer
     doi: 10.1038/nn.4216
     """
+    tasic_dir = f"{downloads_dir}/Tasic"
     data = pd.read_csv(f"{tasic_dir}/genes_counts.csv", index_col=0)
 
     # column -1: short_name
@@ -111,11 +110,11 @@ def setup_tasic(tasic_dir):
     cell_ids = get_cell_ids(cell_labels)
     data.columns = cell_ids
     data.index = [feature.replace("_", "-") for feature in data.index]
-    data.to_csv("../../data/Tasic_MouBra.csv")
+    data.to_csv(f"{data_dir}/Tasic_MouBra.csv")
     return data
 
 
-def setup_camp(camp_dir):
+def setup_camp():
     """Set-up the Camp (2017) dataset.
     accession: GSE81252
     cells: 777
@@ -124,6 +123,7 @@ def setup_camp(camp_dir):
     sequencing: SMARTer
     doi: 10.1038/nature22796
     """
+    camp_dir = f"{downloads_dir}/Camp"
     datasets = [pd.read_csv(f"{camp_dir}/data_1.csv", index_col=0),
                 pd.read_csv(f"{camp_dir}/data_2.csv", index_col=0)]
     data = pd.concat(datasets)
@@ -146,11 +146,11 @@ def setup_camp(camp_dir):
 
     data.index = cell_ids
     data = data.T
-    data.to_csv("../../data/Camp_MouLiv.csv")
+    data.to_csv(f"{data_dir}/Camp_MouLiv.csv")
     return data
 
 
-def setup_lake(lake_dir):
+def setup_lake():
     """Set-up the Lake (2017) dataset.
     accession: phs000833.v3.p1
     cells: 3,042
@@ -159,6 +159,7 @@ def setup_lake(lake_dir):
     sequencing: Fluidigm C1
     doi: 10.1126/science.aaf1204 
     """
+    lake_dir = f"{downloads_dir}/Lake"
     data = pd.read_csv(f"{lake_dir}/data.csv", index_col=0, sep="\t")
     data = data[~data.index.duplicated()]
 
@@ -170,18 +171,18 @@ def setup_lake(lake_dir):
 
     cell_ids = get_cell_ids(annotations.SubGroup)
     data.columns = cell_ids
-    data.to_csv("../../data/Lake_MouBra.csv")
+    data.to_csv(f"{data_dir}/Lake_MouBra.csv")
     return data
     
 
 def setup_scEFSC_datasets():
     """Set-up the datasets used in the scEFSC paper."""
-    setup_baron(baron_dir)
-    setup_li(li_dir)
-    setup_tasic(tasic_dir)
-    setup_camp(camp_dir)
-    setup_lake(lake_dir)
+    setup_baron()
+    setup_li()
+    setup_tasic()
+    setup_camp()
+    setup_lake()
 
 
 # Run after downloading the required files:
-setup_lake(lake_dir)
+setup_scEFSC_datasets()
