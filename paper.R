@@ -6,6 +6,9 @@ source("./scEVE.R")
 source("./src/paper/data.R")
 source("./src/paper/methods.R")
 source("./src/paper/metrics.R")
+suppressPackageStartupMessages({library(glue)})
+
+dataset <- commandArgs(trailingOnly = TRUE)[[1]]
 
 compute_benchmark.dataset <- function(dataset, params, random_state) {
   #' Get the results of scEVE and the individual clustering methods it uses on a scRNA-seq dataset.
@@ -18,9 +21,9 @@ compute_benchmark.dataset <- function(dataset, params, random_state) {
   #' @param dataset: a valid scRNA-seq dataset label.
   #' @param params: a list of parameters.
   #' @param random_state: a numeric.
-  #' 
+  #'
   #' @return a data.frame with 6 columns: 'peakRAM', 'time', 'ARI', 'NMI', 'method' and 'dataset'.
-  #' 
+  #'
   expression.init <- get_expression(dataset)
   benchmark.list <- get_benchmark.dataset(expression.init, params, random_state)
   benchmark <- as.data.frame(do.call(rbind, benchmark.list))
@@ -28,29 +31,14 @@ compute_benchmark.dataset <- function(dataset, params, random_state) {
   ground_truth <- get_ground_truth(expression.init)
   compute_metric <- function(metric) {sapply(X=benchmark$preds, FUN=get_metric, ground_truth, metric=metric)}
   for (metric in c("ARI", "NMI")) {benchmark[metric] <- compute_metric(metric)}
-    
+
   benchmark["method"] <- rownames(benchmark)
   benchmark["dataset"] <- dataset
   benchmark$preds <- NULL
+  for(col in c("peakRAM", "time", "ARI", "NMI")){benchmark[, col] <- as.numeric(benchmark[, col])}
+  for(col in c("method", "dataset")){benchmark[, col] <- as.character(benchmark[, col])}
   return(benchmark)
 }
 
-compute_benchmark <- function(datasets, params, random_state) {
-  #' Get the results of scEVE and its individual clustering methods on multiple scRNA-seq datasets.
-  #'
-  #' @param datasets a vector of valid scRNA-seq dataset labels.
-  #' @param params: a list of parameters.
-  #' @param random_state: a numeric.
-  #'
-  #' @return a data.frame with 6 columns: 'peakRAM', 'time', 'ARI', 'NMI', 'method' and 'dataset'.
-  #' 
-  benchmark.all <- lapply(X=datasets, FUN=compute_benchmark.dataset, params=params, random_state=random_state)
-  benchmark.all <- as.data.frame(do.call(rbind, benchmark.all))
-  return(benchmark.all)
-}
-
-datasets <- list(Li="Li_HumCRC_a")
-#,
-#                 Camp="Camp_MouLiv")
-benchmark <- compute_benchmark(datasets, get_default_hyperparameters(), random_state=0)
-write.csv(benchmark, "benchmark.csv")
+benchmark <- compute_benchmark.dataset(dataset, get_default_hyperparameters(), random_state=0)
+write.csv(benchmark, glue("./results/{dataset}.csv"), row.names=FALSE)

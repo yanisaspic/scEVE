@@ -77,10 +77,7 @@ do_SHARP <- function(expression.count, random_state) {
   #' 
   #' @return a named factor, where names are cells and values are cluster labels.
   #'
-  results <- SHARP(scExp=expression.count,
-                   exp.type="count",
-                   rN.seed=random_state,
-                   n.cores=2)
+  results <- SHARP(scExp=expression.count, exp.type="count", rN.seed=random_state)
   preds <- format_preds(cells=colnames(expression.count), labels=results$pred_clusters)
   return(preds)
 }

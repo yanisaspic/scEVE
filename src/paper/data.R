@@ -23,7 +23,6 @@ get_cell_ids <- function(cell_labels) {
     cell_ids[n] <- glue("{cell_label}_{label_counter[[cell_label]]}")
     label_counter[[cell_label]] <- label_counter[[cell_label]] + 1
   }
-  print(label_coun)
   return(cell_ids)
 }
 
@@ -36,10 +35,10 @@ get_scRNAseq_matrix.dataset <- function(dataset) {
   #' all cells are associated to a unique id, with the following structure: {label}_{n}.
   #' The label corresponds to the ground truth of the authors.
   #' 
-  unknown_labels <- c("?", "NA", "")
+  removed_labels <- c("?", "NA", "", "Doublets")
   cell_labels <- colData(dataset)
-  cell_labels <- cell_labels[!cell_labels$label %in% unknown_labels, , drop=FALSE]
-  # remove cells with missing ground truth labels
+  cell_labels <- cell_labels[!cell_labels$label %in% removed_labels, , drop=FALSE]
+  # remove cells with missing ground truth labels or doublets
   
   cell_order <- rownames(cell_labels)
   counts <- counts(dataset)
@@ -103,7 +102,7 @@ get_expression <- function(scRNAseq_label) {
   # clusters: 9
   # sequencing: SMART-Seq2
   # doi: 10.1016/j.cell.2018.09.006
-  accessions[["Jerby-Arnon_HumMLM"]] <- "GSE115978"
+  accessions[["JerbyArnon_HumMLM"]] <- "GSE115978"
   
   # Van Galen (2018)___________________________________________________________
   # accession: GSE116256
@@ -140,6 +139,15 @@ get_expression <- function(scRNAseq_label) {
   # sequencing: SMART-Seq2
   # doi: 10.1016/j.celrep.2017.10.030
   accessions[["Darmanis_HumGBM"]] <- "GSE84465"
+  
+  # Gillen (2020)_______________________________________________________________
+  # accession: GSE125969
+  # cells: 18,456
+  # genes: 23,580
+  # clusters: 18
+  # sequencing: 10X Genomics
+  # doi: 10.1016/j.celrep.2020.108023 
+  accessions[["Gillen_HumEPDM"]] <- "GSE125969"
   
   if (scRNAseq_label %in% names(accessions)) {
     return(get_scRNAseq_matrix.accession(accessions[[scRNAseq_label]]))

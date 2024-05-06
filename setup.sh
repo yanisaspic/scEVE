@@ -4,10 +4,10 @@
 #
 #	2024/04/24 @yanisaspic
 
-CONFIG_DIR="./setup/config"
+CONFIG_DIR="./etc/config"
 Rscript $CONFIG_DIR/install_requirements.R
 
-SETUP_DIR="./setup/setup_data"
+SETUP_DIR="./etc/setup_data"
 chmod +x $SETUP_DIR/download_data.sh
 ./$SETUP_DIR/download_data.sh
 python3 $SETUP_DIR/setup_data.py

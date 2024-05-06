@@ -124,7 +124,7 @@ get_benchmark.dataset <- function(expression.init, params, random_state) {
   #' 
   #' @return a nested list of three elements: 'peakRAM', 'time' and 'preds'.
   #' 
-  results.scEVE <- get_benchmark.scEVE(expression.init, params, random_state)
+  # results.scEVE <- get_benchmark.scEVE(expression.init, params, random_state)
   individual_methods <- params$clustering_methods
   results <- lapply(X=individual_methods,
                     FUN=get_benchmark.individual_method.wrapper,
@@ -132,6 +132,6 @@ get_benchmark.dataset <- function(expression.init, params, random_state) {
                     n_HVGs=params$n_HVGs,
                     random_state=random_state)
   names(results) <- c(individual_methods)
-  results[["scEVE"]] <- results.scEVE
+  # results[["scEVE"]] <- results.scEVE
   return(results)
 }

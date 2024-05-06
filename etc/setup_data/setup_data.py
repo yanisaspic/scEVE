@@ -7,7 +7,7 @@
 import os
 import pandas as pd
 
-downloads_dir = "./setup/setup_data/downloads"
+downloads_dir = "./etc/setup_data/source"
 data_dir = "./data"
 
 
@@ -112,67 +112,6 @@ def setup_tasic():
     data.index = [feature.replace("_", "-") for feature in data.index]
     data.to_csv(f"{data_dir}/Tasic_MouBra.csv")
     return data
-
-
-def setup_camp():
-    """Set-up the Camp (2017) dataset.
-    accession: GSE81252
-    cells: 777
-    genes: 19,020
-    clusters: 7
-    sequencing: SMARTer
-    doi: 10.1038/nature22796
-    """
-    camp_dir = f"{downloads_dir}/Camp"
-    datasets = [pd.read_csv(f"{camp_dir}/data_1.csv", index_col=0),
-                pd.read_csv(f"{camp_dir}/data_2.csv", index_col=0)]
-    data = pd.concat(datasets)
-    data = data[~data.index.duplicated()]
-
-    cell_symbols_1 = data.experiment
-    cell_symbols_2 = data.assignment_LB
-    cell_symbols_1[~cell_symbols_2.isna()] = cell_symbols_2
-    data = data.drop(["experiment", "assignment_LB"], axis=1)
-
-    symbol_to_label = {"ih": "immature hepatoblast",
-                       "mh": "mature hepatocyte",
-                       "de": "definitive endoderm",
-                       "ec": "endothelial",
-                       "he": "hepatic endoderm",
-                       "mc": "mesenchymal stem cell",
-                       "ip": "ipsc"}
-    cell_labels = cell_symbols_1.apply(lambda symbol: symbol_to_label[symbol[:2].lower()])
-    cell_ids = get_cell_ids(cell_labels)
-
-    data.index = cell_ids
-    data = data.T
-    data.to_csv(f"{data_dir}/Camp_MouLiv.csv")
-    return data
-
-
-def setup_lake():
-    """Set-up the Lake (2017) dataset.
-    accession: phs000833.v3.p1
-    cells: 3,042
-    genes: 25,051
-    clusters: 16
-    sequencing: Fluidigm C1
-    doi: 10.1126/science.aaf1204 
-    """
-    lake_dir = f"{downloads_dir}/Lake"
-    data = pd.read_csv(f"{lake_dir}/data.csv", index_col=0, sep="\t")
-    data = data[~data.index.duplicated()]
-
-    # column 1: Published_Sample_Name
-    annotations = pd.read_csv(f"{lake_dir}/annotations.txt", index_col=1, sep="\t")
-    cells_of_interest = annotations.index.intersection(data.columns)
-    annotations = annotations.loc[cells_of_interest]
-    data = data[cells_of_interest]
-
-    cell_ids = get_cell_ids(annotations.SubGroup)
-    data.columns = cell_ids
-    data.to_csv(f"{data_dir}/Lake_MouBra.csv")
-    return data
     
 
 def setup_scEFSC_datasets():
@@ -180,8 +119,6 @@ def setup_scEFSC_datasets():
     setup_baron()
     setup_li()
     setup_tasic()
-    setup_camp()
-    setup_lake()
 
 
 # Run after downloading the required files:
