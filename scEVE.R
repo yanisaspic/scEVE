@@ -84,7 +84,7 @@ scEVE.iteration <- function(expression.init, population, records, params,
 }
 
 do_scEVE <- function(expression.init, params=get_default_hyperparameters(),
-                     figures=TRUE, random_state=0) {
+                     figures=TRUE, random_state=0, save=TRUE) {
   #' Conduct a scRNA-seq clustering analysis with the scEVE algorithm.
   #'
   #' @param expression.init: a scRNA-seq dataset of raw count expression, without selected genes:
@@ -92,6 +92,7 @@ do_scEVE <- function(expression.init, params=get_default_hyperparameters(),
   #' @param params: a list of parameters.
   #' @param figures: a boolean. If TRUE, draw figures summarizing the iterative clustering of populations.
   #' @param random_state: a numeric.
+  #' @param save: if TRUE, a records file is saved.
   #'
   #' @return a list with two elements:
   #' - records: a list of three data.frames: 'meta', 'cells', 'markers'. It corresponds to the generated xlsx.
@@ -124,7 +125,7 @@ do_scEVE <- function(expression.init, params=get_default_hyperparameters(),
   #_______________________________________________________________________finale
   is_marker <- function(row) {sum(row) > 0}
   records$markers <- records$markers[apply(X=records$markers, MARGIN=1, FUN=is_marker),]
-  write.xlsx(records, "./records.xlsx", rowNames=TRUE)
+  if(save){write.xlsx(records, "./records.xlsx", rowNames=TRUE)}
   results <- list(records=records, preds=factor(get_leaves(records$cells)))
   return(results)
 }

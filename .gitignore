@@ -2,3 +2,4 @@ figures/*
 *.Rhistory
 *pycache*
 records.xlsx
+*.out

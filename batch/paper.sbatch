@@ -1,7 +1,30 @@
 #!/bin/bash
-#SBATCH --cpus-per-task 20
-#SBATCH --mem 128GB
+#SBATCH --cores-per-socket=8
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=32G
+#SBATCH --array=0-9%10
+#SBATCH --time=24:00:00
 
-./setup.sh
 module load r/4.3.1
-Rscript ./paper.R
+
+echo "#############################" 
+echo "User:" $USER
+echo "Date:" `date`
+echo "Host:" `hostname`
+echo "Directory:" `pwd`
+echo "SLURM_JOBID:" $SLURM_JOBID
+echo "SLURM_SUBMIT_DIR:" $SLURM_SUBMIT_DIR
+echo "SLURM_JOB_NODELIST:" $SLURM_JOB_NODELIST
+echo "#############################" 
+
+DATASETS=("Baron_HumPan" \
+	"Darmanis_HumGBM" \
+	"Gillen_HumEPDM" \
+	"JerbyArnon_HumMLM" \
+	"Lambrechts_HumNSCLC" \
+	"Li_HumCRC_a" \
+	"Li_HumCRC_b" \
+	"Peng_HumPDAC" \
+	"Tasic_MouBra" \
+	"VanGalen_HumAML")
+Rscript ./paper.R ${DATASETS[$SLURM_ARRAY_TASK_ID]}
