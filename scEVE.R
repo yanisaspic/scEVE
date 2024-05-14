@@ -41,7 +41,7 @@ get_default_hyperparameters <- function() {
 }
 
 scEVE.iteration <- function(expression.init, population, records, params,
-                            figures, random_state, SeurObj.init) {
+                            figures, random_state, SeurObj.init, save) {
   #' Conduct an iteration of the scEVE algorithm.
   #'
   #' @param expression.init: a scRNA-seq dataset of raw count expression, without selected genes:
@@ -53,6 +53,7 @@ scEVE.iteration <- function(expression.init, population, records, params,
   #' @param random_state: a numeric.
   #' @param SeurObj.init: a SeuratObject generated from the base scRNA-seq dataset.
   #' A U-MAP has already been applied on the object.
+  #' @param save: if TRUE, a records file is saved.
   #'
   #' @return a named list of three data.frames: 'cells', 'markers' and 'meta'.
   #'
@@ -75,7 +76,7 @@ scEVE.iteration <- function(expression.init, population, records, params,
     # _____________________________if too little characterization for any seed, do not report
 
     records <- update_records(records, seeds, population, data.loop, params)
-    write.xlsx(records, "./records.xlsx", rowNames=TRUE)
+    if (save) {write.xlsx(records, "./records.xlsx", rowNames=TRUE)}
     break()
   }
 
@@ -116,7 +117,7 @@ do_scEVE <- function(expression.init, params=get_default_hyperparameters(),
   population <- "C"
   while (!is.na(population)) {
     records <- scEVE.iteration(expression.init, population, records, params,
-                               figures, random_state, SeurObj.init)
+                               figures, random_state, SeurObj.init, save)
     records$meta[population, "to_dig"] <- FALSE
     population <- get_undug_population(records)
     gc()
@@ -125,7 +126,7 @@ do_scEVE <- function(expression.init, params=get_default_hyperparameters(),
   #_______________________________________________________________________finale
   is_marker <- function(row) {sum(row) > 0}
   records$markers <- records$markers[apply(X=records$markers, MARGIN=1, FUN=is_marker),]
-  if(save){write.xlsx(records, "./records.xlsx", rowNames=TRUE)}
+  if (save) {write.xlsx(records, "./records.xlsx", rowNames=TRUE)}
   results <- list(records=records, preds=factor(get_leaves(records$cells)))
   return(results)
 }

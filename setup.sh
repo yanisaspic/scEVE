@@ -4,6 +4,9 @@
 #
 #	2024/04/24 @yanisaspic
 
+module load r/4.3.1
+module load python/3.9
+
 CONFIG_DIR="./etc/config"
 Rscript $CONFIG_DIR/install_requirements.R
 

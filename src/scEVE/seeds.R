@@ -232,7 +232,9 @@ get_transactions <- function(clusterings) {
   #' 
   #' @return an object of the class 'transactions'.
   #'
-  clusterings_path <- "./clusters.tmp.csv"
+  random_key <- round(runif(1, min=0, max=100))
+    # random key is generated to prevent overlap with parallel runs.
+  clusterings_path <- glue("./null/{random_key}.tmp.csv")
   write.table(clusterings, file=clusterings_path, col.names=FALSE, row.names=FALSE)
   transactions <- read.transactions(clusterings_path)
   file.remove(clusterings_path)

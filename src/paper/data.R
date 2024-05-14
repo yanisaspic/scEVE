@@ -1,4 +1,4 @@
-"Run this script to generate the cancer scRNA-seq datasets required.
+"Functions used to get the scRNA-seq datasets used in the scEVE paper.
 
 	2024/04/08 @yanisaspic"
 
@@ -150,8 +150,10 @@ get_expression <- function(scRNAseq_label) {
   accessions[["Gillen_HumEPDM"]] <- "GSE125969"
   
   if (scRNAseq_label %in% names(accessions)) {
-    return(get_scRNAseq_matrix.accession(accessions[[scRNAseq_label]]))
-  }
-  return(read.csv(glue("./data/{scRNAseq_label}.csv"), header=TRUE, row.names=1))
+    expression <- get_scRNAseq_matrix.accession(accessions[[scRNAseq_label]])}
+  else {expression <- read.csv(glue("./data/{scRNAseq_label}.csv"), header=TRUE, row.names=1)}
+  rownames(expression) <- gsub("_", "--", rownames(expression))
+    # _ in feature names can lead to errors downstream
+  return(expression)
 }
 

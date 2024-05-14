@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --cores-per-socket=8
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=32G
-#SBATCH --array=0-9%10
+#SBATCH --mem=128G
+#SBATCH --array=0-9%5
 #SBATCH --time=24:00:00
 
 module load r/4.3.1

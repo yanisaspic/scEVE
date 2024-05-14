@@ -40,5 +40,5 @@ compute_benchmark.dataset <- function(dataset, params, random_state) {
   return(benchmark)
 }
 
-benchmark <- compute_benchmark.dataset(dataset, get_default_hyperparameters(), random_state=0)
+benchmark <- compute_benchmark.dataset(dataset, params=get_default_hyperparameters(), random_state=0)
 write.csv(benchmark, glue("./results/{dataset}.csv"), row.names=FALSE)
