@@ -44,7 +44,7 @@ def setup_baron():
     doi: 10.1016/j.cels.2016.08.011
     """
     baron_dir = f"{downloads_dir}/Baron"
-    paths = os.listdir(baron_dir)
+    paths = sorted(os.listdir(baron_dir))
     datasets = [pd.read_csv(f"{baron_dir}/{p}", index_col=0) for p in paths]
     data = pd.concat(datasets)
     # paths must include only the 4 human datasets: GSM2230757_humanX_umifm_counts.csv,
@@ -112,14 +112,9 @@ def setup_tasic():
     data.index = [feature.replace("_", "-") for feature in data.index]
     data.to_csv(f"{data_dir}/Tasic_MouBra.csv")
     return data
-    
-
-def setup_scEFSC_datasets():
-    """Set-up the datasets used in the scEFSC paper."""
-    setup_baron()
-    setup_li()
-    setup_tasic()
 
 
 # Run after downloading the required files:
-setup_scEFSC_datasets()
+setup_baron()
+setup_li()
+setup_tasic()
