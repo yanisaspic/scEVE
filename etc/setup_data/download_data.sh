@@ -37,7 +37,7 @@ mkdir $BARON_DIR
 wget -O $BARON_DIR/data.tar 'https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE84133&format=file'
 tar -xvf $BARON_DIR/data.tar -C $BARON_DIR
 gunzip $BARON_DIR/*.gz
-find $BARON_DIR -type f | grep -v "human" | xargs rm
+rm $BARON_DIR/data.tar
 
 # Tasic (2016)_______________________
 # accession: GSE71585

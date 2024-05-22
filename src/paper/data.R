@@ -140,15 +140,6 @@ get_expression <- function(scRNAseq_label) {
   # doi: 10.1016/j.celrep.2017.10.030
   accessions[["Darmanis_HumGBM"]] <- "GSE84465"
   
-  # Gillen (2020)_______________________________________________________________
-  # accession: GSE125969
-  # cells: 18,456
-  # genes: 23,580
-  # clusters: 18
-  # sequencing: 10X Genomics
-  # doi: 10.1016/j.celrep.2020.108023 
-  accessions[["Gillen_HumEPDM"]] <- "GSE125969"
-  
   if (scRNAseq_label %in% names(accessions)) {
     expression <- get_scRNAseq_matrix.accession(accessions[[scRNAseq_label]])}
   else {expression <- read.csv(glue("./data/{scRNAseq_label}.csv"), header=TRUE, row.names=1)}

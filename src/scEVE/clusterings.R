@@ -79,7 +79,7 @@ do_SHARP <- function(expression.count, random_state) {
   #'
   results <- SHARP(scExp=expression.count,
                    exp.type="count",
-                   n.cores = 2,
+                   n.cores = 1,
                    rN.seed=random_state)
   preds <- format_preds(cells=colnames(expression.count), labels=results$pred_clusters)
   return(preds)

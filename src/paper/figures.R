@@ -37,7 +37,7 @@ get_summary_barplot <- function(results, metric, log10=FALSE) {
   fill_values <- brewer.pal(n=length(unique(results$method)), name="Dark2")
     # Dark2 is color-blind friendly
   
-  plot <- ggplot(results, aes(x=method, fill=method, y=ARI), color="black", size=2) +
+  plot <- ggplot(results, aes(x=method, fill=method, y=time), color="black", size=2) +
     geom_bar(stat="identity", position="dodge") +
     scale_fill_manual(values=fill_values) +
     scale_y_continuous(expand=expansion(mult=0),

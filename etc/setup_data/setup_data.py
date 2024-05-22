@@ -27,36 +27,56 @@ def get_cell_ids(cell_labels: list[str]) -> list[str]:
     """Given a list of cell labels, assign a unique id to each cell w.r.t. its label."""
     label_counter = {label: 1 for label in set(cell_labels)}
     cell_ids = [get_cell_id(cell_label, label_counter) for cell_label in cell_labels]
+    print(label_counter)
     return cell_ids
 
 
-# scEFSC datasets are set-up according to the Hemberg Lab pipeline.
-# see:    https://hemberg-lab.github.io/scRNA.seq.datasets/
-#         https://github.com/hemberg-lab/scRNA.seq.datasets
-
 def setup_baron():
-    """Set-up the Baron (2016) dataset.
+    """Set-up the Baron (2016) datasets.
     accession: GSE84133
-    cells: 8,569
-    genes: 20,125
-    clusters: 14
     sequencing: inDrop
     doi: 10.1016/j.cels.2016.08.011
+    
+    Baron_HumPan:
+    genes: 20,125
+    clusters: 14
+    	_1: 1,937 cells
+    	_2: 1,724 cells
+    	_3: 3,605 cells
+    	_4: 1,303 cells
+    
+    Baron_MouPan:
+    genes: 14,878
+    clusters: 13
+    	_1: 822 cells
+    	_2: 1,064 cells
     """
     baron_dir = f"{downloads_dir}/Baron"
-    paths = sorted(os.listdir(baron_dir))
-    datasets = [pd.read_csv(f"{baron_dir}/{p}", index_col=0) for p in paths]
-    data = pd.concat(datasets)
-    # paths must include only the 4 human datasets: GSM2230757_humanX_umifm_counts.csv,
-    # with X ranging from 1 to 4.
+    paths = os.listdir(baron_dir)
+    
+    for p in paths:
+    	data = pd.read_csv(f"{baron_dir}/{p}", index_col=0)
+    	label = p.split("_")[1]
+    	
+    	species = label[:3].capitalize()
+    	number = label[-1]
+    	
+    	cell_ids = get_cell_ids(data.assigned_cluster)
+    	data.index = cell_ids
+    	data = data.drop(["barcode", "assigned_cluster"], axis=1)
+    	data = data.T
+    	
+    	out = f"{data_dir}/Baron_{species}Pan_{number}.csv"
+    	print(out)
+    	print(data)
+    	data.to_csv(out)
 
-    cell_ids = get_cell_ids(data.assigned_cluster)
-    data.index = cell_ids
-    data = data.drop(["barcode", "assigned_cluster"], axis=1)
-    data = data.T
-    data.to_csv(f"{data_dir}/Baron_HumPan.csv")
     return data
+    
 
+# Li and Tasic datasets are set-up according to the Hemberg Lab pipeline.
+# see:    https://hemberg-lab.github.io/scRNA.seq.datasets/
+#         https://github.com/hemberg-lab/scRNA.seq.datasets
 
 def setup_li():
     """Set-up the Li (2017) dataset.
