@@ -2,13 +2,13 @@
 
     Run this script after download_data.sh
 
-    2024/04/08 @yanisaspic"""
+    2024/05/23 @yanisaspic"""
 
 import os
 import pandas as pd
 
-downloads_dir = "./etc/setup_data/source"
-data_dir = "./data"
+downloads_dir = "./etc/setup_data/real/source"
+data_dir = "./data/real"
 
 
 # In the scEVE papers, all cells are associated to a unique id,
@@ -27,7 +27,6 @@ def get_cell_ids(cell_labels: list[str]) -> list[str]:
     """Given a list of cell labels, assign a unique id to each cell w.r.t. its label."""
     label_counter = {label: 1 for label in set(cell_labels)}
     cell_ids = [get_cell_id(cell_label, label_counter) for cell_label in cell_labels]
-    print(label_counter)
     return cell_ids
 
 
@@ -67,8 +66,6 @@ def setup_baron():
     	data = data.T
     	
     	out = f"{data_dir}/Baron_{species}Pan_{number}.csv"
-    	print(out)
-    	print(data)
     	data.to_csv(out)
 
     return data
@@ -134,7 +131,7 @@ def setup_tasic():
     return data
 
 
-# Run after downloading the required files:
+# Run after downloading the required source files:
 setup_baron()
 setup_li()
 setup_tasic()

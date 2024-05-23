@@ -2,7 +2,7 @@
 #
 #	Run this script to download the files required to set-up the datasets used in the scEFSC paper.
 #
-#	2024/04/24 @yanisaspic
+#	2024/05/23 @yanisaspic
 
 
 #######################################################################
@@ -11,7 +11,7 @@
 #         https://github.com/hemberg-lab/scRNA.seq.datasets
 #######################################################################
 
-DOWNLOADS_DIR="./etc/setup_data/source"
+DOWNLOADS_DIR="./etc/setup_data/real/source"
 
 # Li (2017)__________________________
 # accession: GSE81861

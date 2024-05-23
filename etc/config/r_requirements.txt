@@ -32,6 +32,7 @@ SeuratWrappers==0.3.1
 SHARP==1.1.0
 SingleCellExperiment==1.22.0
 sp==2.1.2
+SPARSim==0.9.5
 stats==4.3.3
 stats4==4.3.3
 SummarizedExperiment==1.30.2

@@ -41,8 +41,9 @@ if (!require("SummarizedExperiment")) install("SummarizedExperiment", dependenci
 if (!require("TMExplorer")) install("TMExplorer", dependencies=T, update=F)
 
 
-#______________________________________________________________Bitbucket, Github
+#______________________________________________________Bitbucket, Github, Gitlab
 if (!require("densitycut")) install_bitbucket("jerry00/densitycut_dev", dependencies=T)
 if (!require("monocle3")) install_github('cole-trapnell-lab/monocle3', dependencies = T)
 if (!require("SeuratWrappers")) install_github('satijalab/seurat-wrappers', dependencies = T)
 if (!require("SHARP")) install_github("shibiaowan/SHARP", dependencies = T)
+if (!require("SPARSim")) install_gitlab("sysbiobig/sparsim", depencencies = T)

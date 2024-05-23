@@ -1,6 +1,6 @@
 "Run this script to generate the benchmark comparing scEVE to its component methods.
 
-	2024/04/10 @yanisaspic"
+	2024/05/23 @yanisaspic"
 
 source("./scEVE.R")
 source("./src/paper/data.R")
@@ -41,4 +41,4 @@ compute_benchmark.dataset <- function(dataset, params, random_state) {
 }
 
 benchmark <- compute_benchmark.dataset(dataset, params=get_default_hyperparameters(), random_state=0)
-write.csv(benchmark, glue("./results/{dataset}.csv"), row.names=FALSE)
+write.csv(benchmark, glue("./results/real/{dataset}.csv"), row.names=FALSE)
