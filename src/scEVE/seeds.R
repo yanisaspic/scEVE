@@ -1,13 +1,14 @@
 "Functions used to identify seeds, i.e. groups of cells unambiguously assigned together.
-In the papers, we refer to seeds as consensus clusters. Rules can refer to overlaps.
+In the papers, we refer to seeds as consensus clusters. Rules refer to overlaps in the paper.
 
-	2024/04/02 @yanisaspic"
+	2024/05/24 @yanisaspic"
 
 suppressPackageStartupMessages({
   library(arules)
   library(dplyr)
   library(glue)
   library(igraph)
+  library(rlang)
   library(SCpubr)
 })
 
@@ -232,9 +233,9 @@ get_transactions <- function(clusterings) {
   #' 
   #' @return an object of the class 'transactions'.
   #'
-  random_key <- round(runif(1, min=0, max=100))
-    # random key is generated to prevent overlap with parallel runs.
-  clusterings_path <- glue("./null/{random_key}.tmp.csv")
+  key <- hash(clusterings)
+    # key is generated to prevent overlap with parallel runs.
+  clusterings_path <- glue("./null/{key}.tmp")
   write.table(clusterings, file=clusterings_path, col.names=FALSE, row.names=FALSE)
   transactions <- read.transactions(clusterings_path)
   file.remove(clusterings_path)

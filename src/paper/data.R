@@ -10,7 +10,7 @@ suppressPackageStartupMessages({
 })
 
 
-#______________________________________________________________________real_data
+#___________________________________________________________________________real
 
 get_cell_ids <- function(cell_labels) {
   #' Get a vector of unique cell ids from a vector of cell labels.
@@ -79,7 +79,7 @@ get_scRNAseq_matrix.accession <- function(accession) {
   return(scRNAseq_matrix)
 }
 
-get_expression <- function(scRNAseq_label) {
+get_real_dataset <- function(scRNAseq_label) {
   #' Get a standard scRNA-seq matrix from a label, e.g. 'Darmanis_HumGBM'.
   #' 
   #' @param scRNAseq_label: a character.
@@ -153,7 +153,7 @@ get_expression <- function(scRNAseq_label) {
 }
 
 
-#_________________________________________________________________synthetic_data
+#______________________________________________________________________synthetic
 
 get_cell_distribution <- function(n_populations, distribution, size) {
   #' Get a cell distribution. It corresponds to the number of cells in each population.
@@ -202,18 +202,19 @@ get_parameters.population <- function(n_cells, n_degs, parameters.init, label) {
   return(parameters)
 }
 
-get_synthetic_dataset <- function(n_populations, distribution, n_degs, size, parameters.init, random_state) {
+get_synthetic_dataset <- function(n_populations, distribution, random_state, parameters.init,
+                                  n_degs=500, size=10000) {
   #' Get a scRNA-seq synthetic dataset.
   #' This function follows the vignette of the SPARSim simulator.
   #' 
   #' @param n_populations: a numeric. The number of cell populations.
   #' @param distribution: a character. The distribution of cell types: 'uniform' or 'geometric'.
+  #' @param random_state: a numeric.
+  #' @param parameters.init: a named list of vectors with intensity, variability and lib_size.
   #' @param n_degs: a numeric. It corresponds to the the number of DEGs expected,
   #' w.r.t. the initial parameters input.
   #' @param size: a numeric. The total number of cells.
-  #' @param parameters.init: a named list of vectors with intensity, variability and lib_size.
-  #' @param random_state: a numeric.
-  #' 
+  #'
   #' @return a named list of parameters. The names are cell types.
   #' 
   set.seed(random_state)
@@ -225,5 +226,6 @@ get_synthetic_dataset <- function(n_populations, distribution, n_degs, size, par
   dataset <- SPARSim_simulation(parameters)$count_matrix
   shuffled_cells <- sample(colnames(dataset), ncol(dataset))
   dataset <- dataset[, shuffled_cells]
+  dataset <- as.data.frame(dataset)
   return(dataset)
 }

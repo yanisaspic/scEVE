@@ -11,7 +11,7 @@ source("./scEVE.R")
 source("./src/scEVE/trim.R")          # pre-processing
 source("./src/scEVE/clusterings.R")   # individual methods
 
-get_benchmark.method <- function(input, fun, random_state) {
+get_results.method <- function(input, fun, random_state) {
   #' Get the results of a clustering method by applying its function to a specific input.
   #' These results include:
   #' - peakRAM (Mbytes): the maximum memory usage of the method.
@@ -60,7 +60,7 @@ get_input.individual_method <- function(expression.init, method, n_HVGs) {
   return(input)
 }
 
-get_benchmark.individual_method.wrapper <- function(method, expression.init, n_HVGs, random_state) {
+get_results.individual_method.wrapper <- function(method, expression.init, n_HVGs, random_state) {
   #' Get the results of an individual clustering method on a scRNA-seq dataset.
   #'
   #' @param method: a valid method name. In the JOBIM paper, it is one of: 'Seurat', 'monocle3', 'CIDR' and 'SHARP'.
@@ -73,11 +73,11 @@ get_benchmark.individual_method.wrapper <- function(method, expression.init, n_H
   #'
   input <- get_input.individual_method(expression.init, method, n_HVGs)
   fun <- get(glue("do_{method}"))
-  results <- get_benchmark.method(input, fun, random_state)
+  results <- get_results.method(input, fun, random_state)
   return(results)
 }
 
-get_benchmark.scEVE <- function(expression.init, params, random_state) {
+get_results.scEVE <- function(expression.init, params, random_state) {
   #' Get the results of scEVE by applying it with a given set of parameters on a scRNA-seq raw count matrix.
   #' These results include:
   #' - peakRAM (Mbytes): the maximum memory usage of the method.
@@ -110,7 +110,7 @@ get_benchmark.scEVE <- function(expression.init, params, random_state) {
   return(results)
 }
 
-get_benchmark.dataset <- function(expression.init, params, random_state) {
+get_results.dataset <- function(expression.init, params, random_state) {
   #' Get the results of scEVE and the individual clustering methods it uses on a scRNA-seq dataset.
   #' These results include:
   #' - peakRAM (Mbytes): the maximum memory usage of the method.
@@ -124,14 +124,43 @@ get_benchmark.dataset <- function(expression.init, params, random_state) {
   #' 
   #' @return a nested list of three elements: 'peakRAM', 'time' and 'preds'.
   #' 
-  results.scEVE <- get_benchmark.scEVE(expression.init, params, random_state)
+  results.scEVE <- get_results.scEVE(expression.init, params, random_state)
   individual_methods <- params$clustering_methods
   results <- lapply(X=individual_methods,
-                    FUN=get_benchmark.individual_method.wrapper,
+                    FUN=get_results.individual_method.wrapper,
                     expression.init=expression.init,
                     n_HVGs=params$n_HVGs,
                     random_state=random_state)
   names(results) <- c(individual_methods)
   results[["scEVE"]] <- results.scEVE
   return(results)
+}
+
+get_benchmark.dataset <- function(expression.init, ground_truth, dataset, params, random_state) {
+  #' Get the results of scEVE and the individual clustering methods it uses on a scRNA-seq dataset.
+  #' These results include:
+  #' - peakRAM (Mbytes): the maximum memory usage of the method.
+  #' - time (s): the computation time in seconds.
+  #' - ARI: a clustering performance metric.
+  #' - NMI: a clustering performance metric.
+  #'
+  #' @param expression.init: a scRNA-seq count matrix where rows are genes | cells are cols
+  #' @param ground_truth: a vector of ground truths.
+  #' @param dataset: a character.
+  #' @param params: a list of parameters.
+  #' @param random_state: a numeric.
+  #'
+  #' @return a data.frame with 6 columns: 'peakRAM', 'time', 'ARI', 'NMI', 'method' and 'dataset'.
+  #'
+  benchmark.list <- get_results.dataset(expression.init, params, random_state)
+  benchmark <- as.data.frame(do.call(rbind, benchmark.list))
+  compute_metric <- function(metric) {sapply(X=benchmark$preds, FUN=get_metric, ground_truth, metric=metric)}
+  for (metric in c("ARI", "NMI")) {benchmark[metric] <- compute_metric(metric)}
+  
+  benchmark["method"] <- rownames(benchmark)
+  benchmark["dataset"] <- dataset
+  benchmark$preds <- NULL
+  for(col in c("peakRAM", "time", "ARI", "NMI")){benchmark[, col] <- as.numeric(benchmark[, col])}
+  for(col in c("method", "dataset")){benchmark[, col] <- as.character(benchmark[, col])}
+  return(benchmark)
 }

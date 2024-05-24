@@ -21,6 +21,7 @@ if (!require("openxlsx")) install_version("openxlsx", version="4.2.5.2", repos=C
 if (!require("qpdf")) install_version("qpdf", version="1.3.2", repos=CRAN, dependencies=T)
 if (!require("RColorBrewer")) install_version("RColorBrewer", version="1.1.3", repos=CRAN, dependencies=T)
 if (!require("reshape2")) install_version("reshape2", version="1.4.4", repos=CRAN, dependencies=T)
+if (!require("rlang")) install_version("rlang", version="1.1.3", repos=CRAN, dependencies=T)
 if (!require("SCpubr")) install_version("SCpubr", version="2.0.2", repos=CRAN, dependencies=T)
 if (!require("Seurat")) install_version("Seurat", version="5.0.1", repos=CRAN, dependencies=T)
 if (!require("SeuratObject")) install_version("SeuratObject", version="5.0.1", repos=CRAN, dependencies=T)

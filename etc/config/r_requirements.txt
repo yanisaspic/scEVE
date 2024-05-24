@@ -22,6 +22,7 @@ openxlsx==4.2.5.2
 qpdf==1.3.2
 RColorBrewer==1.1.3
 reshape2==1.4.4
+rlang==1.1.3
 S4Vectors==0.38.2
 scater==1.28.0
 SCpubr==2.0.2

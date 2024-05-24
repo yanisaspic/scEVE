@@ -10,8 +10,7 @@ module load python/3.9
 CONFIG_DIR="./etc/config"
 Rscript $CONFIG_DIR/install_requirements.R
 
-SETUP_DIR="./etc/setup_data"
-chmod +x $SETUP_DIR/real/download_source.sh
-./$SETUP_DIR/real/download_source.sh
-python3 $SETUP_DIR/real/setup_data.py
-Rscript $SETUP_DIR/synthetic/generate_data.R
+SETUP_DIR="./etc/real_data"
+chmod +x $SETUP_DIR/download_source.sh
+./$SETUP_DIR/download_source.sh
+python3 $SETUP_DIR/setup_data.py

@@ -7,8 +7,8 @@
 import os
 import pandas as pd
 
-downloads_dir = "./etc/setup_data/real/source"
-data_dir = "./data/real"
+downloads_dir = "./etc/real_data/source"
+data_dir = "./data"
 
 
 # In the scEVE papers, all cells are associated to a unique id,

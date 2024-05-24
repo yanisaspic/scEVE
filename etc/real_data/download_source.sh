@@ -11,7 +11,7 @@
 #         https://github.com/hemberg-lab/scRNA.seq.datasets
 #######################################################################
 
-DOWNLOADS_DIR="./etc/setup_data/real/source"
+DOWNLOADS_DIR="./etc/real_data/source"
 
 # Li (2017)__________________________
 # accession: GSE81861
