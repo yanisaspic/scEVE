@@ -10,6 +10,7 @@ if (!require("aricode")) install_version("aricode", version="1.0.3", repos=CRAN,
 if (!require("arules")) install_version("arules", version="1.7.7", repos=CRAN, dependencies=T)
 if (!require("BiocManager")) install_version("BiocManager", version="1.30.22", repos=CRAN, dependencies=T)
 if (!require("dplyr")) install_version("dplyr", version="1.1.4", repos=CRAN, dependencies=T)
+if (!require("egg")) install_version("egg", version="0.4.5", repos=CRAN, dependencies=T)
 if (!require("ggplot2")) install_version("ggplot2", version="3.4.4", repos=CRAN, dependencies=T)
 if (!require("ggplotify")) install_version("ggplotify", version="0.1.2", repos=CRAN, dependencies=T)
 if (!require("ggVennDiagram")) install_version("ggVennDiagram", version="1.5.0", repos=CRAN, dependencies=T)
