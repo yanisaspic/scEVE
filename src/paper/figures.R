@@ -8,6 +8,7 @@ suppressPackageStartupMessages({
   library(ggplotify)
   library(glue)
   library(RColorBrewer)
+  library(reshape2)
   library(scales)
 })
 
@@ -15,29 +16,49 @@ get_results.prior <- function() {
   #' Get the prior knowledge on the results regarding the figures of the scEVE paper.
   #' 
   #' @return a named list with: "real_datasets", "ensemble_results" and "algorithms".
+  #' "algorithms" is an ordered list of algorithms benchmarked.
   #' "real_datasets" is a vector of real scRNA-seq datasets labels.
   #' Note that the datasets are sorted by number of cells.
   #' "ensemble" is a data.frame with the performances of other ensemble algorithms.
-  #' "algorithms" is an ordered list of algorithms benchmarked.
+  #' They are reported from the scEFSC paper (Bian et al. 2022)
   #' 
-  results.prior <- list(
-    real_datasets = c("Li_HumCRC_b",
-             "Li_HumCRC_a",
-             "Baron_MouPan_1",
-             "Baron_MouPan_2",
-             "Baron_HumPan_4",
-             "Tasic_MouBra",
-             "Baron_HumPan_2",
-             "Baron_HumPan_1",
-             "Darmanis_HumGBM",
-             "Baron_HumPan_3",
-             "JerbyArnon_HumMLM",
-             "VanGalen_HumAML",
-             "Lambrechts_HumNSCLC",
-             "Peng_HumPDAC"),
-    ensemble_results = c(),
-    algorithms = c("densityCut", "monocle3", "Seurat", "SHARP", "scEVE")
-  )
+  algorithms <- c("densityCut", "monocle3", "Seurat", "SHARP", "scEVE")
+  real_datasets <- c(
+    "Li_HumCRC_b",         # 364c
+    "Li_HumCRC_a",         # 561c
+    "Baron_MouPan_1",      # 822c
+    "Baron_MouPan_2",      # 1,064c
+    "Baron_HumPan_4",      # 1,303c
+    "Tasic_MouBra",        # 1,679c
+    "Baron_HumPan_2",      # 1,724c
+    "Baron_HumPan_1",      # 1,937c
+    "Darmanis_HumGBM",     # 3,589c
+    "Baron_HumPan_3",      # 3,605c
+    "JerbyArnon_HumMLM",   # 6,879c
+    "VanGalen_HumAML",     # 27,899c
+    "Lambrechts_HumNSCLC", # 51,775c
+    "Peng_HumPDAC"         # 57,530c
+    )
+  
+  methods <- c("RSEC", "SAME", "scCESS", "scEFSC")
+  datasets <- c("Li_HumCRC_a", "Tasic_MouBra", "Baron_HumPan")
+  configurations <- expand.grid(list(method=methods, dataset=datasets))
+  ARI <- c(# Li_HumCRC_a
+    0.75, 0.92, 0.79, 0.99,
+    # Tasic_MouBra
+    0.30, 0.78, 0.65, 0.84,
+    # Baron_HumPan
+    0.15, 0.51, 0.54, 0.54)
+  NMI <- c(# Li_HumCRC_a
+    0.8, 0.96, 0.86, 0.98,
+    # Tasic_MouBra
+    0.61, 0.84, 0.80, 0.87,
+    # Baron_HumPan
+    0.51, 0.72, 0.75, 0.75)
+  for (metric in c("ARI", "NMI")) {configurations[, metric] <- get(metric)}
+  results.prior <- list(algorithms=algorithms,
+                        real_datasets=real_datasets,
+                        ensemble_results=configurations)
   return(results.prior)
 }
 
@@ -159,4 +180,65 @@ get_plot.real <- function(results.real, metric) {
   plot.real <- ggarrange(boxplot.methods, legend, heatmap.real, boxplot.datasets,
                          nrow=2, ncol=2, widths=c(6,4), heights=c(4,6))
   return(plot.real)
+}
+
+get_Baron_HumPan.scEVE <- function(results.real) {
+  #' Get the median, minimum and maximum performances of scEVE on the Baron_HumPan dataset.
+  #' 
+  #' @param results.real: a data.frame with 'dataset', 'method', 'ARI' and 'NMI'.
+  #' - datasets included are 'Baron_HumPan_X'.
+  #' - method included is 'scEVE'.
+  #' 
+  #' @return a list with three rows: 'median', 'maximum' and 'minimum'.
+  #' 
+  is_baron_humpan <- grepl("Baron_HumPan", levels(results.real$dataset))
+  levels(results.real$dataset)[is_baron_humpan] <- "Baron_HumPan"
+  data <- results.real[(results.real$dataset=="Baron_HumPan") & (results.real$method=="scEVE"),
+                       c("method", "dataset", "ARI", "NMI")]
+  
+  Baron_HumPan.scEVE <- list()
+  for (fun in c("median", "min", "max")) {
+    Baron_HumPan.scEVE[[fun]] <- data.frame(method="scEVE", dataset="Baron_HumPan",
+                                   ARI=get(fun)(data$ARI), NMI=get(fun)(data$NMI))}
+  return(Baron_HumPan.scEVE)
+}
+
+get_barplots.ensemble <- function(results.real) {
+  #' Generate barplots w.r.t. the performances of different ensemble clustering algorithms.
+  #' 
+  #' @param results.real: a data.frame with 'dataset', 'method', 'ARI' and 'NMI'.
+  #' - datasets included are 'Li_HumCRC_a', 'Tasic_MouBra' and 'Baron_HumPan_X'.
+  #' - method included is 'scEVE'.
+  #' 
+  #' @return a plot.
+  #' 
+  ensemble_results <- get_results.prior()$ensemble_results
+  ensemble_datasets <- c("Li_HumCRC_a", "Tasic_MouBra", "Baron_HumPan")
+  is_comparable <- (results.real$method == 'scEVE') & (results.real$dataset %in% ensemble_datasets)
+  comparable_results <- results.real[is_comparable, c("ARI", "NMI", "method", "dataset")]
+  Baron_HumPan.scEVE <- get_Baron_HumPan.scEVE(results.real)
+  
+  data <- rbind(ensemble_results, comparable_results, Baron_HumPan.scEVE$median)
+  data <- melt(data, variable.name="metric")
+  
+  ensemble_algorithms <- unique(data$method)
+  colors <- brewer.pal(n=4, name="Greys") # colorblind-friendly
+  colors[5] <- brewer.pal(n=5, name="Dark2")[5] # scEVE colorblind-friendly color
+  
+  plot <- ggplot(data, aes(x=dataset, y=value, fill=method)) +
+    geom_col(position="dodge", color="black") +
+    facet_grid(~metric) +
+    scale_y_continuous(expand=expansion(mult=0), limits=c(0,1)) +
+    scale_fill_manual(values=colors)
+  
+  plot <- plot +
+    theme_classic() +
+    theme(axis.title.x=element_blank(), axis.title.y=element_blank(),
+          axis.text.y=element_text(vjust=1),
+          axis.text.x = element_text(angle=15, vjust=0.7, hjust=0.65),
+          panel.grid.major=element_line(linewidth=0.5),
+          strip.background=element_blank(), 
+          strip.text=element_text(face="bold", size=13))
+  
+  return(plot)
 }
