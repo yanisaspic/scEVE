@@ -10,7 +10,7 @@ suppressPackageStartupMessages({library(glue)})
 
 id <- as.numeric(commandArgs(trailingOnly=TRUE)[[1]])
 HYPERPARAMETERS <- list(N_POPULATIONS=c(1,3,5,7,9),
-                        DISTRIBUTION=c("uniform", "geometric"),
+                        DISTRIBUTION=c("balanced", "rare"),
                         RANDOM_STATE=1:30)
 HYPERPARAMETERS <- expand.grid(HYPERPARAMETERS)
 dist <- HYPERPARAMETERS[id, "DISTRIBUTION"]

@@ -11,7 +11,7 @@ if (!require("arules")) install_version("arules", version="1.7.7", repos=CRAN, d
 if (!require("BiocManager")) install_version("BiocManager", version="1.30.22", repos=CRAN, dependencies=T)
 if (!require("dplyr")) install_version("dplyr", version="1.1.4", repos=CRAN, dependencies=T)
 if (!require("egg")) install_version("egg", version="0.4.5", repos=CRAN, dependencies=T)
-if (!require("ggplot2")) install_version("ggplot2", version="3.4.4", repos=CRAN, dependencies=T)
+if (!require("ggplot2")) install_version("ggplot2", version="3.5.1", repos=CRAN, dependencies=T)
 if (!require("ggplotify")) install_version("ggplotify", version="0.1.2", repos=CRAN, dependencies=T)
 if (!require("ggVennDiagram")) install_version("ggVennDiagram", version="1.5.0", repos=CRAN, dependencies=T)
 if (!require("glue")) install_version("glue", version="1.7.0", repos=CRAN, dependencies=T)
@@ -45,6 +45,7 @@ if (!require("TMExplorer")) install("TMExplorer", dependencies=T, update=F)
 
 #______________________________________________________Bitbucket, Github, Gitlab
 if (!require("densitycut")) install_bitbucket("jerry00/densitycut_dev", dependencies=T)
+if (!require("ggpattern")) install_github("coolbutuseless/ggpattern")
 if (!require("monocle3")) install_github('cole-trapnell-lab/monocle3', dependencies = T)
 if (!require("SeuratWrappers")) install_github('satijalab/seurat-wrappers', dependencies = T)
 if (!require("SHARP")) install_github("shibiaowan/SHARP", dependencies = T)

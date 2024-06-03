@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --cores-per-socket=3
-#SBATCH --cpus-per-task=3
+#SBATCH --cores-per-socket=2
+#SBATCH --cpus-per-task=2
 #SBATCH --mem=128G
 #SBATCH --array=0-13%5
 #SBATCH --time=24:00:00

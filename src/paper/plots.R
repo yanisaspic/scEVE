@@ -3,7 +3,9 @@
 	2024/05/27 @yanisaspic"
 
 suppressPackageStartupMessages({
+  library(dplyr)
   library(egg)
+  library(ggpattern)
   library(ggplot2)
   library(ggplotify)
   library(glue)
@@ -39,10 +41,12 @@ get_results.prior <- function() {
     "Lambrechts_HumNSCLC", # 51,775c
     "Peng_HumPDAC"         # 57,530c
     )
+  synthetic_distributions <- c("uniform", "geometric")
   
-  methods <- c("RSEC", "SAME", "scCESS", "scEFSC")
+  methods <- c("RSEC", "SAME", "scCCESS", "scEFSC")
   datasets <- c("Li_HumCRC_a", "Tasic_MouBra", "Baron_HumPan")
   configurations <- expand.grid(list(method=methods, dataset=datasets))
+  
   ARI <- c(# Li_HumCRC_a
     0.75, 0.92, 0.79, 0.99,
     # Tasic_MouBra
@@ -56,8 +60,21 @@ get_results.prior <- function() {
     # Baron_HumPan
     0.51, 0.72, 0.75, 0.75)
   for (metric in c("ARI", "NMI")) {configurations[, metric] <- get(metric)}
+  
+  colormap <- list(densityCut="#e31a1c",
+                   monocle3="#33a02c",
+                   Seurat="#b15928",
+                   SHARP="#ff7f00",
+                   scEVE="#1f78b4",
+                   RSEC="#f7f7f7",
+                   SAME="#cccccc",
+                   scCCESS="#969696",
+                   scEFSC="#525252")
+  
   results.prior <- list(algorithms=algorithms,
+                        colormap=colormap,
                         real_datasets=real_datasets,
+                        synthetic_distributions=synthetic_distributions,
                         ensemble_results=configurations)
   return(results.prior)
 }
@@ -77,8 +94,7 @@ get_results <- function(path="./results") {
   
   results.prior <- get_results.prior()
   results$method <- factor(results$method, levels=results.prior$algorithms)
-  results$dataset <- factor(results$dataset, levels=results.prior$real_datasets)
-  
+
   is_real <- function(row) {row["dataset"] %in% results.prior$real}
   results[,"real"] <- apply(X=results, MARGIN=1, FUN=is_real)
   for (col in c("peakRAM", "time", "ARI", "NMI")) {results[,col] <- as.numeric(results[,col])}
@@ -124,12 +140,11 @@ get_boxplot.datasets <- function(results.real, metric) {
   #' @return a plot.
   #' 
   plot <- ggplot(results.real, aes(x=dataset, y=.data[[metric]])) +
-    geom_boxplot(outlier.shape=NA) +
+    # geom_boxplot(outlier.shape=NA) +
     coord_flip() +
     geom_point(aes(fill=method), color="black", size=3, pch=21)
   
-  colors <- brewer.pal(n=length(unique(results.real$method)), name="Dark2") # colorblind-friendly
-  plot <- plot + scale_fill_manual(values=colors) +
+  plot <- plot + scale_fill_manual(values=get_results.prior()[["colormap"]]) +
     theme_classic() +
     theme(axis.title.y=element_blank(), axis.text.y=element_blank(),
           axis.text.x=element_text(hjust=1), panel.grid.major=element_line(linewidth=0.5),
@@ -150,8 +165,7 @@ get_boxplot.methods <- function(results.real, metric) {
     geom_boxplot(aes(fill=method)) +
     geom_point()
   
-  colors <- brewer.pal(n=length(unique(results.real$method)), name="Dark2") # colorblind-friendly
-  plot <- plot + scale_fill_manual(values=colors) +
+  plot <- plot + scale_fill_manual(values=get_results.prior()[["colormap"]]) +
     theme_classic() +
     theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
           legend.position="left", axis.text.y=element_text(vjust=1),
@@ -170,6 +184,9 @@ get_plot.real <- function(results.real, metric) {
   #' 
   #' @return a plot.
   #' 
+  results.prior <- get_results.prior()
+  results.real$dataset <- factor(results.real$dataset, levels=results.prior$real_datasets)
+  
   heatmap.real <- get_heatmap.real(results.real, metric)
   boxplot.methods <- get_boxplot.methods(results.real, metric)
   boxplot.datasets <- get_boxplot.datasets(results.real, metric)
@@ -191,8 +208,8 @@ get_Baron_HumPan.scEVE <- function(results.real) {
   #' 
   #' @return a list with three rows: 'median', 'maximum' and 'minimum'.
   #' 
-  is_baron_humpan <- grepl("Baron_HumPan", levels(results.real$dataset))
-  levels(results.real$dataset)[is_baron_humpan] <- "Baron_HumPan"
+  is_baron_humpan <- grepl("Baron_HumPan", results.real$dataset)
+  results.real$dataset[is_baron_humpan] <- "Baron_HumPan"
   data <- results.real[(results.real$dataset=="Baron_HumPan") & (results.real$method=="scEVE"),
                        c("method", "dataset", "ARI", "NMI")]
   
@@ -222,14 +239,12 @@ get_barplots.ensemble <- function(results.real) {
   data <- melt(data, variable.name="metric")
   
   ensemble_algorithms <- unique(data$method)
-  colors <- brewer.pal(n=4, name="Greys") # colorblind-friendly
-  colors[5] <- brewer.pal(n=5, name="Dark2")[5] # scEVE colorblind-friendly color
   
   plot <- ggplot(data, aes(x=dataset, y=value, fill=method)) +
     geom_col(position="dodge", color="black") +
     facet_grid(~metric) +
     scale_y_continuous(expand=expansion(mult=0), limits=c(0,1)) +
-    scale_fill_manual(values=colors)
+    scale_fill_manual(values=get_results.prior()$colormap)
   
   plot <- plot +
     theme_classic() +
@@ -240,5 +255,57 @@ get_barplots.ensemble <- function(results.real) {
           strip.background=element_blank(), 
           strip.text=element_text(face="bold", size=13))
   
+  # add the errorbar with min and max for scEVE
+  
+  return(plot)
+}
+
+parse_synthetic_label <- function(synthetic_label) {
+  #' Parse the label of a synthetic scRNA-seq dataset to get:
+  #' - "n_clust": a numeric. its number of expected clusters.
+  #' - "distribution": a character. One of 'uniform' or 'geometric'.
+  #' 
+  #' @param synthetic_label: a character.
+  #' 
+  #' @return a named list.
+  #' 
+  elements <- strsplit(x=synthetic_label, split="_", fixed=TRUE)[[1]]
+  distribution <- substring(elements[1], 2, nchar(elements[1]))
+  n_clust <- substring(elements[2], 2, 2)
+  metadata <- list(distribution=distribution, n_clust=as.numeric(n_clust))
+  return(metadata)
+}
+
+get_plot.synthetic <- function(results.synthetic, metric) {
+  #' Generate boxplots w.r.t. the performances of scEVE and its components methods on synthetic datasets.
+  #' 
+  #' @param results.synthetic: a data.frame with three columns: 'dataset', 'method' and a metric.
+  #' 
+  #' @return a plot.
+  #' 
+  metadata <- lapply(X=results.synthetic$dataset, FUN=parse_synthetic_label)
+  metadata <- bind_rows(metadata)
+  data <- cbind(results.synthetic, metadata)
+  
+  results.prior <- get_results.prior()
+  data$distribution <- factor(data$distribution, levels=results.prior$synthetic_distributions)
+  
+  plot <- ggplot(data, aes(x=method, y=.data[[metric]], pattern=distribution)) +
+    geom_boxplot(aes(fill=method, color=method), outlier.size=0.5) +
+    geom_boxplot_pattern(position=position_dodge(preserve="single"),
+                         color="black", fill="#00000000", pattern_key_scale_factor=0.6) +
+    facet_grid(~n_clust)
+  
+  colors <- brewer.pal(n=length(unique(results.synthetic$method)), name="Dark2")
+  # colorblind-friendly
+  plot <- plot +
+    scale_fill_manual(values=colors) +
+    scale_color_manual(values=colors) +
+    scale_pattern_manual(values=c('uniform'='none', 'geometric'='stripe')) +
+    scale_pattern_fill_manual(values=colors) +
+    theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
+          axis.text.y=element_text(vjust=1), axis.ticks.x=element_blank(),
+          panel.grid.major=element_line(linewidth=0.5),
+          panel.spacing=unit(0.5, "lines"))
   return(plot)
 }
