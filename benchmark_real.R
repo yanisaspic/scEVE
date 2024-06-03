@@ -2,11 +2,14 @@
 
 	2024/05/23 @yanisaspic"
 
+suppressPackageStartupMessages({
+  library(glue)
+})
+
 source("./scEVE.R")
 source("./src/paper/data.R")
 source("./src/paper/methods.R")
 source("./src/paper/metrics.R")
-suppressPackageStartupMessages({library(glue)})
 
 dataset <- commandArgs(trailingOnly=TRUE)[[1]]
 expression.init <- get_real_dataset(dataset)

@@ -113,7 +113,7 @@ get_heatmap.real <- function(results.real, metric) {
   #' @return a plot.
   #' 
   plot <- ggplot(results.real, aes(x=method, y=dataset, fill=.data[[metric]])) +
-    geom_tile() +
+    geom_tile(color="white", lwd=1, linetype=1) +
     geom_text(aes(label=round(.data[[metric]], 2))) +
     coord_fixed()
   
@@ -123,33 +123,17 @@ get_heatmap.real <- function(results.real, metric) {
   colors <- brewer.pal(n=3, name="RdBu") # colorblind-friendly
   plot <- plot +
     scale_fill_gradient2(low=colors[1], mid=colors[2], high=colors[3],
-                         midpoint=midpoint, limits=c(minimum,maximum)) +
+                         midpoint=midpoint, limits=c(minimum,maximum), 
+                         breaks=c(minimum, midpoint, maximum),
+                         labels=function(x) sprintf("%.2f", x)) +
     theme_classic() +
     theme(axis.text.x = element_text(angle=30, vjust=0.9, hjust=1),
-          legend.key.width=unit(0.5, "lines"), legend.position="left",
-          axis.title.x=element_blank(), axis.title.y=element_blank())
-  return(plot)
-}
-
-get_boxplot.datasets <- function(results.real, metric) {
-  #' Get a boxplot where the x-axis is datasets and the y-axis is a performance metric.
-  #' 
-  #' @param results.real: a data.frame with three columns: 'dataset', 'method' and a metric.
-  #' @param metric: a character. The metric of interest.
-  #' 
-  #' @return a plot.
-  #' 
-  plot <- ggplot(results.real, aes(x=dataset, y=.data[[metric]])) +
-    # geom_boxplot(outlier.shape=NA) +
-    coord_flip() +
-    geom_point(aes(fill=method), color="black", size=3, pch=21)
+          legend.key.height=unit(0.5, "lines"), legend.title.position="bottom",
+          legend.position="bottom", axis.title.x=element_blank(), 
+          axis.title.y=element_blank(), legend.title=element_text(hjust=0.6))
   
-  plot <- plot + scale_fill_manual(values=get_results.prior()[["colormap"]]) +
-    theme_classic() +
-    theme(axis.title.y=element_blank(), axis.text.y=element_blank(),
-          axis.text.x=element_text(hjust=1), panel.grid.major=element_line(linewidth=0.5),
-          axis.line.y=element_blank(), axis.ticks.y=element_blank()) +
-    guides(fill=guide_legend(ncol=2))
+  arrow <- ifelse(metric %in% c("ARI", "NMI"), "\u2b06", "\u2b07")
+  plot$labels$fill <- paste(metric, arrow, sep=" ")
   return(plot)
 }
 
@@ -168,10 +152,8 @@ get_boxplot.methods <- function(results.real, metric) {
   plot <- plot + scale_fill_manual(values=get_results.prior()[["colormap"]]) +
     theme_classic() +
     theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
-          legend.position="left", axis.text.y=element_text(vjust=1),
-          panel.grid.major=element_line(linewidth=0.5),
-          axis.line.x=element_blank(), axis.ticks.x=element_blank()) +
-    guides(fill="none")
+          legend.position="left", panel.grid.major=element_line(linewidth=0.5),
+          axis.line.x=element_blank(), axis.ticks.x=element_blank())
   return(plot)
 }
 
@@ -186,16 +168,9 @@ get_plot.real <- function(results.real, metric) {
   #' 
   results.prior <- get_results.prior()
   results.real$dataset <- factor(results.real$dataset, levels=results.prior$real_datasets)
-  
   heatmap.real <- get_heatmap.real(results.real, metric)
   boxplot.methods <- get_boxplot.methods(results.real, metric)
-  boxplot.datasets <- get_boxplot.datasets(results.real, metric)
-  legend <- cowplot::get_legend(boxplot.datasets)
-  legend <- as.ggplot(legend)
-  boxplot.datasets <- boxplot.datasets + guides(fill="none")
-  
-  plot.real <- ggarrange(boxplot.methods, legend, heatmap.real, boxplot.datasets,
-                         nrow=2, ncol=2, widths=c(6,4), heights=c(4,6))
+  plot.real <- ggarrange(boxplot.methods, heatmap.real, nrow=2, ncol=1, widths=1, heights=c(1,10),byrow=TRUE)
   return(plot.real)
 }
 
@@ -213,10 +188,16 @@ get_Baron_HumPan.scEVE <- function(results.real) {
   data <- results.real[(results.real$dataset=="Baron_HumPan") & (results.real$method=="scEVE"),
                        c("method", "dataset", "ARI", "NMI")]
   
-  Baron_HumPan.scEVE <- list()
-  for (fun in c("median", "min", "max")) {
-    Baron_HumPan.scEVE[[fun]] <- data.frame(method="scEVE", dataset="Baron_HumPan",
-                                   ARI=get(fun)(data$ARI), NMI=get(fun)(data$NMI))}
+  Baron_HumPan.scEVE <- list(median=data.frame(method="scEVE", dataset="Baron_HumPan",
+                                               ARI=median(data$ARI), NMI=median(data$NMI)))
+  
+  errorbars <- list()
+  for (metric in c("ARI", "NMI")) {
+    row <- data.frame(method="scEVE", dataset="Baron_HumPan", metric=metric)
+    for (fun in c("min", "max")) {row[, fun] <- get(fun)(data[, metric])}
+    errorbars[[metric]] <- row
+  }
+  Baron_HumPan.scEVE[["errorbars"]] <- do.call(rbind, errorbars)
   return(Baron_HumPan.scEVE)
 }
 
@@ -255,7 +236,12 @@ get_barplots.ensemble <- function(results.real) {
           strip.background=element_blank(), 
           strip.text=element_text(face="bold", size=13))
   
-  # add the errorbar with min and max for scEVE
+  # best way to go for min and max is assign it to the median row, and assign NA to the rest.
+  errorbars_data <- Baron_HumPan.scEVE$errorbars
+  errorbars_data[, "value"] <- 0
+  plot <- plot +
+    geom_errorbar(data=errorbars_data,
+                  aes(x=dataset, ymin=min, ymax=max, fill=method))
   
   return(plot)
 }

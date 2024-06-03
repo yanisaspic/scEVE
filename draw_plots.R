@@ -1,4 +1,4 @@
-"Run this script to generate the figures used in the scEVE paper.
+"Run this script to generate the plots used in the scEVE paper.
 
 	2024/06/03 @yanisaspic"
 
@@ -16,7 +16,7 @@ results.synthetic <- results[!results$real,]
 for (metric in c("ARI", "NMI", "peakRAM**", "time**")) {
   plot.real <- get_plot.real(results.real, metric)
   plot.synthetic <- get_plot.synthetic(results.synthetic, metric)
-  ggsave(glue("./plots/real/{metric}.png"), plot.real)
+  ggsave(glue("./plots/real/{metric}.png"), plot.real, width=4, height=7)
   ggsave(glue("./plots/synthetic/{metric}.png"), plot.synthetic)
 }
 
