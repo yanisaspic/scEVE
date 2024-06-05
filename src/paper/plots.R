@@ -10,6 +10,7 @@ suppressPackageStartupMessages({
   library(ggplotify)
   library(glue)
   library(RColorBrewer)
+  library(readxl)
   library(reshape2)
   library(scales)
 })
@@ -41,12 +42,7 @@ get_prior <- function() {
     "Lambrechts_HumNSCLC", # 51,775c
     "Peng_HumPDAC"         # 57,530c
     )
-  synthetic_distributions <- c("uniform", "geometric")
-  
-  methods <- c("RSEC", "SAME", "scCCESS", "scEFSC")
-  datasets <- c("Li_HumCRC_a", "Tasic_MouBra", "Baron_HumPan")
-  configurations <- expand.grid(list(method=methods, dataset=datasets))
-  
+
   ARI <- c(# Li_HumCRC_a
     0.75, 0.92, 0.79, 0.99,
     # Tasic_MouBra
@@ -59,6 +55,9 @@ get_prior <- function() {
     0.61, 0.84, 0.80, 0.87,
     # Baron_HumPan
     0.51, 0.72, 0.75, 0.75)
+  methods <- c("RSEC", "SAME", "scCCESS", "scEFSC")
+  datasets <- c("Li_HumCRC_a", "Tasic_MouBra", "Baron_HumPan")
+  configurations <- expand.grid(list(method=methods, dataset=datasets))
   for (metric in c("ARI", "NMI")) {configurations[, metric] <- get(metric)}
   
   colormap <- list(densityCut="#e31a1c",
@@ -72,10 +71,9 @@ get_prior <- function() {
                    scEFSC="#525252")
   
   prior <- list(algorithms=algorithms,
-                        colormap=colormap,
-                        real_datasets=real_datasets,
-                        synthetic_distributions=synthetic_distributions,
-                        ensemble_results=configurations)
+                real_datasets=real_datasets,
+                colormap=colormap,
+                ensemble_results=configurations)
   return(prior)
 }
 
@@ -84,9 +82,8 @@ get_results <- function(path="./results") {
   #' 
   #' @param path: a character. The path where results files are stored.
   #' 
-  #' @return a data.frame with nine columns: 'peakRAM', 'time', 'ARI', 'NMI',
-  #' 'method', 'dataset', 'real', 'log10(s)' and 'log10(Mb)*'.
-  #' The 'ARI*' is a modified ARI ranging from 0 to 1 instead of -1 to 1.
+  #' @return a data.frame with ten columns: 'peakRAM', 'time', 'ARI', 'NMI',
+  #' 'method', 'dataset', 'real', 'log10(s)', 'log10(Mb)' and 'method_type'.
   #' 
   individual_filenames <- list.files(path, full.names=TRUE)
   individual_results <- lapply(individual_filenames, read.csv)
@@ -100,7 +97,32 @@ get_results <- function(path="./results") {
   for (col in c("peakRAM", "time", "ARI", "NMI")) {results[,col] <- as.numeric(results[,col])}
   results[, "log10(s)"] <- log10(results[, "time"])
   results[, "log10(Mb)"] <- log10(results[, "peakRAM"])
+  
+  results[, "method_type"] <- "individual"
+  results[results$method=="scEVE", "method_type"] <- "scEVE"
   return(results)
+}
+
+get_records <- function(path="./analysis/records") {
+  #' Merge the meta records of each scRNA-seq dataset analyzed with scEVE.
+  #' Only the leaf rows are kept for each dataset.
+  #'
+  #' @param path: a character. The path where record files are stored.
+  #' 
+  #' @return a data.frame with two columns: 'consensus' and 'dataset'.
+  #' 
+  individual_filenames <- list.files(path)
+  get_dataset_label <- function(filename) {strsplit(filename, split=".xlsx")[1]}
+  get_dataset_record <- function(filename) {
+    record <- read_excel(glue("{path}/{filename}"), sheet="meta")
+    record[, "dataset"] <- get_dataset_label(filename)
+    record <- record[, c("consensus", "dataset")]
+    return(record)
+  }
+  individual_records <- lapply(individual_filenames, FUN=get_dataset_record)
+  records <- do.call(rbind, individual_records)
+  records <- as.data.frame(records)
+  return(records)
 }
 
 get_heatmap.real <- function(results.real, metric) {
@@ -115,8 +137,7 @@ get_heatmap.real <- function(results.real, metric) {
   #' 
   plot <- ggplot(results.real, aes(x=method, y=dataset, fill=.data[[metric]])) +
     geom_tile(color="white", lwd=1, linetype=1) +
-    geom_text(aes(label=round(.data[[metric]], 2))) +
-    coord_fixed()
+    geom_text(aes(label=round(.data[[metric]], 2)))
   
   minimum <- min(results.real[, metric])
   maximum <- max(results.real[, metric])
@@ -128,12 +149,14 @@ get_heatmap.real <- function(results.real, metric) {
                          breaks=c(minimum, midpoint, maximum),
                          labels=function(x) sprintf("%.2f", x)) +
     theme_classic() +
-    theme(axis.text.x = element_text(angle=30, vjust=0.9, hjust=1),
-          legend.key.height=unit(0.5, "lines"), legend.title.position="bottom",
+    theme(axis.text.x = element_text(angle=30, vjust=0.8, hjust=0.8),
+          legend.key.height=unit(0.5, "lines"), legend.title.position="top",
           legend.position="bottom", axis.title.x=element_blank(), 
-          axis.title.y=element_blank(), legend.title=element_text(hjust=0.6))
+          axis.title.y=element_blank(), legend.title=element_text(hjust=0.6),
+          strip.text=element_blank()) +
+    facet_grid(~method_type, scales = "free_x", space = "free_x")
   
-  arrow <- ifelse(metric %in% c("ARI", "NMI"), "\u2b06", "\u2b07")
+  arrow <- ifelse(metric %in% c("ARI", "NMI"), "\u2b08", "\u2b0a")
   plot$labels$fill <- paste(metric, arrow, sep=" ")
   return(plot)
 }
@@ -154,7 +177,9 @@ get_boxplot.methods <- function(results.real, metric) {
     theme_classic() +
     theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
           legend.position="left", panel.grid.major=element_line(linewidth=0.5),
-          axis.line.x=element_blank(), axis.ticks.x=element_blank())
+          axis.line.x=element_blank(), axis.ticks.x=element_blank(),
+          strip.text=element_blank()) +
+    facet_grid(~method_type, scales = "free_x", space = "free_x")
   return(plot)
 }
 
@@ -167,15 +192,15 @@ get_plot.real <- function(results.real, metric) {
   #' 
   #' @return a plot.
   #' 
-  prior <- get_prior()
-  results.real$dataset <- factor(results.real$dataset, levels=prior$real_datasets)
+  results.real$dataset <- factor(results.real$dataset, levels=get_prior()$real_datasets)
   heatmap.real <- get_heatmap.real(results.real, metric)
   boxplot.methods <- get_boxplot.methods(results.real, metric)
-  plot.real <- ggarrange(boxplot.methods, heatmap.real, nrow=2, ncol=1, widths=1, heights=c(1,10),byrow=TRUE)
+  plot.real <- ggarrange(boxplot.methods, heatmap.real, nrow=2, ncol=1, widths=1,
+                         heights=c(3,7),byrow=TRUE)
   return(plot.real)
 }
 
-get_Baron_HumPan.scEVE <- function(results.real) {
+get_baron_results.scEVE <- function(results.real) {
   #' Get the median, minimum and maximum performances of scEVE on the Baron_HumPan dataset.
   #' 
   #' @param results.real: a data.frame with 'dataset', 'method', 'ARI' and 'NMI'.
@@ -189,17 +214,15 @@ get_Baron_HumPan.scEVE <- function(results.real) {
   data <- results.real[(results.real$dataset=="Baron_HumPan") & (results.real$method=="scEVE"),
                        c("method", "dataset", "ARI", "NMI")]
   
-  Baron_HumPan.scEVE <- list(median=data.frame(method="scEVE", dataset="Baron_HumPan",
-                                               ARI=median(data$ARI), NMI=median(data$NMI)))
-  
-  errorbars <- list()
+  baron_results <- list()
   for (metric in c("ARI", "NMI")) {
-    row <- data.frame(method="scEVE", dataset="Baron_HumPan", metric=metric)
-    for (fun in c("min", "max")) {row[, fun] <- get(fun)(data[, metric])}
-    errorbars[[metric]] <- row
+    row <- data.frame(method="scEVE", dataset="Baron_HumPan", metric=metric,
+                      value=median(data[, metric]), ymin=min(data[, metric]),
+                      ymax=max(data[, metric]))
+    baron_results[[metric]] <- row
   }
-  Baron_HumPan.scEVE[["errorbars"]] <- do.call(rbind, errorbars)
-  return(Baron_HumPan.scEVE)
+  baron_results <- do.call(rbind, baron_results)
+  return(baron_results)
 }
 
 get_barplots.ensemble <- function(results.real) {
@@ -215,15 +238,16 @@ get_barplots.ensemble <- function(results.real) {
   ensemble_datasets <- c("Li_HumCRC_a", "Tasic_MouBra", "Baron_HumPan")
   is_comparable <- (results.real$method == 'scEVE') & (results.real$dataset %in% ensemble_datasets)
   comparable_results <- results.real[is_comparable, c("ARI", "NMI", "method", "dataset")]
-  Baron_HumPan.scEVE <- get_Baron_HumPan.scEVE(results.real)
+  data <- rbind(ensemble_results, comparable_results)
   
-  data <- rbind(ensemble_results, comparable_results, Baron_HumPan.scEVE$median)
   data <- melt(data, variable.name="metric")
-  
-  ensemble_algorithms <- unique(data$method)
+  for (col in c("ymin", "ymax")) {data[, col] <- NA}
+  baron_results.scEVE <- get_baron_results.scEVE(results.real)
+  data <- rbind(data, baron_results.scEVE)
   
   plot <- ggplot(data, aes(x=dataset, y=value, fill=method)) +
     geom_col(position="dodge", color="black") +
+    geom_errorbar(aes(ymin=ymin, ymax=ymax), position=position_dodge(.9), width=.33) +
     facet_grid(~metric) +
     scale_y_continuous(expand=expansion(mult=0), limits=c(0,1)) +
     scale_fill_manual(values=get_prior()$colormap)
@@ -232,67 +256,33 @@ get_barplots.ensemble <- function(results.real) {
     theme_classic() +
     theme(axis.title.x=element_blank(), axis.title.y=element_blank(),
           axis.text.y=element_text(vjust=1),
-          axis.text.x = element_text(angle=15, vjust=0.7, hjust=0.65),
           panel.grid.major=element_line(linewidth=0.5),
           strip.background=element_blank(), 
           strip.text=element_text(face="bold", size=13))
   
-  # best way to go for min and max is assign it to the median row, and assign NA to the rest.
-  errorbars_data <- Baron_HumPan.scEVE$errorbars
-  errorbars_data[, "value"] <- 0
-  plot <- plot +
-    geom_errorbar(data=errorbars_data,
-                  aes(x=dataset, ymin=min, ymax=max, fill=method))
-  
   return(plot)
 }
 
-parse_synthetic_label <- function(synthetic_label) {
-  #' Parse the label of a synthetic scRNA-seq dataset to get:
-  #' - "n_clust": a numeric. its number of expected clusters.
-  #' - "distribution": a character. One of 'uniform' or 'geometric'.
+get_consensus_plot <- function(results.real, records) {
+  #' Draw a lineplot with 3 lines: 'ARI', 'NMI' and 'consensus' w.r.t. the dataset.
   #' 
-  #' @param synthetic_label: a character.
-  #' 
-  #' @return a named list.
-  #' 
-  elements <- strsplit(x=synthetic_label, split="_", fixed=TRUE)[[1]]
-  distribution <- substring(elements[1], 2, nchar(elements[1]))
-  n_clust <- substring(elements[2], 2, 2)
-  metadata <- list(distribution=distribution, n_clust=as.numeric(n_clust))
-  return(metadata)
-}
-
-get_plot.synthetic <- function(results.synthetic, metric) {
-  #' Generate boxplots w.r.t. the performances of scEVE and its components methods on synthetic datasets.
-  #' 
-  #' @param results.synthetic: a data.frame with three columns: 'dataset', 'method' and a metric.
+  #' @param results.real: a data.frame with 'dataset', 'method', 'ARI' and 'NMI'.
+  #' - method included is 'scEVE'.
+  #' @param records: a data.frame with two columns: 'consensus' and 'records'.
   #' 
   #' @return a plot.
   #' 
-  metadata <- lapply(X=results.synthetic$dataset, FUN=parse_synthetic_label)
-  metadata <- bind_rows(metadata)
-  data <- cbind(results.synthetic, metadata)
+  data <- results.real[results.real$method=="scEVE",]
   
-  prior <- get_prior()
-  data$distribution <- factor(data$distribution, levels=prior$synthetic_distributions)
+  records$dataset <- factor(records$dataset, levels=get_prior()$real_datasets)
+  plot <- ggplot(data=records, aes(x=dataset, y=consensus)) +
+    geom_boxplot(fill="grey") +
+    geom_point(position="jitter")
   
-  plot <- ggplot(data, aes(x=method, y=.data[[metric]], pattern=distribution)) +
-    geom_boxplot(aes(fill=method, color=method), outlier.size=0.5) +
-    geom_boxplot_pattern(position=position_dodge(preserve="single"),
-                         color="black", fill="#00000000", pattern_key_scale_factor=0.6) +
-    facet_grid(~n_clust)
-  
-  colors <- brewer.pal(n=length(unique(results.synthetic$method)), name="Dark2")
-  # colorblind-friendly
   plot <- plot +
-    scale_fill_manual(values=colors) +
-    scale_color_manual(values=colors) +
-    scale_pattern_manual(values=c('uniform'='none', 'geometric'='stripe')) +
-    scale_pattern_fill_manual(values=colors) +
-    theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
-          axis.text.y=element_text(vjust=1), axis.ticks.x=element_blank(),
-          panel.grid.major=element_line(linewidth=0.5),
-          panel.spacing=unit(0.5, "lines"))
+    theme_classic() +
+    theme(axis.text.x = element_text(angle=30, vjust=0.8, hjust=0.8),
+          axis.title.x=element_blank())
+  
   return(plot)
 }

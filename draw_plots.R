@@ -15,11 +15,15 @@ results.synthetic <- results[!results$real,]
 # performances of individual methods and scEVE on real datasets
 for (metric in c("ARI", "NMI", "log10(s)", "log10(Mb)")) {
   plot.real <- get_plot.real(results.real, metric)
-  plot.synthetic <- get_plot.synthetic(results.synthetic, metric)
-  ggsave(glue("./plots/real/{metric}.png"), plot.real, width=4, height=7)
-  ggsave(glue("./plots/synthetic/{metric}.png"), plot.synthetic)
+  ggsave(glue("./plots/real/{metric}.png"), plot.real, width=4.25, height=7)
 }
 
 # performances of scEVE w.r.t. previous ensemble clustering algorithms
 barplots.ensemble <- get_barplots.ensemble(results.real)
-ggsave("./plots/ensemble.png", barplots.ensemble, width=7, height=2.3)
+ggsave("./plots/ensemble.png", barplots.ensemble, width=8.5, height=2)
+
+# performances of individual methods and scEVE on synthetic datasets
+for (metric in c("ARI", "NMI", "log10(s)", "log10(Mb)")) {
+  plot.synthetic <- get_plot.synthetic(results.synthetic, metric)
+  ggsave(glue("./plots/synthetic/{metric}.png"), plot.synthetic)
+}
