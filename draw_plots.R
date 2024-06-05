@@ -13,7 +13,7 @@ results.real <- results[results$real,]
 results.synthetic <- results[!results$real,]
 
 # performances of individual methods and scEVE on real datasets
-for (metric in c("ARI", "NMI", "peakRAM**", "time**")) {
+for (metric in c("ARI", "NMI", "log10(s)", "log10(Mb)")) {
   plot.real <- get_plot.real(results.real, metric)
   plot.synthetic <- get_plot.synthetic(results.synthetic, metric)
   ggsave(glue("./plots/real/{metric}.png"), plot.real, width=4, height=7)

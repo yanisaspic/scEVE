@@ -14,7 +14,7 @@ suppressPackageStartupMessages({
   library(scales)
 })
 
-get_results.prior <- function() {
+get_prior <- function() {
   #' Get the prior knowledge on the results regarding the figures of the scEVE paper.
   #' 
   #' @return a named list with: "real_datasets", "ensemble_results" and "algorithms".
@@ -71,12 +71,12 @@ get_results.prior <- function() {
                    scCCESS="#969696",
                    scEFSC="#525252")
   
-  results.prior <- list(algorithms=algorithms,
+  prior <- list(algorithms=algorithms,
                         colormap=colormap,
                         real_datasets=real_datasets,
                         synthetic_distributions=synthetic_distributions,
                         ensemble_results=configurations)
-  return(results.prior)
+  return(prior)
 }
 
 get_results <- function(path="./results") {
@@ -84,21 +84,22 @@ get_results <- function(path="./results") {
   #' 
   #' @param path: a character. The path where results files are stored.
   #' 
-  #' @return a data.frame with eight columns: 'peakRAM', 'time', 'ARI', 'NMI',
-  #' 'method', 'dataset', 'real' and 'ARI*'.
+  #' @return a data.frame with nine columns: 'peakRAM', 'time', 'ARI', 'NMI',
+  #' 'method', 'dataset', 'real', 'log10(s)' and 'log10(Mb)*'.
   #' The 'ARI*' is a modified ARI ranging from 0 to 1 instead of -1 to 1.
   #' 
   individual_filenames <- list.files(path, full.names=TRUE)
   individual_results <- lapply(individual_filenames, read.csv)
   results <- do.call(rbind, individual_results)
   
-  results.prior <- get_results.prior()
-  results$method <- factor(results$method, levels=results.prior$algorithms)
+  prior <- get_prior()
+  results$method <- factor(results$method, levels=prior$algorithms)
 
-  is_real <- function(row) {row["dataset"] %in% results.prior$real}
+  is_real <- function(row) {row["dataset"] %in% prior$real}
   results[,"real"] <- apply(X=results, MARGIN=1, FUN=is_real)
   for (col in c("peakRAM", "time", "ARI", "NMI")) {results[,col] <- as.numeric(results[,col])}
-  for (col in c("peakRAM", "time")) {results[,glue("{col}**")] <- log10(results[,col])}
+  results[, "log10(s)"] <- log10(results[, "time"])
+  results[, "log10(Mb)"] <- log10(results[, "peakRAM"])
   return(results)
 }
 
@@ -149,7 +150,7 @@ get_boxplot.methods <- function(results.real, metric) {
     geom_boxplot(aes(fill=method)) +
     geom_point()
   
-  plot <- plot + scale_fill_manual(values=get_results.prior()[["colormap"]]) +
+  plot <- plot + scale_fill_manual(values=get_prior()[["colormap"]]) +
     theme_classic() +
     theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
           legend.position="left", panel.grid.major=element_line(linewidth=0.5),
@@ -166,8 +167,8 @@ get_plot.real <- function(results.real, metric) {
   #' 
   #' @return a plot.
   #' 
-  results.prior <- get_results.prior()
-  results.real$dataset <- factor(results.real$dataset, levels=results.prior$real_datasets)
+  prior <- get_prior()
+  results.real$dataset <- factor(results.real$dataset, levels=prior$real_datasets)
   heatmap.real <- get_heatmap.real(results.real, metric)
   boxplot.methods <- get_boxplot.methods(results.real, metric)
   plot.real <- ggarrange(boxplot.methods, heatmap.real, nrow=2, ncol=1, widths=1, heights=c(1,10),byrow=TRUE)
@@ -210,7 +211,7 @@ get_barplots.ensemble <- function(results.real) {
   #' 
   #' @return a plot.
   #' 
-  ensemble_results <- get_results.prior()$ensemble_results
+  ensemble_results <- get_prior()$ensemble_results
   ensemble_datasets <- c("Li_HumCRC_a", "Tasic_MouBra", "Baron_HumPan")
   is_comparable <- (results.real$method == 'scEVE') & (results.real$dataset %in% ensemble_datasets)
   comparable_results <- results.real[is_comparable, c("ARI", "NMI", "method", "dataset")]
@@ -225,7 +226,7 @@ get_barplots.ensemble <- function(results.real) {
     geom_col(position="dodge", color="black") +
     facet_grid(~metric) +
     scale_y_continuous(expand=expansion(mult=0), limits=c(0,1)) +
-    scale_fill_manual(values=get_results.prior()$colormap)
+    scale_fill_manual(values=get_prior()$colormap)
   
   plot <- plot +
     theme_classic() +
@@ -273,8 +274,8 @@ get_plot.synthetic <- function(results.synthetic, metric) {
   metadata <- bind_rows(metadata)
   data <- cbind(results.synthetic, metadata)
   
-  results.prior <- get_results.prior()
-  data$distribution <- factor(data$distribution, levels=results.prior$synthetic_distributions)
+  prior <- get_prior()
+  data$distribution <- factor(data$distribution, levels=prior$synthetic_distributions)
   
   plot <- ggplot(data, aes(x=method, y=.data[[metric]], pattern=distribution)) +
     geom_boxplot(aes(fill=method, color=method), outlier.size=0.5) +
