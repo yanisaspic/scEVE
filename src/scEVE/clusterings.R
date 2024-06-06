@@ -155,7 +155,7 @@ get_clusterings_plots <- function(SeurObj, clusterings) {
     SeurObj@active.ident <- setNames(labels, cells)
     n_clusters <- length(levels(labels))
     plot <- do_DimPlot(SeurObj) +
-      ggtitle(glue("{method} ({n_clusters} clusters)")) +
+      ggtitle(glue("{method}: {n_clusters} cluster(s)")) +
       theme_bw() +
       theme(plot.title=element_text(hjust=0.5, margin=margin(1, 0, 0, 0)),
             panel.background=element_rect(fill="lightgrey"),

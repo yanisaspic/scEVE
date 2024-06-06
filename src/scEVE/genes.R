@@ -147,52 +147,59 @@ add_specific_markers <- function(seeds, markers) {
   return(seeds)
 }
 
-get_markers.plot <- function(markers, population) {
+get_markers.plot <- function(markers, population, params) {
   #' Get an upset plot corresponding to the intersection of marker genes between sets.
   #' 
   #' @param markers: a nested list with two keys: 'seed' and 'all'.
   #' @param population: a character.
+  #' @param params: a list of parameters, with 'n_HVGs'.
   #'
   #' @return an upset plot.
   #'
   labels <- paste(population, 1:length(markers$seed), sep=".")
   markers.plot <- ggVennDiagram(markers$seed, 
-                                category.names = labels,
-                                force_upset = TRUE,
-                                order.set.by = "name",
-                                order.intersect.by = "none")
+                                category.names=labels,
+                                force_upset=TRUE,
+                                order.set.by="name",
+                                order.intersect.by="none",
+                                relative_height=1.6,
+                                relative_width=0.4)
   
   ### use the color palette of seeds ###
   ######################################
-  
+
     # intersection dots
   intersect_colors.dots <- rep(NA, length(markers.plot[[1]]$data$name))
   intersect_colors.dots[1:length(labels)] <- labels
   markers.plot[[1]]$layers[[1]]$aes_params$colour <- NULL
   markers.plot[[1]]$layers[[2]]$aes_params$colour <- NULL
-  markers.plot[[1]] <- markers.plot[[1]] + 
+  markers.plot[[1]] <- markers.plot[[1]] +
     aes(colour=intersect_colors.dots) +
-    
-    theme(legend.position = "none")
-  
+    theme(legend.position="none")
+
     # intersection bars
   intersect_colors.bars <- rep(NA, length(markers.plot[[2]]$data$name))
   intersect_colors.bars[1:length(labels)] <- labels
   markers.plot[[2]] <- markers.plot[[2]] +
-    aes(fill=intersect_colors.bars) + 
-    theme(legend.position = "none") +
+    aes(fill=intersect_colors.bars) +
+    theme_classic() +
+    theme(legend.position="none", axis.text.y=element_text(vjust=0.25),
+          panel.grid.major.y=element_line(linewidth=0.5),
+          axis.line=element_blank(),
+          axis.ticks.x=element_line(colour="#00000000"),
+          axis.text.x=element_text(colour="#00000000")) +
+    scale_y_continuous(expand=expansion(mult=0)) +
     ggtitle("Over-represented HVGs")
-  
-    # size bars
-  markers.plot[[3]] <- markers.plot[[3]] + aes(fill=name) + 
-    theme(legend.position = "none")
 
-  markers.plot <- as.ggplot(markers.plot)
-  dev.off()
+  # size bars
+  markers.plot[[3]] <- markers.plot[[3]] + aes(fill=name) +
+    theme(legend.position="none") +
+    geom_vline(xintercept=sqrt(params$n_HVGs), linetype="dashed")
+
   return(markers.plot)
 }
 
-draw_genes <- function(data.loop, seeds, population) {
+draw_genes <- function(data.loop, seeds, population, params) {
   #' Draw two plots corresponding to:
   #' - a boxplot, with populations as x-axis and number of HVGs measured as y-axis.
   #' - an upsetplot, where each bar corresponds to a set of marker genes. 
@@ -201,13 +208,13 @@ draw_genes <- function(data.loop, seeds, population) {
   #' @param data.loop: a list of four data.frames: 'expression.loop', 'occurrences.loop', 'SeurObj.loop', and 'ranked_genes.loop'.
   #' @param seeds: a nested list, where each sub-list has three keys: 'consensus', 'cells' and 'clusters'.
   #' @param population: a character.
+  #' @param params: a list of parameters, with 'n_HVGs'.
   #' 
   markers.loop <- get_markers(seeds, data.loop$occurrences.loop)
-  markers.plot <- get_markers.plot(markers.loop, population)
+  markers.plot <- get_markers.plot(markers.loop, population, params)
 
   pdf(file = glue("./figures/{population}_genes.pdf"))
-  composite_genes_plot <- do.call(grid.arrange, list(efforts=efforts.plot, markers=markers.plot))
-  print(composite_genes_plot)
+  print(markers.plot)
   dev.off()
 }
 
@@ -230,7 +237,7 @@ get_genes <- function(data.loop, seeds, params, population, figures) {
   markers.loop <- get_markers(seeds, data.loop$occurrences.loop)
   for (i in 1:length(seeds)) {seeds[[i]]$markers <- markers.loop$seed[[i]]}
   seeds <- add_specific_markers(seeds, markers.loop)
-  if (figures) {draw_genes(data.loop, seeds, population)}
+  if (figures) {draw_genes(data.loop, seeds, population, params)}
   
   # if any seed is poorly characterized, the iteration is fruitless
   #################################################################
