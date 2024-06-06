@@ -114,15 +114,32 @@ get_records <- function(path="./analysis/records") {
   individual_filenames <- list.files(path)
   get_dataset_label <- function(filename) {strsplit(filename, split=".xlsx")[1]}
   get_dataset_record <- function(filename) {
-    record <- read_excel(glue("{path}/{filename}"), sheet="meta")
-    record[, "dataset"] <- get_dataset_label(filename)
-    record <- record[, c("consensus", "dataset")]
-    return(record)
+    rec <- read_excel(glue("{path}/{filename}"), sheet="meta")
+    rec <- as.data.frame(rec)
+    rec[, "dataset"] <- get_dataset_label(filename)
+    rec[, "is_leaf"] <- rec$parent %in% rec[, 1]
+    return(rec)
   }
   individual_records <- lapply(individual_filenames, FUN=get_dataset_record)
   records <- do.call(rbind, individual_records)
-  records <- as.data.frame(records)
   return(records)
+}
+
+get_fontfaces <- function(data, rowsize, ascending=TRUE) {
+  #' Get a vector of fontfaces, so that the best values are in bold in a heatmap.
+  #' 
+  #' @param data: a vector of numeric values.
+  #' @param rowsize: an integer. It corresponds to the number of cells by row in the heatmap.
+  #' @param ascending: a boolean. If TRUE, the best values are the highest ones.
+  #' 
+  #' @return a vector of character.
+  #' 
+  if (!ascending) {data <- data * -1}
+  table <- matrix(data, ncol=rowsize, byrow=TRUE)
+  maxima <- apply(X=table, MARGIN=1, FUN=which.max)
+  fontfaces <- rep("plain", length(data))
+  for (i in 1:nrow(table)) {fontfaces[maxima[i] + (i-1) * rowsize] <- "bold"}
+  return(fontfaces)
 }
 
 get_heatmap.real <- function(results.real, metric) {
@@ -135,16 +152,24 @@ get_heatmap.real <- function(results.real, metric) {
   #' 
   #' @return a plot.
   #' 
+  fontfaces <- get_fontfaces(data=results.real[, metric],
+                             rowsize=length(levels(results.real$method)),
+                             ascending=ifelse(metric %in% c("ARI", "NMI"), TRUE, FALSE))
+    # bold best values.
+  
   plot <- ggplot(results.real, aes(x=method, y=dataset, fill=.data[[metric]])) +
-    geom_tile(color="white", lwd=1, linetype=1) +
-    geom_text(aes(label=round(.data[[metric]], 2)))
+    geom_tile(color="white", lwd=.5, linetype=1) +
+    geom_text(aes(label=round(.data[[metric]], 2)), fontface=fontfaces)
   
   minimum <- min(results.real[, metric])
   maximum <- max(results.real[, metric])
   midpoint <- median(results.real[, metric])
   colors <- brewer.pal(n=3, name="RdBu") # colorblind-friendly
+  if (metric %in% c("ARI", "NMI")) {gradient <- c(colors[1], colors[2], colors[3])}
+  else {gradient <- c(colors[3], colors[2], colors[1])}
+  
   plot <- plot +
-    scale_fill_gradient2(low=colors[1], mid=colors[2], high=colors[3],
+    scale_fill_gradient2(low=gradient[1], mid=gradient[2], high=gradient[3],
                          midpoint=midpoint, limits=c(minimum,maximum), 
                          breaks=c(minimum, midpoint, maximum),
                          labels=function(x) sprintf("%.2f", x)) +
@@ -156,7 +181,7 @@ get_heatmap.real <- function(results.real, metric) {
           strip.text=element_blank()) +
     facet_grid(~method_type, scales = "free_x", space = "free_x")
   
-  arrow <- ifelse(metric %in% c("ARI", "NMI"), "\u2b08", "\u2b0a")
+  arrow <- ifelse(metric %in% c("ARI", "NMI"), "[\u2b08]", "[\u2b0a]")
   plot$labels$fill <- paste(metric, arrow, sep=" ")
   return(plot)
 }
@@ -248,7 +273,7 @@ get_barplots.ensemble <- function(results.real) {
   plot <- ggplot(data, aes(x=dataset, y=value, fill=method)) +
     geom_col(position="dodge", color="black") +
     geom_errorbar(aes(ymin=ymin, ymax=ymax), position=position_dodge(.9), width=.33) +
-    facet_grid(~metric) +
+    facet_grid(~metric, labeller=as_labeller(c("ARI"="ARI [\u2b08]", "NMI"="NMI [\u2b08]"))) +
     scale_y_continuous(expand=expansion(mult=0), limits=c(0,1)) +
     scale_fill_manual(values=get_prior()$colormap)
   
@@ -272,12 +297,16 @@ get_consensus_plot <- function(results.real, records) {
   #' 
   #' @return a plot.
   #' 
-  data <- results.real[results.real$method=="scEVE",]
+  performances <- results.real[results.real$method=="scEVE",]
+  consensi <- records[records$is_leaf, c("dataset", "consensus")]
+  consensi$dataset <- factor(consensi$dataset, levels=get_prior()$real_datasets)
+  for (ds in unique(performances$dataset)) {
+    consensi[consensi$dataset==ds, "ARI"] <- performances[performances$dataset==ds, "ARI"]
+  }
+  print(consensi)
   
-  records$dataset <- factor(records$dataset, levels=get_prior()$real_datasets)
-  plot <- ggplot(data=records, aes(x=dataset, y=consensus)) +
-    geom_boxplot(fill="grey") +
-    geom_point(position="jitter")
+  plot <- ggplot(data=consensi, aes(x=ARI, y=consensus)) +
+    geom_point()
   
   plot <- plot +
     theme_classic() +
