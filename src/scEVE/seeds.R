@@ -203,19 +203,21 @@ add_cells_to_hints <- function(hints, cells) {
   return(hints)
 }
 
-add_seeds <- function(SeurObj, seeds) {
+add_seeds <- function(SeurObj, seeds, population) {
   #' Add a seed factor to a Seurat Object.
   #' 
   #' @param SeurObj: a Seurat Object of raw count expression, with selected genes.
   #' FindVariableFeatures() and ScaleData() must have been applied already.
   #' @param seeds: a nested list, where each sub-list has three keys: 'consensus', 'cells' and 'clusters'.
+  #' @param population: a character.
   #' 
   #' @return: a Seurat Object where seeds are accessible with SeurObj$seeds.
   #'
   get_cells.seed <- function(i) {
     cells_of_seed <- seeds[[i]]$cells
-    out <- setNames(rep(glue("consensus_cluster_{i}"), length(cells_of_seed)),
-                    cells_of_seed)
+    label <- glue("{population}.{i}")
+    if (i == length(seeds)) {label <- paste(label, "(leftovers)")}
+    out <- setNames(rep(label, length(cells_of_seed)), cells_of_seed)
     return(out)
   }
   cells <- lapply(X=1:length(seeds),
@@ -266,11 +268,23 @@ draw_seeds <- function(data.loop, seeds, population) {
   #' @param seeds: a nested list, where each sub-list has three keys: 'consensus', 'cells' and 'clusters'.
   #' @param population: a character.
   #' 
-  data.loop$SeurObj.loop <- add_seeds(data.loop$SeurObj.loop, seeds)
+  data.loop$SeurObj.loop <- add_seeds(data.loop$SeurObj.loop, seeds, population)
   pdf(file = glue("./figures/{population}_seeds.pdf"))
   seeds_plot <- do_DimPlot(data.loop$SeurObj.loop,
                            split.by="seeds",
                            legend.position="none")
+  
+  for (i in 1:length(seeds_plot)) {
+    seeds_plot[[i]][[1]] <- seeds_plot[[i]][[1]] +
+      theme_bw() +
+      theme(plot.title=element_text(hjust=0.5, margin=margin(1, 0, 0, 0)),
+            panel.background=element_rect(fill="lightgrey"),
+            legend.position="none",
+            axis.title=element_blank())
+  }
+  seeds_plot[[1]] <- NULL
+    # remove combined plot
+  
   print(seeds_plot)
   dev.off()
 }

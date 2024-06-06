@@ -95,7 +95,7 @@ get_results.scEVE <- function(expression.init, params, random_state) {
   memory_summary <- gc(reset=TRUE)
   peakRAM.before <- memory_summary[11] + memory_summary[12]
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  output <- do_scEVE(expression.init, params, figures=FALSE, random_state=random_state, save=FALSE)
+  output <- do_scEVE(expression.init, params, random_state=random_state, figures=FALSE, save=FALSE)
   preds <- output$preds
   preds <- preds[order(names(preds))]
   # sort cells alphabetically to facilitate benchmarking.

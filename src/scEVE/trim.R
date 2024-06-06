@@ -39,7 +39,7 @@ init_records <- function(expression.init) {
     to_dig=as.numeric(1),
     row.names="C"
     )
-  records <- list(cells=cells, markers=markers, meta=meta)
+  records <- list(cells=cells, ymarkers=markers, meta=meta)
   return(records)
 }
 
@@ -185,7 +185,13 @@ trim_data <- function(expression.init, population, records, params,
   }
   
   if (figures) {
-    trim_plot <- do_DimPlot(SeurObj.init, cells.highlight=cells_of_interest)
+    trim_plot <- do_DimPlot(SeurObj.init, cells.highlight=cells_of_interest) + 
+      ggtitle(population)
+    trim_plot <- trim_plot +
+      theme_bw() +
+      theme(panel.background=element_rect(fill="lightgrey"),
+            axis.title=element_blank(), legend.position="bottom")
+    
     pdf(file = glue("./figures/{population}_trim.pdf"))
     print(trim_plot)
     dev.off()

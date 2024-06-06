@@ -43,6 +43,6 @@ params <- get_default_hyperparameters()
 for (dataset in real_datasets) {
   expression.init <- get_real_dataset(dataset)
   results <- do_scEVE(expression.init=expression.init, params=params,
-                      figures=TRUE, random_state=0, save=TRUE)
+                      random_state=0, figures=TRUE, save=TRUE)
   store_results(dataset)
 }

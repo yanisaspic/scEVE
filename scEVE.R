@@ -85,14 +85,14 @@ scEVE.iteration <- function(expression.init, population, records, params,
 }
 
 do_scEVE <- function(expression.init, params=get_default_hyperparameters(),
-                     figures=TRUE, random_state=0, save=TRUE) {
+                     random_state=0, figures=TRUE, save=TRUE) {
   #' Conduct a scRNA-seq clustering analysis with the scEVE algorithm.
   #'
   #' @param expression.init: a scRNA-seq dataset of raw count expression, without selected genes:
   #' genes are rows | cells are cols.
   #' @param params: a list of parameters.
-  #' @param figures: a boolean. If TRUE, draw figures summarizing the iterative clustering of populations.
   #' @param random_state: a numeric.
+  #' @param figures: a boolean. If TRUE, draw figures summarizing the iterative clustering of populations.
   #' @param save: if TRUE, a records file is saved.
   #'
   #' @return a list with two elements:

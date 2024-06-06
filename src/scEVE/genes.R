@@ -27,24 +27,6 @@ add_occurrences_to_seeds <- function(ranked_genes, seeds) {
   return(seeds)
 }
 
-get_efforts.frame <- function(ranked_genes, seeds) {
-  #' Get a ggplot ready data.frame of the effort w.r.t. the group of cells.
-  #' 
-  #' @param ranked_genes: a data.frame where: ranks are rows | cells are cols | cells are genes.
-  #' @param seeds: a nested list, where each sub-list has three keys: 'consensus', 'cells' and 'clusters'.
-  #'
-  #' @return a data.frame with two columns: 'effort' and 'seed'.
-  #' 
-  get_efforts.seed <- function(seed) {apply(X=!is.na(ranked_genes[, seed$cells]), MARGIN=2, FUN=sum)}
-  efforts.seeds <- lapply(X=seeds, FUN=get_efforts.seed)
-  for (i in 1:length(efforts.seeds)) {
-    efforts.seeds[[i]] <- data.frame(effort=efforts.seeds[[i]], seed=i)
-  }
-  efforts.frame <- do.call(rbind, efforts.seeds)
-  efforts.frame$seed <- as.factor(efforts.frame$seed)
-  return(efforts.frame)
-}
-
 get_efforts.plot <- function(efforts.frame) {
   #' Get a boxplot corresponding to the effort w.r.t. the group of cells. 
   #' The whiskers correspond to the minimum and maximum values.
@@ -165,14 +147,15 @@ add_specific_markers <- function(seeds, markers) {
   return(seeds)
 }
 
-get_markers.plot <- function(markers) {
+get_markers.plot <- function(markers, population) {
   #' Get an upset plot corresponding to the intersection of marker genes between sets.
   #' 
   #' @param markers: a nested list with two keys: 'seed' and 'all'.
+  #' @param population: a character.
   #'
   #' @return an upset plot.
   #'
-  labels <- as.character(1:length(markers$seed))
+  labels <- paste(population, 1:length(markers$seed), sep=".")
   markers.plot <- ggVennDiagram(markers$seed, 
                                 category.names = labels,
                                 force_upset = TRUE,
@@ -188,17 +171,21 @@ get_markers.plot <- function(markers) {
   markers.plot[[1]]$layers[[1]]$aes_params$colour <- NULL
   markers.plot[[1]]$layers[[2]]$aes_params$colour <- NULL
   markers.plot[[1]] <- markers.plot[[1]] + 
-    aes(colour=intersect_colors.dots) + theme(legend.position = "none")
+    aes(colour=intersect_colors.dots) +
+    
+    theme(legend.position = "none")
   
     # intersection bars
   intersect_colors.bars <- rep(NA, length(markers.plot[[2]]$data$name))
   intersect_colors.bars[1:length(labels)] <- labels
   markers.plot[[2]] <- markers.plot[[2]] +
-    aes(fill=intersect_colors.bars) + theme(legend.position = "none") +
-    ggtitle("Over-represented HVGs, per consensus cluster.")
+    aes(fill=intersect_colors.bars) + 
+    theme(legend.position = "none") +
+    ggtitle("Over-represented HVGs")
   
     # size bars
-  markers.plot[[3]] <- markers.plot[[3]] + aes(fill=name) + theme(legend.position = "none")
+  markers.plot[[3]] <- markers.plot[[3]] + aes(fill=name) + 
+    theme(legend.position = "none")
 
   markers.plot <- as.ggplot(markers.plot)
   dev.off()
@@ -216,10 +203,8 @@ draw_genes <- function(data.loop, seeds, population) {
   #' @param population: a character.
   #' 
   markers.loop <- get_markers(seeds, data.loop$occurrences.loop)
-  efforts.frame <- get_efforts.frame(data.loop$ranked_genes.loop, seeds)
-  efforts.plot <- get_efforts.plot(efforts.frame)
-  markers.plot <- get_markers.plot(markers.loop)
-  
+  markers.plot <- get_markers.plot(markers.loop, population)
+
   pdf(file = glue("./figures/{population}_genes.pdf"))
   composite_genes_plot <- do.call(grid.arrange, list(efforts=efforts.plot, markers=markers.plot))
   print(composite_genes_plot)
