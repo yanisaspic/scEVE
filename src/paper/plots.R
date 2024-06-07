@@ -5,7 +5,6 @@
 suppressPackageStartupMessages({
   library(dplyr)
   library(egg)
-  library(ggpattern)
   library(ggplot2)
   library(ggplotify)
   library(glue)
@@ -101,28 +100,6 @@ get_results <- function(path="./results") {
   results[, "method_type"] <- "individual"
   results[results$method=="scEVE", "method_type"] <- "scEVE"
   return(results)
-}
-
-get_records <- function(path="./analysis/records") {
-  #' Merge the meta records of each scRNA-seq dataset analyzed with scEVE.
-  #' Only the leaf rows are kept for each dataset.
-  #'
-  #' @param path: a character. The path where record files are stored.
-  #' 
-  #' @return a data.frame with two columns: 'consensus' and 'dataset'.
-  #' 
-  individual_filenames <- list.files(path)
-  get_dataset_label <- function(filename) {strsplit(filename, split=".xlsx")[1]}
-  get_dataset_record <- function(filename) {
-    rec <- read_excel(glue("{path}/{filename}"), sheet="meta")
-    rec <- as.data.frame(rec)
-    rec[, "dataset"] <- get_dataset_label(filename)
-    rec[, "is_leaf"] <- rec$parent %in% rec[, 1]
-    return(rec)
-  }
-  individual_records <- lapply(individual_filenames, FUN=get_dataset_record)
-  records <- do.call(rbind, individual_records)
-  return(records)
 }
 
 get_fontfaces <- function(data, rowsize, ascending=TRUE) {
@@ -288,30 +265,50 @@ get_barplots.ensemble <- function(results.real) {
   return(plot)
 }
 
-get_consensus_plot <- function(results.real, records) {
-  #' Draw a lineplot with 3 lines: 'ARI', 'NMI' and 'consensus' w.r.t. the dataset.
+setup_results.synthetic <- function(results.synthetic) {}
+
+get_scales <- function(results.synthetic) {
+  #' Get a fill and a color scales for the synthetic plot.
   #' 
-  #' @param results.real: a data.frame with 'dataset', 'method', 'ARI' and 'NMI'.
-  #' - method included is 'scEVE'.
-  #' @param records: a data.frame with two columns: 'consensus' and 'records'.
+  #' @param results.synthetic: a data.frame with five columns: 'dataset', 'balanced',
+  #' 'nested', 'populations' and a metric.
+  #' 
+  #' @return a named list with two elements: 'fill' and 'color'.
+  #' 
+  prior <- get_prior()
+  get_base <- function(method) {prior[["colormap"]][[method]]}
+  base <- sapply(X=results.synthetic$method, FUN=get_base)
+  
+  color_scale <- base
+  color_scale[results.synthetic$balanced] <- "black"
+  fill_scale <- base
+  fill_scale[!results.synthetic$balanced] <- "white"
+  scales <- list(color=color_scale, fill=fill_scale)
+  return(scales)
+}
+
+get_plot.synthetic <- function(results.synthetic, metric) {
+  #' Get a composite plot of the performances of the method under different conditions
+  #' with synthetic scRNA-seq datasets.
+  #' 
+  #' @param results.synthetic: a data.frame with five columns: 'dataset', 'balanced',
+  #' 'nested', 'populations' and a metric.
+  #' @param metric: a character. The metric of interest.
   #' 
   #' @return a plot.
   #' 
-  performances <- results.real[results.real$method=="scEVE",]
-  consensi <- records[records$is_leaf, c("dataset", "consensus")]
-  consensi$dataset <- factor(consensi$dataset, levels=get_prior()$real_datasets)
-  for (ds in unique(performances$dataset)) {
-    consensi[consensi$dataset==ds, "ARI"] <- performances[performances$dataset==ds, "ARI"]
-  }
-  print(consensi)
+  results.synthetic$populations <- as.character(results.synthetic$populations)
+  results.synthetic$nested <- ifelse(results.synthetic$nested, "independent", "nested")
   
-  plot <- ggplot(data=consensi, aes(x=ARI, y=consensus)) +
-    geom_point()
+  scales <- get_scales(results.synthetic)
   
+  plot <- ggplot(data=results.synthetic, aes(group=balanced)) +
+    geom_bar(stat="identity", position="dodge", aes(x=populations, y=.data[[metric]]),
+             fill=scales$fill, color=scales$color) +
+    facet_grid(nested~method, switch="y")
+
   plot <- plot +
-    theme_classic() +
-    theme(axis.text.x = element_text(angle=30, vjust=0.8, hjust=0.8),
-          axis.title.x=element_blank())
-  
+    scale_y_continuous(position="right", expand=expansion(mult=0))
+
   return(plot)
 }

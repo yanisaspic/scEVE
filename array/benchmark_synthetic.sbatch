@@ -1,8 +1,7 @@
 #!/bin/bash
-#SBATCH --cores-per-socket=2
-#SBATCH --cpus-per-task=2
+#SBATCH --cpus-per-task=1
 #SBATCH --mem=64G
-#SBATCH --array=0-299%10
+#SBATCH --array=0-599%10
 #SBATCH --time=24:00:00
 
 module load r/4.3.1
@@ -17,6 +16,6 @@ echo "SLURM_SUBMIT_DIR:" $SLURM_SUBMIT_DIR
 echo "SLURM_JOB_NODELIST:" $SLURM_JOB_NODELIST
 echo "#############################" 
 
-IDS=({1..300})
+IDS=({1..600})
 
 Rscript ./benchmark_synthetic.R ${IDS[$SLURM_ARRAY_TASK_ID]}

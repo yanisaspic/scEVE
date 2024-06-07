@@ -282,8 +282,6 @@ draw_seeds <- function(data.loop, seeds, population) {
             legend.position="none",
             axis.title=element_blank())
   }
-  seeds_plot[[1]] <- NULL
-    # remove combined plot
   
   print(seeds_plot)
   dev.off()

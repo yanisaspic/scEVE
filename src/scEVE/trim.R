@@ -39,7 +39,7 @@ init_records <- function(expression.init) {
     to_dig=as.numeric(1),
     row.names="C"
     )
-  records <- list(cells=cells, ymarkers=markers, meta=meta)
+  records <- list(cells=cells, markers=markers, meta=meta)
   return(records)
 }
 
