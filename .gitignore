@@ -1,5 +1,5 @@
-figures/*
 *.Rhistory
 *pycache*
-records.xlsx
+*.xlsx
+*.pdf
 *.out

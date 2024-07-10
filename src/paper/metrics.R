@@ -4,19 +4,19 @@
 
 suppressPackageStartupMessages({
   library(aricode)  # packageVersion("aricode")==1.0.3
+  library(entropy)
   library(ggplot2)
   library(RColorBrewer)
   library(reshape2)
 })
 source("./src/scEVE/utils/misc.R")
 
-get_ground_truth <- function(expression.init) {
+get_ground_truth <- function(cell_ids) {
   #' Get a vector of labels corresponding to the ground truth from an expression matrix.
   #' The columns correspond to a unique cell id, and a cell id has the following structure:
   #' {ground_truth}_{i}, where i is a numeric.
   #' 
-  #' @param expression.init: a scRNA-seq count matrix:
-  #' genes are rows | cells are cols.
+  #' @param expression.init: a vector of formatted cell ids.
   #' 
   #' @return a vector of ground truths.
   #' 
@@ -26,7 +26,6 @@ get_ground_truth <- function(expression.init) {
     return(ground_truth.cell_id)
   }
   
-  cell_ids <- colnames(expression.init)
   ground_truth <- sapply(X=cell_ids, FUN=get_ground_truth.cell_id)
 
   ground_truth <- ground_truth[order(names(ground_truth))]
@@ -66,68 +65,85 @@ get_distribution.population <- function(population, sheet.cells, ground_truth) {
   return(distribution)
 }
 
-draw_tree <- function(records, ground_truth) {
-  #' Draw a hierarchical graph with pie charts as vertices.
-  #' The vertices are the cell population and the edges their hierarchy.
-  #' The consensus of a population is written over the edge to its parent.
-  #' The ground truth labels are represented by the colors in the pie charts.
+get_distribution_bars.data <- function(sheet.cells) {
+  #' Get the distributions of ground truth labels in all populations of a scEVE analysis.
+  #' The output is ggplot-friendly.
   #' 
-  #' @param records: a named list of three data.frames: 'meta', 'cells' and 'markers'.
+  #' @param sheet.cells: a data.frame where rows are cells | cols are populations | values are membership likelihood.
   #' @param ground_truth: a named vector: names are cell ids and values are cluster labels of the authors.
   #' 
-  #' @return a graph.
-  #'
-
-  #_________________________________________________________________________data
-  data <- data.frame(parent=records$meta$parent,
-                     child=row.names(records$meta), 
-                     consensus=round(records$meta$consensus,2))
-  tree <- graph.data.frame(data[-1,], directed=TRUE)
-  ordered_nodes <- vertex_attr(tree)$name
-  
-  #_________________________________________________________________________draw
-  E(tree)$label <- data[-1,]$consensus
-  E(tree)$label.color <- "black"
-  E(tree)$label.cex <- 1.5
-  
-  V(tree)$label.color <- "black"
-  V(tree)$label.cex <- 1.5
-  V(tree)$label.degree <- 2*pi/3
-  V(tree)$label.dist <- 0.6
-  
-  colors <- brewer.pal(n=length(levels(ground_truth)), name="Dark2")
-    # Dark2 is color-blind friendly
-  distributions <- lapply(X=ordered_nodes, FUN=get_distribution.population,
-                          sheet.cells=records$cells, ground_truth=ground_truth)
-  plot(tree, layout=layout_as_tree, root=-1, vertex.shape="pie", vertex.size=40,
-       vertex.pie=distributions, vertex.pie.color=list(colors))
-  # this figure is manually screen captured and annotated for the manuscript.
+  #' @return a data.frame with three columns: 'n', 'ground_truth' and 'population'.
+  #' 
+  ground_truth <- get_ground_truth(rownames(sheet.cells))
+  get_distribution_bar.data.population <- function(population) {
+    distribution.population <- get_distribution.population(population, sheet.cells, ground_truth)
+    output <- melt(distribution.population, value.name="n")
+    output$ground_truth <- rownames(output)
+    output$population <- population
+    return(output)
+  }
+  distribution_bars.data <- lapply(X=colnames(sheet.cells), FUN=get_distribution_bar.data.population)
+  distribution_bars.data <- do.call(rbind, distribution_bars.data)
+  return(distribution_bars.data)
 }
 
-draw_heatmap <- function(preds, ground_truth) {
-  #' Draw a heatmap where rows are cluster predictions and columns are clusters assigned by authors.
+get_disruption.population <- function(distribution.population, init_entropy) {
+  #' Get the normalized Shannon entropy of a distribution of ground truth labels.
   #' 
-  #' @param preds: a named vector: names are cell ids and values are cluster labels predicted.
+  #' @param distribution.population: a vector of numerics.
+  #' @param max_entropy: the entropy of the initial population.
+  #' 
+  #' @return a numeric ranging from 0 to 1.
+  #' 
+  n <- sum(distribution.population > 0)
+  entropy <- entropy::entropy(distribution.population, unit="log2")
+  disruption <- entropy / init_entropy
+  if (is.na(disruption)) {disruption <- 0}
+    # this happens if there is a single ground truth label in the population.
+  return(disruption)
+}
+
+get_disruption.dataset <- function(records) {
+  #' Get the disruption and the consensus associated to each population of a dataset.
+  #' 
+  #' @param records: a named list of two data.frames: 'meta' and 'cells'.
   #' @param ground_truth: a named vector: names are cell ids and values are cluster labels of the authors.
   #' 
-
-  #_________________________________________________________________________data
-  data <- table(preds, ground_truth)
-  maximum_n <- apply(X=data, MARGIN=2, FUN=sum)
-  data.ggplot2 <- melt(data)
-  colnames(data.ggplot2) <- c("output_clusters", "expected_clusters", "n")
-  get_proportion.row <- function(row) {as.numeric(row["n"]) / maximum_n[row["expected_clusters"]]}
-  data.ggplot2$proportion <- apply(X=data.ggplot2, MARGIN=1, FUN=get_proportion.row)
+  #' @return a data.frame with two columns: 'consensus' and 'disruption'.
+  #' 
+  populations <- colnames(records$cells)
+  cell_ids <- rownames(records$cells)
+  ground_truth <- get_ground_truth(cell_ids)
+  init_distribution <- table(ground_truth)
+  init_entropy <- entropy::entropy(init_distribution)
   
-  #_________________________________________________________________________draw
-  p <- ggplot(data.ggplot2, aes(x=output_clusters, y=expected_clusters)) +
-    geom_tile(aes(fill=proportion), color="white", lwd=1.5, linetype=1) +
-    geom_text(aes(label=n), color="black", size=6) +
-    coord_fixed() +
-    scale_fill_gradient(low="#FFFFFF", high="#666666") +
-    guides(fill="none") +
-    theme_bw() +
-    theme(axis.text = element_text(size=12)) +
-    theme(axis.title = element_text(size=15))
-  return(p)
+  get_disruption.population.wrapper <- function(population) {
+    distribution.population <- get_distribution.population(population, records$cells, ground_truth)
+    disruption.population <- get_disruption.population(distribution.population, init_entropy)
+    output <- list(disruption=disruption.population, consensus=records$meta[population, "consensus"])
+  }
+  
+  disruption.dataset <- lapply(X=populations, FUN=get_disruption.population.wrapper)
+  disruption.dataset <- do.call(rbind, disruption.dataset)
+  return(disruption.dataset)
+}
+
+get_disruption <- function(datasets, path="./results/records") {
+  #' Get a data.frame associating disruption and consensi values across multiple datasets.
+  #' 
+  #' @param datasets: a vector of dataset labels.
+  #' @param path: a character.
+  #' 
+  #' @return a data.frame with three columns: 'consensus', 'disruption', and 'group'.
+  #' 
+  get_disruption.dataset.wrapper <- function(dataset) {
+    records <- get_records(glue("{path}/{dataset}.xlsx"))
+    disruption.dataset <- get_disruption.dataset(records)
+  }
+  disruptions <- lapply(X=datasets, FUN=get_disruption.dataset.wrapper)
+  disruptions <- do.call(rbind, disruptions)
+  
+  disruptions <- as.data.frame(disruptions)
+  for (col in c("disruption", "consensus")) {disruptions[, col] <- as.numeric(disruptions[, col])}
+  return(disruptions)
 }

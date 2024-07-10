@@ -95,3 +95,16 @@ get_occurrences <- function(ranked_genes) {
   
   return(occurrences)
 }
+
+get_records <- function(path) {
+  #' Load the records of a scEVE analysis in a list.
+  #' 
+  #' @param path: a character.
+  #' 
+  #' @return a named list with: 'meta', 'cells' and 'markers'.
+  #' 
+  sheet_names <- getSheetNames(path)
+  get_sheet <- function(sheet_name) {read.xlsx(path, sheet=sheet_name, rowNames=TRUE)}
+  sheets <- sapply(X=sheet_names, FUN=get_sheet)
+  return(sheets)
+}

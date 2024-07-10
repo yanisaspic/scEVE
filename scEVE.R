@@ -34,9 +34,8 @@ get_default_hyperparameters <- function() {
   params <- list(
     n_HVGs=500, # see Theis et al.
     min_prop_cells=0.001, # rare cells subpopulation: 1/1000
-    root_consensus=0.33, # 0.17: >2 methods overlapping with 4 total methods. (5: 0.10)
+    root_consensus=0.34, # arbitrary
     clustering_methods=c("Seurat", "monocle3", "SHARP", "densityCut"), # see Yu et al: 4 fastest methods. (5: CIDR)
-    
     leftovers_strategy="default",
     markers_strategy="default",
     

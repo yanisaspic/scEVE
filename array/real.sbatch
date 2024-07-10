@@ -36,5 +36,6 @@ echo "DATASET:" $dataset
 echo "#############################" 
 
 Rscript ./get_real.R $dataset
-mv $dataset/ ./results/figures/$dataset/
-mv $dataset.xlsx ./results/records/$dataset.xlsx
+
+mv ./$dataset ./results/figures/$dataset
+mv ./$dataset.xlsx ./results/records/$dataset.xlsx

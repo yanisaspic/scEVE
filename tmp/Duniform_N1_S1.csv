@@ -1,6 +1,0 @@
-"peakRAM","time","ARI","NMI","method","dataset"
-572.3,10.266984462738,0,0,"Seurat","Duniform_N1_S1"
-461.5,30.1984534263611,0,0,"monocle3","Duniform_N1_S1"
-3705.3,59.5801062583923,0,0,"SHARP","Duniform_N1_S1"
-925,46.3947322368622,1,NA,"densityCut","Duniform_N1_S1"
-3744.5,156.224364995956,1,NA,"scEVE","Duniform_N1_S1"

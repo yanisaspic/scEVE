@@ -113,8 +113,8 @@ get_results.scEVE <- function(expression.init, params, random_state, save, figur
   return(results)
 }
 
-get_results.dataset <- function(expression.init, params, random_state, save, figures) {
-  #' Get the results of scEVE and the individual clustering methods it uses on a scRNA-seq dataset.
+get_results.individual <- function(expression.init, params, random_state, save, figures) {
+  #' Get the results of the individual clustering methods on a scRNA-seq dataset.
   #' These results include:
   #' - peakRAM (Mbytes): the maximum memory usage of the method.
   #' - time (s): the computation time in seconds.
@@ -129,7 +129,6 @@ get_results.dataset <- function(expression.init, params, random_state, save, fig
   #' 
   #' @return a nested list of three elements: 'peakRAM', 'time' and 'preds'.
   #' 
-  results.scEVE <- get_results.scEVE(expression.init, params, random_state, save, figures)
   individual_methods <- params$clustering_methods
   results <- lapply(X=individual_methods,
                     FUN=get_results.individual_method.wrapper,
@@ -137,12 +136,45 @@ get_results.dataset <- function(expression.init, params, random_state, save, fig
                     n_HVGs=params$n_HVGs,
                     random_state=random_state)
   names(results) <- c(individual_methods)
-  results[["scEVE"]] <- results.scEVE
   return(results)
 }
 
-get_benchmark.dataset <- function(expression.init, ground_truth, dataset, params,
-                                  random_state, save=FALSE, figures=FALSE) {
+get_benchmark.individual <- function(expression.init, ground_truth, dataset, params, random_state) {
+  #' Get the results of the individual clustering methods it uses on a scRNA-seq dataset.
+  #' These results include:
+  #' - peakRAM (Mbytes): the maximum memory usage of the method.
+  #' - time (s): the computation time in seconds.
+  #' - ARI: a clustering performance metric.
+  #' - NMI: a clustering performance metric.
+  #'
+  #' @param expression.init: a scRNA-seq count matrix where rows are genes | cells are cols
+  #' @param ground_truth: a vector of ground truths.
+  #' @param dataset: a character.
+  #' @param params: a list of parameters.
+  #' @param random_state: a numeric.
+  #'
+  #' @return a data.frame with 6 columns: 'peakRAM', 'time', 'ARI', 'NMI', 'method' and 'dataset'.
+  #'
+  results.individual <- get_results.individual(expression.init, params, random_state,
+                                               save, figures)
+  benchmark <- as.data.frame(do.call(rbind, results.individual))
+  
+  compute_metric.preds <- function(preds, metric) {get_metric(preds, ground_truth[names(preds)], metric)}
+    # some individual methods (e.g. SHARP, densityCut) won't cluster cells without HVGs expressed;
+    # we only compare cells clustered by a method to prevent computational errors and ensure a fair comparison.
+  compute_metric <- function(metric) {sapply(X=benchmark$preds, FUN=compute_metric.preds, metric=metric)}
+  for (metric in c("ARI", "NMI")) {benchmark[metric] <- compute_metric(metric)}
+  
+  benchmark["method"] <- rownames(benchmark)
+  benchmark["dataset"] <- dataset
+  benchmark$preds <- NULL
+  for(col in c("peakRAM", "time", "ARI", "NMI")){benchmark[, col] <- as.numeric(benchmark[, col])}
+  for(col in c("method", "dataset")){benchmark[, col] <- as.character(benchmark[, col])}
+  return(benchmark)
+}
+
+get_benchmark <- function(expression.init, ground_truth, dataset, params,
+                          random_state, save=FALSE, figures=FALSE) {
   #' Get the results of scEVE and the individual clustering methods it uses on a scRNA-seq dataset.
   #' These results include:
   #' - peakRAM (Mbytes): the maximum memory usage of the method.
@@ -155,24 +187,32 @@ get_benchmark.dataset <- function(expression.init, ground_truth, dataset, params
   #' @param dataset: a character.
   #' @param params: a list of parameters.
   #' @param random_state: a numeric.
-  #' @param save: a boolean. If TRUE, the results are saved in a records file.
+  #' @param save: a boolean. If TRUE, the results of scEVE are saved in a records file.
   #' @param figures: a boolean. If TRUE, intermediate figures are saved.
   #'
   #' @return a data.frame with 6 columns: 'peakRAM', 'time', 'ARI', 'NMI', 'method' and 'dataset'.
   #'
-  benchmark.list <- get_results.dataset(expression.init, params, random_state, save, figures)
-  benchmark <- as.data.frame(do.call(rbind, benchmark.list))
+  format_benchmark <- function(benchmark) {
+    for (col in c("peakRAM", "time", "ARI", "NMI")) {benchmark[, col] <- as.numeric(benchmark[, col])}
+    for (col in c("method", "dataset")) {benchmark[, col] <- as.character(benchmark[, col])}
+    return(benchmark)
+  }
   
-  compute_metric.preds <- function(preds, metric) {get_metric(preds, ground_truth[names(preds)], metric)}
-    # some methods (e.g. SHARP, densityCut) will not label all cells;
-    # we do not compare these to the ground truth to prevent computational errors.
-  compute_metric <- function(metric) {sapply(X=benchmark$preds, FUN=compute_metric.preds, metric=metric)}
-  for (metric in c("ARI", "NMI")) {benchmark[metric] <- compute_metric(metric)}
+  benchmark <- get_benchmark.individual(expression.init, ground_truth,
+                                                   dataset, params, random_state)
+  benchmark <- format_benchmark(benchmark)
+  write.csv(benchmark, glue("./benchmark/{dataset}.csv"), row.names=FALSE)
+    # save the individual methods performances early in case scEVE times out (e.g. Peng_HumPDAC)
   
-  benchmark["method"] <- rownames(benchmark)
-  benchmark["dataset"] <- dataset
-  benchmark$preds <- NULL
-  for(col in c("peakRAM", "time", "ARI", "NMI")){benchmark[, col] <- as.numeric(benchmark[, col])}
-  for(col in c("method", "dataset")){benchmark[, col] <- as.character(benchmark[, col])}
+  results.scEVE <- get_results.scEVE(expression.init, params, random_state, save, figures)
+  for (metric in c("ARI", "NMI")) {
+    results.scEVE[[metric]] <- get_metric(results.scEVE$preds, ground_truth, metric)}
+  results.scEVE$method <- "scEVE"
+  results.scEVE$dataset <- dataset
+  results.scEVE$preds <- NULL
+  
+  row.scEVE <- rbind(results.scEVE)
+  benchmark <- rbind(benchmark, row.scEVE)
+  benchmark <- format_benchmark(benchmark)
   return(benchmark)
 }

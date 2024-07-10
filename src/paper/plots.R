@@ -7,17 +7,20 @@ suppressPackageStartupMessages({
   library(egg)
   library(ggplot2)
   library(ggplotify)
+  library(ggtree)
   library(glue)
+  library(patchwork)
   library(RColorBrewer)
   library(readxl)
   library(reshape2)
   library(scales)
+  library(tidytree)
 })
 
 get_prior <- function() {
-  #' Get the prior knowledge on the results regarding the figures of the scEVE paper.
+  #' Get the prior knowledge on the benchmark regarding the figures of the scEVE paper.
   #' 
-  #' @return a named list with: "real_datasets", "ensemble_results" and "algorithms".
+  #' @return a named list with: "real_datasets", "ensemble_benchmark" and "algorithms".
   #' "algorithms" is an ordered list of algorithms benchmarked.
   #' "real_datasets" is a vector of real scRNA-seq datasets labels.
   #' Note that the datasets are sorted by number of cells.
@@ -44,18 +47,18 @@ get_prior <- function() {
     )
 
   ARI <- c(# Li_HumCRC_a
-    0.75, 0.92, 0.79, 0.99,
+    0.75, 0.92, 0.99,
     # Tasic_MouBra
-    0.30, 0.78, 0.65, 0.84,
+    0.30, 0.78, 0.84,
     # Baron_HumPan
-    0.15, 0.51, 0.54, 0.54)
+    0.15, 0.51, 0.54)
   NMI <- c(# Li_HumCRC_a
-    0.8, 0.96, 0.86, 0.98,
+    0.8, 0.96, 0.98,
     # Tasic_MouBra
-    0.61, 0.84, 0.80, 0.87,
+    0.61, 0.84, 0.87,
     # Baron_HumPan
-    0.51, 0.72, 0.75, 0.75)
-  methods <- c("RSEC", "SAME", "scCCESS", "scEFSC")
+    0.51, 0.72, 0.75)
+  methods <- c("RSEC", "SAME", "scEFSC")
   datasets <- c("Li_HumCRC_a", "Tasic_MouBra", "Baron_HumPan")
   configurations <- expand.grid(list(method=methods, dataset=datasets))
   for (metric in c("ARI", "NMI")) {configurations[, metric] <- get(metric)}
@@ -65,42 +68,41 @@ get_prior <- function() {
                    Seurat="#b15928",
                    SHARP="#ff7f00",
                    scEVE="#1f78b4",
-                   RSEC="#f7f7f7",
-                   SAME="#cccccc",
-                   scCCESS="#969696",
-                   scEFSC="#525252")
+                   RSEC="#f0f0f0",
+                   SAME="#969696",
+                   scEFSC="#252525")
   
   prior <- list(algorithms=algorithms,
                 real_datasets=real_datasets,
                 colormap=colormap,
-                ensemble_results=configurations)
+                ensemble_benchmark=configurations)
   return(prior)
 }
 
-get_results <- function(path="./results") {
-  #' Merge the results of each scRNA-seq dataset in a single dataframe.
+get_benchmark <- function(path="./benchmark") {
+  #' Merge the benchmark of each scRNA-seq dataset in a single dataframe.
   #' 
-  #' @param path: a character. The path where results files are stored.
+  #' @param path: a character. The path where benchmark files are stored.
   #' 
   #' @return a data.frame with ten columns: 'peakRAM', 'time', 'ARI', 'NMI',
   #' 'method', 'dataset', 'real', 'log10(s)', 'log10(Mb)' and 'method_type'.
   #' 
   individual_filenames <- list.files(path, full.names=TRUE)
-  individual_results <- lapply(individual_filenames, read.csv)
-  results <- do.call(rbind, individual_results)
+  individual_benchmark <- lapply(individual_filenames, read.csv)
+  benchmark <- do.call(rbind, individual_benchmark)
   
   prior <- get_prior()
-  results$method <- factor(results$method, levels=prior$algorithms)
+  benchmark$method <- factor(benchmark$method, levels=prior$algorithms)
 
   is_real <- function(row) {row["dataset"] %in% prior$real}
-  results[,"real"] <- apply(X=results, MARGIN=1, FUN=is_real)
-  for (col in c("peakRAM", "time", "ARI", "NMI")) {results[,col] <- as.numeric(results[,col])}
-  results[, "log10(s)"] <- log10(results[, "time"])
-  results[, "log10(Mb)"] <- log10(results[, "peakRAM"])
+  benchmark[,"real"] <- apply(X=benchmark, MARGIN=1, FUN=is_real)
+  for (col in c("peakRAM", "time", "ARI", "NMI")) {benchmark[,col] <- as.numeric(benchmark[,col])}
+  benchmark[, "log10(s)"] <- log10(benchmark[, "time"])
+  benchmark[, "log10(Mb)"] <- log10(benchmark[, "peakRAM"])
   
-  results[, "method_type"] <- "individual"
-  results[results$method=="scEVE", "method_type"] <- "scEVE"
-  return(results)
+  benchmark[, "method_type"] <- "individual"
+  benchmark[benchmark$method=="scEVE", "method_type"] <- "scEVE"
+  return(benchmark)
 }
 
 get_fontfaces <- function(data, rowsize, ascending=TRUE) {
@@ -120,28 +122,28 @@ get_fontfaces <- function(data, rowsize, ascending=TRUE) {
   return(fontfaces)
 }
 
-get_heatmap.real <- function(results.real, metric) {
+get_heatmap.real <- function(benchmark.real, metric) {
   #' Get a heatmap where rows are datasets and cols methods.
   #' The value of the cells correspond to an input metric.
   #' Note that the datasets are sorted by number of cells.
   #' 
-  #' @param results.real: a data.frame with three columns: 'dataset', 'method' and a metric.
+  #' @param benchmark.real: a data.frame with three columns: 'dataset', 'method' and a metric.
   #' @param metric: a character. The metric of interest.
   #' 
   #' @return a plot.
   #' 
-  fontfaces <- get_fontfaces(data=results.real[, metric],
-                             rowsize=length(levels(results.real$method)),
+  fontfaces <- get_fontfaces(data=benchmark.real[, metric],
+                             rowsize=length(levels(benchmark.real$method)),
                              ascending=ifelse(metric %in% c("ARI", "NMI"), TRUE, FALSE))
     # bold best values.
   
-  plot <- ggplot(results.real, aes(x=method, y=dataset, fill=.data[[metric]])) +
+  plot <- ggplot(benchmark.real, aes(x=method, y=dataset, fill=.data[[metric]])) +
     geom_tile(color="white", lwd=.5, linetype=1) +
-    geom_text(aes(label=round(.data[[metric]], 2)), fontface=fontfaces)
+    geom_text(aes(label=round(.data[[metric]], 2)), fontface=fontfaces, size=4)
   
-  minimum <- min(results.real[, metric])
-  maximum <- max(results.real[, metric])
-  midpoint <- median(results.real[, metric])
+  minimum <- min(benchmark.real[, metric])
+  maximum <- max(benchmark.real[, metric])
+  midpoint <- median(benchmark.real[, metric])
   colors <- brewer.pal(n=3, name="RdBu") # colorblind-friendly
   if (metric %in% c("ARI", "NMI")) {gradient <- c(colors[1], colors[2], colors[3])}
   else {gradient <- c(colors[3], colors[2], colors[1])}
@@ -164,15 +166,15 @@ get_heatmap.real <- function(results.real, metric) {
   return(plot)
 }
 
-get_boxplot.methods <- function(results.real, metric) {
+get_boxplot.methods <- function(benchmark.real, metric) {
   #' Get a boxplot where the x-axis is methods and the y-axis is a performance metric.
   #' 
-  #' @param results.real: a data.frame with three columns: 'dataset', 'method' and a metric.
+  #' @param benchmark.real: a data.frame with three columns: 'dataset', 'method' and a metric.
   #' @param metric: a character. The metric of interest.
   #' 
   #' @return a plot.
   #' 
-  plot <- ggplot(results.real, aes(x=method, y=.data[[metric]])) +
+  plot <- ggplot(benchmark.real, aes(x=method, y=.data[[metric]])) +
     geom_boxplot(aes(fill=method)) +
     geom_point()
   
@@ -186,72 +188,75 @@ get_boxplot.methods <- function(results.real, metric) {
   return(plot)
 }
 
-get_plot.real <- function(results.real, metric) {
+get_plot.real <- function(benchmark.real, metric) {
   #' Generate a composite plot of the benchmark on real scRNA-seq datasets.
   #' It is composed of a heatmap and two boxplots w.r.t. the datasets and methods used respectively.
   #' 
-  #' @param results.real: a data.frame with three columns: 'dataset', 'method' and a metric.
+  #' @param benchmark.real: a data.frame with three columns: 'dataset', 'method' and a metric.
   #' @param metric: a character. The metric of interest.
   #' 
   #' @return a plot.
   #' 
-  results.real$dataset <- factor(results.real$dataset, levels=get_prior()$real_datasets)
-  heatmap.real <- get_heatmap.real(results.real, metric)
-  boxplot.methods <- get_boxplot.methods(results.real, metric)
+  benchmark.real$dataset <- factor(benchmark.real$dataset, levels=get_prior()$real_datasets)
+  heatmap.real <- get_heatmap.real(benchmark.real, metric)
+  boxplot.methods <- get_boxplot.methods(benchmark.real, metric)
   plot.real <- ggarrange(boxplot.methods, heatmap.real, nrow=2, ncol=1, widths=1,
                          heights=c(3,7),byrow=TRUE)
   return(plot.real)
 }
 
-get_baron_results.scEVE <- function(results.real) {
+get_baron_benchmark.scEVE <- function(benchmark.real) {
   #' Get the median, minimum and maximum performances of scEVE on the Baron_HumPan dataset.
   #' 
-  #' @param results.real: a data.frame with 'dataset', 'method', 'ARI' and 'NMI'.
+  #' @param benchmark.real: a data.frame with 'dataset', 'method', 'ARI' and 'NMI'.
   #' - datasets included are 'Baron_HumPan_X'.
   #' - method included is 'scEVE'.
   #' 
   #' @return a list with three rows: 'median', 'maximum' and 'minimum'.
   #' 
-  is_baron_humpan <- grepl("Baron_HumPan", results.real$dataset)
-  results.real$dataset[is_baron_humpan] <- "Baron_HumPan"
-  data <- results.real[(results.real$dataset=="Baron_HumPan") & (results.real$method=="scEVE"),
+  is_baron_humpan <- grepl("Baron_HumPan", benchmark.real$dataset)
+  benchmark.real$dataset[is_baron_humpan] <- "Baron_HumPan"
+  data <- benchmark.real[(benchmark.real$dataset=="Baron_HumPan") & (benchmark.real$method=="scEVE"),
                        c("method", "dataset", "ARI", "NMI")]
   
-  baron_results <- list()
+  baron_benchmark <- list()
   for (metric in c("ARI", "NMI")) {
     row <- data.frame(method="scEVE", dataset="Baron_HumPan", metric=metric,
                       value=median(data[, metric]), ymin=min(data[, metric]),
                       ymax=max(data[, metric]))
-    baron_results[[metric]] <- row
+    baron_benchmark[[metric]] <- row
   }
-  baron_results <- do.call(rbind, baron_results)
-  return(baron_results)
+  baron_benchmark <- do.call(rbind, baron_benchmark)
+  return(baron_benchmark)
 }
 
-get_barplots.ensemble <- function(results.real) {
+get_barplots.ensemble <- function(benchmark.real) {
   #' Generate barplots w.r.t. the performances of different ensemble clustering algorithms.
   #' 
-  #' @param results.real: a data.frame with 'dataset', 'method', 'ARI' and 'NMI'.
+  #' @param benchmark.real: a data.frame with 'dataset', 'method', 'ARI' and 'NMI'.
   #' - datasets included are 'Li_HumCRC_a', 'Tasic_MouBra' and 'Baron_HumPan_X'.
   #' - method included is 'scEVE'.
   #' 
   #' @return a plot.
   #' 
-  ensemble_results <- get_prior()$ensemble_results
+  ensemble_benchmark <- get_prior()$ensemble_benchmark
   ensemble_datasets <- c("Li_HumCRC_a", "Tasic_MouBra", "Baron_HumPan")
-  is_comparable <- (results.real$method == 'scEVE') & (results.real$dataset %in% ensemble_datasets)
-  comparable_results <- results.real[is_comparable, c("ARI", "NMI", "method", "dataset")]
-  data <- rbind(ensemble_results, comparable_results)
+  is_comparable <- (benchmark.real$method == 'scEVE') & (benchmark.real$dataset %in% ensemble_datasets)
+  comparable_benchmark <- benchmark.real[is_comparable, c("ARI", "NMI", "method", "dataset")]
+  data <- rbind(ensemble_benchmark, comparable_benchmark)
+  data$method <- factor(data$method, levels=c("scEFSC", "SAME", "scEVE", "RSEC"))
   
   data <- melt(data, variable.name="metric")
   for (col in c("ymin", "ymax")) {data[, col] <- NA}
-  baron_results.scEVE <- get_baron_results.scEVE(results.real)
-  data <- rbind(data, baron_results.scEVE)
+  baron_benchmark.scEVE <- get_baron_benchmark.scEVE(benchmark.real)
+  data <- rbind(data, baron_benchmark.scEVE)
   
   plot <- ggplot(data, aes(x=dataset, y=value, fill=method)) +
     geom_col(position="dodge", color="black") +
-    geom_errorbar(aes(ymin=ymin, ymax=ymax), position=position_dodge(.9), width=.33) +
-    facet_grid(~metric, labeller=as_labeller(c("ARI"="ARI [\u2b08]", "NMI"="NMI [\u2b08]"))) +
+    geom_errorbar(aes(ymin=ymin, ymax=ymax), position=position_dodge(.9), linewidth=1.5,
+                  width=0) +
+    facet_wrap(~metric, ncol=1,
+               labeller=as_labeller(c("ARI"="ARI [\u2b08]", "NMI"="NMI [\u2b08]"))) +
     scale_y_continuous(expand=expansion(mult=0), limits=c(0,1)) +
     scale_fill_manual(values=get_prior()$colormap)
   
@@ -261,55 +266,241 @@ get_barplots.ensemble <- function(results.real) {
           axis.text.y=element_text(vjust=1),
           panel.grid.major=element_line(linewidth=0.5),
           strip.background=element_blank(), 
-          strip.text=element_text(face="bold", size=13))
+          strip.text=element_text(face="bold", size=13),
+          legend.position="bottom")
   
   return(plot)
 }
 
-setup_results.synthetic <- function(results.synthetic) {}
-
-get_scales <- function(results.synthetic) {
-  #' Get a fill and a color scales for the synthetic plot.
+parse_dataset <- function(dataset) {
+  #' Parse a dataset label to get a 1-row data.frame. The data.frame has 3 columns:
+  #' 'populations' (a character), 'nested' (a boolean) and 'balanced' (a boolean).
   #' 
-  #' @param results.synthetic: a data.frame with five columns: 'dataset', 'balanced',
-  #' 'nested', 'populations' and a metric.
+  #' @param dataset: a character.
   #' 
-  #' @return a named list with two elements: 'fill' and 'color'.
+  #' @return a data.frame with 3 columns: 'populations', 'nested' and 'balanced'.
   #' 
-  prior <- get_prior()
-  get_base <- function(method) {prior[["colormap"]][[method]]}
-  base <- sapply(X=results.synthetic$method, FUN=get_base)
-  
-  color_scale <- base
-  color_scale[results.synthetic$balanced] <- "black"
-  fill_scale <- base
-  fill_scale[!results.synthetic$balanced] <- "white"
-  scales <- list(color=color_scale, fill=fill_scale)
-  return(scales)
+  elements <- strsplit(dataset, split="_")[[1]]
+  populations <- substr(elements[1], start=2, stop=nchar(elements[1]))
+  balanced <- substr(elements[2], 2, 2)
+  nested <- substr(elements[3], 2, 2)
+  row <- data.frame(populations=as.character(populations),
+                    balanced=as.logical(balanced),
+                    nested=as.logical(nested))
+  return(row)
 }
 
-get_plot.synthetic <- function(results.synthetic, metric) {
-  #' Get a composite plot of the performances of the method under different conditions
+setup_benchmark.synthetic <- function(benchmark.synthetic) {
+  #' Get a slim data.frame usable by get_plot.synthetic.
+  #' 
+  #' @param benchmark.synthetic: a data.frame with 6 columns: 'dataset',
+  #' 'method', 'ARI', 'NMI', 'log10(Mb)', 'log10(s)'.
+  #' 
+  #' @return a data.frame with 8 columns: 'populations', 'nested', 'balanced',
+  #' 'ARI', 'NMI', 'log10(Mb)', 'log10(s)' and 'method'.
+  #' 
+  metadata <- lapply(X=benchmark.synthetic$dataset, FUN=parse_dataset)
+  metadata <- do.call(rbind, metadata)
+  benchmark.synthetic <- cbind(benchmark.synthetic, metadata)
+  return(benchmark.synthetic)
+}
+
+get_plot.synthetic.method <- function(benchmark.synthetic, metric, method) {
+  #' Get a composite plot of the performances of a method under different conditions
   #' with synthetic scRNA-seq datasets.
   #' 
-  #' @param results.synthetic: a data.frame with five columns: 'dataset', 'balanced',
+  #' @param benchmark.synthetic: a data.frame with four columns: 'balanced',
   #' 'nested', 'populations' and a metric.
   #' @param metric: a character. The metric of interest.
+  #' @param method: a character. The method of interest.
   #' 
   #' @return a plot.
   #' 
-  results.synthetic$populations <- as.character(results.synthetic$populations)
-  results.synthetic$nested <- ifelse(results.synthetic$nested, "independent", "nested")
+  benchmark.synthetic <- setup_benchmark.synthetic(benchmark.synthetic)
+  data <- benchmark.synthetic[benchmark.synthetic$method==method,]
   
-  scales <- get_scales(results.synthetic)
+  data$nested <- factor(data$nested, levels=c(FALSE, TRUE))
+  nested.labels <- c("independent", "nested")
+  names(nested.labels) <- c(FALSE, TRUE)
+  data$balanced <- factor(data$balanced, levels=c(TRUE, FALSE))
+  balanced.labels <- c("balanced", "unbalanced")
+  names(balanced.labels) <- c(TRUE, FALSE)
   
-  plot <- ggplot(data=results.synthetic, aes(group=balanced)) +
-    geom_bar(stat="identity", position="dodge", aes(x=populations, y=.data[[metric]]),
-             fill=scales$fill, color=scales$color) +
-    facet_grid(nested~method, switch="y")
+  plot <- ggplot(data=data) +
+    geom_boxplot(aes(x=populations, group=populations, y=.data[[metric]]),
+                 fill=get_prior()$colormap[[method]]) +
+    facet_grid(nested~balanced,
+               labeller=labeller(nested=nested.labels, balanced=balanced.labels))
 
+  minimum <- min(benchmark.synthetic[, metric])
   plot <- plot +
-    scale_y_continuous(position="right", expand=expansion(mult=0))
+    scale_y_continuous(limits=c(minimum, 1)) +
+    theme(panel.grid.major=element_line(linewidth=0.5))
 
   return(plot)
+}
+
+get_plot.synthetic.scenario <- function(benchmark.synthetic, metric, nested, balanced) {
+  #' Get a composite plot showing the performances of scEVE on a specific scenario
+  #' w.r.t. the performances of its individual methods.
+  #' 
+  #' @param benchmark.synthetic: a data.frame with four columns: 'balanced',
+  #' 'nested', 'populations' and a metric.
+  #' @param metric: a character. The metric of interest.
+  #' @param nested: a boolean.
+  #' @param balanced: a boolean.
+  #' 
+  #' @return a plot.
+  #' 
+  prior <- get_prior()
+  benchmark.synthetic <- setup_benchmark.synthetic(benchmark.synthetic)
+  data <- benchmark.synthetic[(benchmark.synthetic$nested==nested) &
+                                (benchmark.synthetic$balanced==balanced), ]
+  maximum <- max(data[!is.na(data[, metric]), metric])
+  minimum <- min(data[!is.na(data[, metric]), metric])
+  data.sub <- data[data$method != "scEVE",]
+  data.main <- data[data$method == "scEVE",]
+  
+  get_subplot <- function(method) {
+    subplot <- ggplot(data=data.sub[data.sub$method==method,]) +
+      geom_boxplot(aes(y=populations, group=populations, x=.data[[metric]]),
+                   fill=prior$colormap[[method]]) +
+      scale_x_continuous(limits=c(minimum, maximum)) +
+      theme_classic() +
+      theme(panel.background=element_rect(fill="#ebebeb"),
+            panel.grid.major=element_line(colour="white", linewidth=0.5))
+  }
+  subplots <- lapply(X=unique(data.sub$method), FUN=get_subplot)
+  subplots <- ggarrange(plots=subplots, draw=FALSE)
+  
+  main_plot <- ggplot(data=data.main) +
+    geom_boxplot(aes(y=populations, group=populations, x=.data[[metric]]),
+                 fill=prior$colormap$scEVE) +
+    theme_classic() +
+    scale_x_continuous(limits=c(minimum, maximum)) +
+    theme(panel.grid.major=element_line(linewidth=0.5))
+  
+  plot.synthetic.scenario <- ggpubr::ggarrange(main_plot, subplots, nrow=2)
+  
+  return(plot.synthetic.scenario)
+}
+
+get_cluster_tree.data <- function(meta) {
+  #' Get a tree representing the hierarchical clustering of scEVE.
+  #' 
+  #' @param meta: a data.frame with two columns: 'parent', 'consensus' and 'n'.
+  #' 
+  #' @return a phylo tree object.
+  #' 
+  data <- meta[-1, ]
+  input <- data.frame(parent=as.character(data$parent), node=rownames(data))
+  cluster_tree <- as.phylo(input)
+  tree.coordinates <- fortify(cluster_tree)
+  cluster_tree.data <- as_tibble(cluster_tree)
+  
+  for (col in c("consensus", "n")) {meta[, col] <- as.numeric(meta[, col])}
+  rows_order <- rownames(meta)[order(meta$consensus, -meta$n)]
+  # sort by consensus and ensure that C is the first row.
+  cluster_tree.data <- cluster_tree.data[match(rows_order, cluster_tree.data$label),]
+  tree.coordinates <- tree.coordinates[match(rows_order, tree.coordinates$label),]
+  meta <- meta[rows_order,]
+  
+  for (col in c("consensus", "n")) {cluster_tree.data[, col] <- meta[, col]}
+  for (col in c("isTip", "x", "y", "branch", "angle")) {
+    cluster_tree.data[, col] <- tree.coordinates[, col]}
+  
+  cluster_tree.data$node_type <- "consensus.cluster"
+  cluster_tree.data$node_type[cluster_tree.data$consensus==0] <- "root.leftover"
+  
+  return(cluster_tree.data)
+}
+
+get_cluster_tree <- function(cluster_tree.data) {
+  #' Draw a classification tree summarizing the analysis of scEVE.
+  #' 
+  #' @param cluster_tree.data: a tibble object with 10 columns: 'parent', 'node',
+  #' 'label', 'consensus', 'isTip', 'x', 'y', 'branch', 'angle' and 'node_type'.
+  #' 
+  #' @return a ggtree plot.
+  #' 
+  colors <- list(root.leftover="white", consensus.cluster="black")
+  get_color <- function(node_type) {colors[[node_type]]}
+  cluster_tree.data$colors <- sapply(X=cluster_tree.data$node_type, FUN=get_color)
+  
+  plot <- ggtree(cluster_tree.data) +
+    geom_label(data=cluster_tree.data[-1,], aes(x=branch, label=round(consensus, 2)),
+               label.size=NA, hjust="right") +
+    geom_label(aes(label=label, fill=node_type, colour=node_type),
+               hjust=ifelse(cluster_tree.data$isTip, "right", "middle")) +
+    scale_colour_manual(values=cluster_tree.data$colors) +
+    scale_fill_manual(values=list(root.leftover="#36393d", consensus.cluster="#e6e6e6")) +
+    guides(fill="none", color="none")
+  return(plot)
+}
+
+get_barplot.leaves <- function(distribution_leaves.data) {
+  #' Get a horizontal barplot associating its leaf cluster to its cell type composition.
+  #' 
+  #' @param distribution_leaves.data: a data.frame with three columns: 'proportion',
+  #' 'ground_truth' and 'population'.
+  #'
+  #' @return a plot.
+  #' 
+  plot <- ggplot(data=distribution_leaves.data) +
+    geom_bar(aes(x=population, y=n, fill=ground_truth),
+             position="fill", stat="identity", color="black") +
+    theme_classic() +
+    scale_y_continuous(expand=expansion(mult=0)) +
+    coord_flip() + scale_fill_brewer(palette="Dark2") +
+    labs(y="proportion")
+  return(plot)
+}
+
+get_counts.leaves <- function(distriubtion_leaves.data) {
+  #' Get a horizontal barplot associating its leaf cluster to its number of cells.
+  #' 
+  #' @param distribution_leaves.data: a data.frame with three columns: 'proportion',
+  #' 'ground_truth' and 'population'.
+  #'
+  #' @return a plot.
+  #' 
+  plot <- ggplot(data=distribution_leaves.data) +
+    geom_bar(aes(x=population, y=n), stat="identity", fill="black") +
+    theme_classic() +
+    scale_y_continuous(expand=expansion(mult=0), trans="log10") +
+    coord_flip() + scale_fill_brewer(palette="Dark2") +
+    labs(y="log10(n)")
+  return(plot)
+}
+
+# need to rework tree to have proportion with n
+# need to rework heatmap to center the colorbar
+# need to check for synthetic datasets zooms
+
+get_summary_tree <- function(cluster_tree.data, distribution_leaves.data) {
+  #' Get a composite plot aligning a cluster tree to the barplots of its leaves.
+  #' 
+  #' @param cluster_tree.data: a tibble object with 10 columns: 'parent', 'node',
+  #' 'label', 'consensus', 'isTip', 'x', 'y', 'branch', 'angle' and 'node_type'.
+  #' @param distribution_leaves.data: a data.frame with three columns: 'proportion',
+  #' 'ground_truth' and 'population'.
+  #' 
+  #' @return a composite plot.
+  #' 
+  cluster_tree <- get_cluster_tree(cluster_tree.data)
+  cluster_tree <- cluster_tree +
+    theme(plot.margin=unit(c(0, 0, 0, 0), "null"))
+  barplot.leaves <- get_barplot.leaves(distribution_leaves.data)
+  barplot.leaves <- barplot.leaves +
+    theme(axis.line.y=element_blank(), axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "null"))
+  counts.leaves <- get_counts.leaves(distribution_leaves.data)
+  counts.leaves <- counts.leaves +
+    theme(axis.line.y=element_blank(), axis.title.y=element_blank(),
+          axis.text.y=element_blank(),
+          plot.margin = unit(c(0, 0, 0, 0), "null"))
+  summary_tree <- cluster_tree + barplot.leaves + counts.leaves +
+    plot_layout(widths=c(8,2,2))
+  return(summary_tree)
 }
