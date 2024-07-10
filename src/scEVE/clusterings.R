@@ -101,9 +101,12 @@ do_densityCut <- function(log.expression.tpm, random_state) {
   return(preds)
 }
 
-apply_clustering_algorithms <- function(data.loop, clustering_methods, random_state) {
+apply_clustering_algorithms <- function(expression.init, data.loop,
+                                        clustering_methods, random_state) {
   #' Apply multiple independent methods of clustering on a scRNA-seq dataset. 
   #' 
+  #' @param expression.init: a scRNA-seq dataset of raw count expression, without selected genes:
+  #' genes are rows | cells are cols.
   #' @param data.loop: a list of three data.frames: 'expression.loop', 'SeurObj.loop', and 'ranked_genes.loop'.
   #' @param clustering_methods: a vector of valid clustering method names.
   #' In the scEVE JOBIM paper, 4 methods are used: 'Seurat', 'monocle3', 'SHARP' and 'densityCut'.
@@ -170,9 +173,12 @@ get_clusterings_plots <- function(SeurObj, clusterings) {
   return(plots)
 }
 
-get_clusterings <- function(data.loop, population, params, figures, random_state) {
+get_clusterings <- function(expression.init, data.loop, population,
+                            params, figures, random_state) {
   #' Get individual clusterings.
   #' 
+  #' @param expression.init: a scRNA-seq dataset of raw count expression, without selected genes:
+  #' genes are rows | cells are cols.
   #' @param data.loop: a list of three data.frames: 'expression.loop' and 'SeurObj.loop', and 'ranked_genes.loop'.
   #' @param population: a character.
   #' @param params: a list of parameters, with 'clustering_methods'.
@@ -181,9 +187,10 @@ get_clusterings <- function(data.loop, population, params, figures, random_state
   #'
   #' @return a data.frame where: rows are cells | cols are clusterings | cells are labels.
   #'
-  clusterings <- apply_clustering_algorithms(data.loop, params$clustering_methods, random_state)
+  clusterings <- apply_clustering_algorithms(expression.init, data.loop,
+                                             params$clustering_methods, random_state)
   if (figures) {
-    pdf(file = glue("./figures/{population}_clusterings.pdf"))
+    pdf(file = glue("{params$figures_dir}/{population}_clusterings.pdf"))
     clusterings_plots <- get_clusterings_plots(data.loop$SeurObj.loop, clusterings)
     composite_clusterings_plot <- do.call(grid.arrange, clusterings_plots)
     print(composite_clusterings_plot)

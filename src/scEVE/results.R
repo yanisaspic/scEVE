@@ -9,16 +9,17 @@ source("./src/scEVE/utils/misc.R")
 source("./src/scEVE/leftovers_strategy/default.R")
 source("./src/scEVE/markers_strategy/default.R")
 
-get_existing_pdfs <- function(population) {
+get_existing_pdfs <- function(population, params) {
   #' Get the names of the existing pdf files (intermediate figures) w.r.t a population.
   #'
   #' @param population: a character.
+  #' @param params: a named list with 'figures_dir'.
   #'
   #' @return a vector of filenames.
   #'
   files <- c()
   for (cat in c("trim", "clusterings", "seeds", "genes")) {
-    filename <- glue("./figures/{population}_{cat}.pdf")
+    filename <- glue("{params$figures_dir}/{population}_{cat}.pdf")
     if (file.exists(filename)) {
       files <- c(files, filename)
     }
@@ -26,13 +27,14 @@ get_existing_pdfs <- function(population) {
   return(files)
 }
 
-merge_pdfs <- function(population) {
+merge_pdfs <- function(population, params) {
   #' Merge a group of pdf files together.
   #' 
   #' @param population: a character.
+  #' @param params: a named list with 'figures_dir'.
   #' 
-  files <- get_existing_pdfs(population)
-  pdf_combine(input = files, output = glue("./figures/{population}.pdf"))
+  files <- get_existing_pdfs(population, params)
+  pdf_combine(input = files, output = glue("{params$figures_dir}/{population}.pdf"))
   unlink(files)
 }
 

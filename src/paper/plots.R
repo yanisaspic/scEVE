@@ -37,6 +37,7 @@ get_prior <- function() {
     "Darmanis_HumGBM",     # 3,589c
     "Baron_HumPan_3",      # 3,605c
     "JerbyArnon_HumMLM",   # 6,879c
+    "Gillen_HumEPDM",      # 18,456c
     "VanGalen_HumAML",     # 27,899c
     "Lambrechts_HumNSCLC", # 51,775c
     "Peng_HumPDAC"         # 57,530c

@@ -188,7 +188,7 @@ get_markers.plot <- function(markers, population, params) {
           axis.line=element_blank(),
           axis.ticks.x=element_line(colour="#00000000"),
           axis.text.x=element_text(colour="#00000000")) +
-    scale_y_continuous(expand=expansion(mult=0)) +
+    scale_y_continuous(expand=expansion(mult=c(0, .05))) +
     ggtitle("Over-represented HVGs")
 
   # size bars
@@ -213,7 +213,7 @@ draw_genes <- function(data.loop, seeds, population, params) {
   markers.loop <- get_markers(seeds, data.loop$occurrences.loop)
   markers.plot <- get_markers.plot(markers.loop, population, params)
 
-  pdf(file = glue("./figures/{population}_genes.pdf"))
+  pdf(file = glue("{params$figures_dir}/{population}_genes.pdf"))
   print(markers.plot)
   dev.off()
 }

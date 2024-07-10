@@ -12,6 +12,22 @@ suppressPackageStartupMessages({
   library(SCpubr)
 })
 
+get_transactions <- function(clusterings) {
+  #' Get transactions from a table of clusterings.
+  #' 
+  #' @param clusterings: a data.frame where: rows are cells | cols are clusterings | cells are labels.
+  #' 
+  #' @return an object of the class 'transactions'.
+  #'
+  key <- hash(clusterings)
+  # key is generated to prevent overlap with parallel runs.
+  clusterings_path <- glue("./null/{key}.tmp")
+  write.table(clusterings, file=clusterings_path, col.names=FALSE, row.names=FALSE)
+  transactions <- read.transactions(clusterings_path)
+  file.remove(clusterings_path)
+  return(transactions)
+}
+
 get_rules <- function(transactions, min_support, min_confidence) {
   #' Get the rules associating two clusters above a confidence and a support threshold.
   #'
@@ -228,22 +244,6 @@ add_seeds <- function(SeurObj, seeds, population) {
   return(SeurObj)
 }
 
-get_transactions <- function(clusterings) {
-  #' Get transactions from a table of clusterings.
-  #' 
-  #' @param clusterings: a data.frame where: rows are cells | cols are clusterings | cells are labels.
-  #' 
-  #' @return an object of the class 'transactions'.
-  #'
-  key <- hash(clusterings)
-    # key is generated to prevent overlap with parallel runs.
-  clusterings_path <- glue("./null/{key}.tmp")
-  write.table(clusterings, file=clusterings_path, col.names=FALSE, row.names=FALSE)
-  transactions <- read.transactions(clusterings_path)
-  file.remove(clusterings_path)
-  return(transactions)
-}
-
 get_minimal_support <- function(expression.init, clusterings, params) {
   #' Get the minimal support expected in a hint w.r.t. the global minimal support.
   #' 
@@ -261,15 +261,16 @@ get_minimal_support <- function(expression.init, clusterings, params) {
   return(minimal_support)
 }
 
-draw_seeds <- function(data.loop, seeds, population) {
+draw_seeds <- function(data.loop, seeds, population, params) {
   #' Draw the seeds identified with a U-MAP.
   #'
   #' @param data.loop: a list of three data.frames: 'expression.loop' and 'SeurObj.loop', and 'ranked_genes.loop'.
   #' @param seeds: a nested list, where each sub-list has three keys: 'consensus', 'cells' and 'clusters'.
   #' @param population: a character.
+  #' @param params: a named list with 'figures_dir'.
   #' 
   data.loop$SeurObj.loop <- add_seeds(data.loop$SeurObj.loop, seeds, population)
-  pdf(file = glue("./figures/{population}_seeds.pdf"))
+  pdf(file = glue("{params$figures_dir}/{population}_seeds.pdf"))
   seeds_plot <- do_DimPlot(data.loop$SeurObj.loop,
                            split.by="seeds",
                            legend.position="none")
@@ -350,7 +351,7 @@ get_seeds <- function(expression.init, data.loop, clusterings, params, records, 
     
     # draw the seeds
     ################
-    if (figures) {draw_seeds(data.loop, seeds, population)}
+    if (figures) {draw_seeds(data.loop, seeds, population, params)}
     
     break() 
   }

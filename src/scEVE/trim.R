@@ -117,6 +117,8 @@ get_expression.count <- function(expression.init, n_HVGs) {
   #' 
   HVGs <- get_n_HVGs(expression.init, n=n_HVGs)
   expression.count <- expression.init[HVGs,]
+  expression.count <- expression.count[, colSums(expression.count)>0]
+    # remove cells with 0 gene expression on HVGs
   return(expression.count)
 }
 
@@ -192,7 +194,7 @@ trim_data <- function(expression.init, population, records, params,
       theme(panel.background=element_rect(fill="lightgrey"),
             axis.title=element_blank(), legend.position="bottom")
     
-    pdf(file = glue("./figures/{population}_trim.pdf"))
+    pdf(file = glue("{params$figures_dir}/{population}_trim.pdf"))
     print(trim_plot)
     dev.off()
   }

@@ -98,6 +98,15 @@ get_real_dataset <- function(scRNAseq_label) {
   # doi: 10.1038/ng.3818
   accessions[["Li_HumCRC_b"]] <- "GSE81861"
   
+  # Darmanis (2017)_____________________________________________________________
+  # accession: GSE84465
+  # cells: 3,589
+  # genes: 23,460
+  # clusters: 7
+  # sequencing: SMART-Seq2
+  # doi: 10.1016/j.celrep.2017.10.030
+  accessions[["Darmanis_HumGBM"]] <- "GSE84465"
+  
   # Jerby-Arnon (2018)__________________________________________________________
   # accession: GSE115978
   # cells: 6,879
@@ -106,6 +115,15 @@ get_real_dataset <- function(scRNAseq_label) {
   # sequencing: SMART-Seq2
   # doi: 10.1016/j.cell.2018.09.006
   accessions[["JerbyArnon_HumMLM"]] <- "GSE115978"
+  
+  # Gillen (2020)_______________________________________________________________
+  # acession: GSE125969
+  # cells: 18,456
+  # genes: 23,580
+  # clusters: 18
+  # sequencing: 10x Genomics
+  # doi: 10.1016/j.celrep.2020.108023
+  accessions[["Gillen_HumEPDM"]] <- "GSE125969"
   
   # Van Galen (2018)___________________________________________________________
   # accession: GSE116256
@@ -133,15 +151,6 @@ get_real_dataset <- function(scRNAseq_label) {
   # sequencing: 10x Genomics
   # doi: 10.1038/s41422-019-0195-y
   accessions[["Peng_HumPDAC"]] <- "CRA001160"
-  
-  # Darmanis (2017)_____________________________________________________________
-  # accession: GSE84465
-  # cells: 3,589
-  # genes: 23,460
-  # clusters: 7
-  # sequencing: SMART-Seq2
-  # doi: 10.1016/j.celrep.2017.10.030
-  accessions[["Darmanis_HumGBM"]] <- "GSE84465"
   
   if (scRNAseq_label %in% names(accessions)) {
     expression <- get_scRNAseq_matrix.accession(accessions[[scRNAseq_label]])}

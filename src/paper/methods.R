@@ -77,7 +77,7 @@ get_results.individual_method.wrapper <- function(method, expression.init, n_HVG
   return(results)
 }
 
-get_results.scEVE <- function(expression.init, params, random_state) {
+get_results.scEVE <- function(expression.init, params, random_state, save, figures) {
   #' Get the results of scEVE by applying it with a given set of parameters on a scRNA-seq raw count matrix.
   #' These results include:
   #' - peakRAM (Mbytes): the maximum memory usage of the method.
@@ -88,6 +88,8 @@ get_results.scEVE <- function(expression.init, params, random_state) {
   #' genes are rows | cells are cols.
   #' @param params: a list of parameters.
   #' @param random_state: a numeric.
+  #' @param save: a boolean. If TRUE, the results are saved in a records file.
+  #' @param figures: a boolean. If TRUE, intermediate figures are saved.
   #' 
   #' @return a list of three elements: 'peakRAM', 'time' and 'preds'.
   #' 
@@ -95,7 +97,8 @@ get_results.scEVE <- function(expression.init, params, random_state) {
   memory_summary <- gc(reset=TRUE)
   peakRAM.before <- memory_summary[11] + memory_summary[12]
   #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-  output <- do_scEVE(expression.init, params, random_state=random_state, figures=FALSE, save=FALSE)
+  output <- do_scEVE(expression.init, params, random_state=random_state,
+                     save=save, figures=figures)
   preds <- output$preds
   preds <- preds[order(names(preds))]
   # sort cells alphabetically to facilitate benchmarking.
@@ -110,7 +113,7 @@ get_results.scEVE <- function(expression.init, params, random_state) {
   return(results)
 }
 
-get_results.dataset <- function(expression.init, params, random_state) {
+get_results.dataset <- function(expression.init, params, random_state, save, figures) {
   #' Get the results of scEVE and the individual clustering methods it uses on a scRNA-seq dataset.
   #' These results include:
   #' - peakRAM (Mbytes): the maximum memory usage of the method.
@@ -121,10 +124,12 @@ get_results.dataset <- function(expression.init, params, random_state) {
   #' genes are rows | cells are cols.
   #' @param params: a list of parameters.
   #' @param random_state: a numeric.
+  #' @param save: a boolean. If TRUE, the results are saved in a records file.
+  #' @param figures: a boolean. If TRUE, intermediate figures are saved.
   #' 
   #' @return a nested list of three elements: 'peakRAM', 'time' and 'preds'.
   #' 
-  results.scEVE <- get_results.scEVE(expression.init, params, random_state)
+  results.scEVE <- get_results.scEVE(expression.init, params, random_state, save, figures)
   individual_methods <- params$clustering_methods
   results <- lapply(X=individual_methods,
                     FUN=get_results.individual_method.wrapper,
@@ -136,7 +141,8 @@ get_results.dataset <- function(expression.init, params, random_state) {
   return(results)
 }
 
-get_benchmark.dataset <- function(expression.init, ground_truth, dataset, params, random_state) {
+get_benchmark.dataset <- function(expression.init, ground_truth, dataset, params,
+                                  random_state, save=FALSE, figures=FALSE) {
   #' Get the results of scEVE and the individual clustering methods it uses on a scRNA-seq dataset.
   #' These results include:
   #' - peakRAM (Mbytes): the maximum memory usage of the method.
@@ -149,12 +155,18 @@ get_benchmark.dataset <- function(expression.init, ground_truth, dataset, params
   #' @param dataset: a character.
   #' @param params: a list of parameters.
   #' @param random_state: a numeric.
+  #' @param save: a boolean. If TRUE, the results are saved in a records file.
+  #' @param figures: a boolean. If TRUE, intermediate figures are saved.
   #'
   #' @return a data.frame with 6 columns: 'peakRAM', 'time', 'ARI', 'NMI', 'method' and 'dataset'.
   #'
-  benchmark.list <- get_results.dataset(expression.init, params, random_state)
+  benchmark.list <- get_results.dataset(expression.init, params, random_state, save, figures)
   benchmark <- as.data.frame(do.call(rbind, benchmark.list))
-  compute_metric <- function(metric) {sapply(X=benchmark$preds, FUN=get_metric, ground_truth, metric=metric)}
+  
+  compute_metric.preds <- function(preds, metric) {get_metric(preds, ground_truth[names(preds)], metric)}
+    # some methods (e.g. SHARP, densityCut) will not label all cells;
+    # we do not compare these to the ground truth to prevent computational errors.
+  compute_metric <- function(metric) {sapply(X=benchmark$preds, FUN=compute_metric.preds, metric=metric)}
   for (metric in c("ARI", "NMI")) {benchmark[metric] <- compute_metric(metric)}
   
   benchmark["method"] <- rownames(benchmark)
