@@ -38,7 +38,6 @@ get_default_hyperparameters <- function() {
     clustering_methods=c("Seurat", "monocle3", "SHARP", "densityCut"), # see Yu et al: 4 fastest methods. (5: CIDR)
     leftovers_strategy="default",
     markers_strategy="default",
-    
     records_file="./records.xlsx",
     figures_dir="./figures"
   )

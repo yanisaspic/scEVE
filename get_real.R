@@ -13,11 +13,12 @@ source("./src/paper/metrics.R")
 
 dataset <- commandArgs(trailingOnly=TRUE)[[1]]
 expression.init <- get_real_dataset(dataset)
-ground_truth <- get_ground_truth(expression.init)
+cell_ids <- colnames(expression.init)
+ground_truth <- get_ground_truth(cell_ids)
 
 params <- get_default_hyperparameters()
 params$figures_dir <- glue("./{dataset}")
 params$records_file <- glue("./{dataset}.xlsx")
-benchmark <- get_benchmark.dataset(expression.init, ground_truth, dataset, params,
-                                   random_state=0, save=TRUE, figures=TRUE)
+benchmark <- get_benchmark(expression.init, ground_truth, dataset, params,
+                           random_state=0, save=TRUE, figures=TRUE)
 write.csv(benchmark, glue("./benchmark/{dataset}.csv"), row.names=FALSE)

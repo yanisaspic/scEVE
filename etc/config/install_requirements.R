@@ -31,22 +31,18 @@ if (!require("sp")) install_version("sp", version="2.1.2", repos=CRAN, dependenc
 
 
 #___________________________________________________________________Bioconductor
-
-##################################################################################
-# I NEED TO SEE WITH DEPENDENCIES IF BIOCONDUCTOR 3.18 IS OK FOR ALL MY PACKAGES #
-##################################################################################
-
-if (!require("BiocGenerics")) install("BiocGenerics", version="3.17", dependencies=T, update=F)
-if (!require("GenomeInfoDb")) install("GenomeInfoDb", version="3.17", dependencies=T, update=F)
-if (!require("GenomicRanges")) install("GenomicRanges", version="3.17", dependencies=T, update=F)
-if (!require("IRanges")) install("IRanges", version="3.17", dependencies=T, update=F)
-if (!require("MatrixGenerics")) install("MatrixGenerics", version="3.17", dependencies=T, update=F)
-if (!require("S4Vectors")) install("S4Vectors", version="3.17", dependencies=T, update=F)
-if (!require("scater")) install("scater", version="3.17", dependencies=T, update=F)
-if (!require("scuttle")) install("scuttle", version="3.17", dependencies=T, update=F)
-if (!require("SingleCellExperiment")) install("SingleCellExperiment", version="3.17", dependencies=T, update=F)
-if (!require("SummarizedExperiment")) install("SummarizedExperiment", version="3.17", dependencies=T, update=F)
-if (!require("TMExplorer")) install("TMExplorer", version="3.18", dependencies=T, update=F)
+install(version="3.17")
+if (!require("BiocGenerics")) install("BiocGenerics", dependencies=T, update=F)
+if (!require("GenomeInfoDb")) install("GenomeInfoDb", dependencies=T, update=F)
+if (!require("GenomicRanges")) install("GenomicRanges", dependencies=T, update=F)
+if (!require("IRanges")) install("IRanges", dependencies=T, update=F)
+if (!require("MatrixGenerics")) install("MatrixGenerics", dependencies=T, update=F)
+if (!require("S4Vectors")) install("S4Vectors", dependencies=T, update=F)
+if (!require("scater")) install("scater", dependencies=T, update=F)
+if (!require("scuttle")) install("scuttle", dependencies=T, update=F)
+if (!require("SingleCellExperiment")) install("SingleCellExperiment", dependencies=T, update=F)
+if (!require("SummarizedExperiment")) install("SummarizedExperiment", dependencies=T, update=F)
+if (!require("TMExplorer")) install("TMExplorer", dependencies=T, update=F)
 
 install(version="3.18")
 if (!require("ggtree") | !require("tidytree")) {install("YuLab-SMU/treedataverse", dependencies=T, update=F)}

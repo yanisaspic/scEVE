@@ -21,13 +21,19 @@ get_prior <- function() {
   #' Get the prior knowledge on the benchmark regarding the figures of the scEVE paper.
   #' 
   #' @return a named list with: "real_datasets", "ensemble_benchmark" and "algorithms".
-  #' "algorithms" is an ordered list of algorithms benchmarked.
+  #' "algorithms" is an ordered vector of algorithms benchmarked.
+  #' "ensemble_algorithms" is an ordered vector of ensemble_algorithms compared.
+  #' "algorithm_challenges" is a vector of algorithms addressing single-cell challenges (cf. Lähnemann et al.)
   #' "real_datasets" is a vector of real scRNA-seq datasets labels.
   #' Note that the datasets are sorted by number of cells.
-  #' "ensemble" is a data.frame with the performances of other ensemble algorithms.
+  #' "ensemble_benchmark" is a data.frame with the performances of other ensemble algorithms.
+  #' "colormap" associates each method to a specific color.
   #' They are reported from the scEFSC paper (Bian et al. 2022)
   #' 
   algorithms <- c("densityCut", "monocle3", "Seurat", "SHARP", "scEVE")
+  ensemble_algorithms <- c("EC.PGMGR", "GRACE", "RSEC", "SAFE", "SAME", "scEFSC", "scEVE")
+  challengers <- c("scEVE", "RSEC")
+  
   real_datasets <- c(
     "Li_HumCRC_b",         # 364c
     "Li_HumCRC_a",         # 561c
@@ -44,38 +50,67 @@ get_prior <- function() {
     "VanGalen_HumAML",     # 27,899c
     "Lambrechts_HumNSCLC", # 51,775c
     "Peng_HumPDAC"         # 57,530c
-    )
-
-  ARI <- c(# Li_HumCRC_a
-    0.75, 0.92, 0.99,
-    # Tasic_MouBra
-    0.30, 0.78, 0.84,
-    # Baron_HumPan
-    0.15, 0.51, 0.54)
-  NMI <- c(# Li_HumCRC_a
-    0.8, 0.96, 0.98,
-    # Tasic_MouBra
-    0.61, 0.84, 0.87,
-    # Baron_HumPan
-    0.51, 0.72, 0.75)
-  methods <- c("RSEC", "SAME", "scEFSC")
-  datasets <- c("Li_HumCRC_a", "Tasic_MouBra", "Baron_HumPan")
-  configurations <- expand.grid(list(method=methods, dataset=datasets))
-  for (metric in c("ARI", "NMI")) {configurations[, metric] <- get(metric)}
+  )
+  
+  ensemble_performances.ARI <- c(
+    # SAFE
+    0.281, 0.8052, 0.595, 0.75, 0.7222, 0.1849, NA, NA,
+    # SAME
+    0.63, 0.8099, 0.73, 0.8621, 0.7461, 0.4103, 0.92, 0.78,
+    # EC-PGMGR
+    0.6987, 0.8976, 0.8454, 0.8903, 0.781, 0.9145, NA, NA,
+    # scEFSC
+    rep(NA, 4), NA, NA, 0.99, 0.84,
+    # RSEC
+    rep(NA, 4), NA, NA, 0.75, 0.30,
+    # GRACE
+    0.60, 0.86, 0.97, 0.93, 0.75, 0.50, NA, NA
+  )
+  ensemble_performances.NMI <- c(
+    # SAFE
+    0.6636, 0.7927, 0.7365, 0.7603, 0.7759, 0.5317, NA, NA,
+    # SAME
+    0.8103, 0.8059, 0.828, 0.8664, 0.802, 0.6253, 0.96, 0.84,
+    # EC-PGMGR
+    0.825, 0.8629, 0.8529, 0.876, 0.8331, 0.8306, NA, NA,
+    # scEFSC
+    rep(NA, 4), NA, NA, 0.98, 0.87, 0.75,
+    # RSEC
+    rep(NA, 4), NA, NA, 0.80, 0.61,
+    # GRACE
+    rep(NA, 8)
+  )
+  ensemble_datasets <- c(
+    "Baron_HumPan_1", "Baron_HumPan_2", "Baron_HumPan_3", "Baron_HumPan_4",
+    "Baron_MouPan_1", "Baron_MouPan_2", "Li_HumCRC_a", "Tasic_MouBra")
+  ensemble_methods <- c("SAFE", "SAME", "EC.PGMGR", "scEFSC", "RSEC", "GRACE")
+  configurations <- expand.grid(list(dataset=ensemble_datasets, method=ensemble_methods))
+  for (metric in c("ARI", "NMI")) {
+    configurations[, metric] <- get(glue("ensemble_performances.{metric}"))}
+  
+  baron_humpan.ARI <- c(median=0.54, min=0.54, max=0.54, # scEFSC
+                        median=0.15, min=0.15, max=0.15) # RSEC
+  baron_humpan.NMI <- c(median=0.75, min=0.75, max=0.75, # scEFSC
+                        median=0.51, min=0.51, max=0.51) # RSEC
   
   colormap <- list(densityCut="#e31a1c",
                    monocle3="#33a02c",
                    Seurat="#b15928",
                    SHARP="#ff7f00",
-                   scEVE="#1f78b4",
-                   RSEC="#f0f0f0",
-                   SAME="#969696",
-                   scEFSC="#252525")
+                   EC.PGMGR="#7570b3",
+                   GRACE="#e6ab02",
+                   RSEC="#666666",
+                   SAFE="#1b9e77",
+                   SAME="#d95f02",
+                   scEFSC="#e7298a",
+                   scEVE="#1f78b4")
   
   prior <- list(algorithms=algorithms,
+                ensemble_algorithms=ensemble_algorithms,
+                challengers=challengers,
                 real_datasets=real_datasets,
                 colormap=colormap,
-                ensemble_benchmark=configurations)
+                ensemble_performances=configurations)
   return(prior)
 }
 
@@ -93,7 +128,7 @@ get_benchmark <- function(path="./benchmark") {
   
   prior <- get_prior()
   benchmark$method <- factor(benchmark$method, levels=prior$algorithms)
-
+  
   is_real <- function(row) {row["dataset"] %in% prior$real}
   benchmark[,"real"] <- apply(X=benchmark, MARGIN=1, FUN=is_real)
   for (col in c("peakRAM", "time", "ARI", "NMI")) {benchmark[,col] <- as.numeric(benchmark[,col])}
@@ -135,7 +170,7 @@ get_heatmap.real <- function(benchmark.real, metric) {
   fontfaces <- get_fontfaces(data=benchmark.real[, metric],
                              rowsize=length(levels(benchmark.real$method)),
                              ascending=ifelse(metric %in% c("ARI", "NMI"), TRUE, FALSE))
-    # bold best values.
+  # bold best values.
   
   plot <- ggplot(benchmark.real, aes(x=method, y=dataset, fill=.data[[metric]])) +
     geom_tile(color="white", lwd=.5, linetype=1) +
@@ -205,29 +240,105 @@ get_plot.real <- function(benchmark.real, metric) {
   return(plot.real)
 }
 
-get_baron_benchmark.scEVE <- function(benchmark.real) {
-  #' Get the median, minimum and maximum performances of scEVE on the Baron_HumPan dataset.
+setup_benchmark.ensemble <- function(benchmark.real) {
+  #' Merge the prior regarding other ensemble algorithms with the performances benchmarked of scEVE.
   #' 
-  #' @param benchmark.real: a data.frame with 'dataset', 'method', 'ARI' and 'NMI'.
-  #' - datasets included are 'Baron_HumPan_X'.
-  #' - method included is 'scEVE'.
+  #' @param benchmark.real: a data.frame with four columns: 'dataset', 'method', 'ARI' and 'NMI'.
   #' 
-  #' @return a list with three rows: 'median', 'maximum' and 'minimum'.
+  #' @return a data.frame with five columns: 'dataset', 'method', 'ARI', 'NMI' and 'challenger'.
   #' 
-  is_baron_humpan <- grepl("Baron_HumPan", benchmark.real$dataset)
-  benchmark.real$dataset[is_baron_humpan] <- "Baron_HumPan"
-  data <- benchmark.real[(benchmark.real$dataset=="Baron_HumPan") & (benchmark.real$method=="scEVE"),
-                       c("method", "dataset", "ARI", "NMI")]
+  prior <- get_prior()
+  benchmark.ensemble <- benchmark.real[
+    (benchmark.real$method=="scEVE") & 
+      (benchmark.real$dataset %in% prior$ensemble_performances$dataset),
+    c("ARI", "NMI", "method", "dataset")
+  ]
+  benchmark.ensemble <- rbind(benchmark.ensemble, prior$ensemble_performances)
+  benchmark.ensemble$method <- factor(benchmark.ensemble$method, levels=prior$ensemble_algorithms)
+  benchmark.ensemble$challenger <- benchmark.ensemble$method %in% prior$challengers
+  return(benchmark.ensemble)
+}
+
+setup_baron_humpan.data <- function(benchmark.ensemble, metric) {
+  #' Set-up the data to plot the Baron_HumPan performances. Baron_HumPan is split
+  #' into four datasets. In the Baron_HumPan plot, the bar indicates the median
+  #' performance, and the errorbar indicates the minimum and maximum performances.
+  #' 
+  #' @param benchmark.ensemble: a data.frame with four columns: 'dataset', 'method', 'ARI' and 'NMI'.
+  #' @param metric: a character. One of 'ARI' or 'NMI'.
+  #' 
+  #' @return a data.frame with four columns: 'method', 'median', 'minimum' and 'maximum'.
+  #' 
+  is_baron_humpan <- grepl("Baron_HumPan", benchmark.ensemble$dataset)
+  baron_humpan.data <- benchmark.ensemble[is_baron_humpan, c("method", metric)]
   
-  baron_benchmark <- list()
-  for (metric in c("ARI", "NMI")) {
-    row <- data.frame(method="scEVE", dataset="Baron_HumPan", metric=metric,
-                      value=median(data[, metric]), ymin=min(data[, metric]),
-                      ymax=max(data[, metric]))
-    baron_benchmark[[metric]] <- row
-  }
-  baron_benchmark <- do.call(rbind, baron_benchmark)
-  return(baron_benchmark)
+  get_data.method <- function(method) {
+    data.method <- baron_humpan.data[baron_humpan.data$method==method,]
+    data.method <- list(method=method, y=median(data.method[, metric]),
+                        ymin=min(data.method[, metric]), ymax=max(data.method[, metric]))
+    return(data.method)}
+  
+  baron_humpan.data <- lapply(X=unique(baron_humpan.data$method), FUN=get_data.method)
+  baron_humpan.data <- do.call(rbind, baron_humpan.data)
+  return(baron_humpan.data)
+}
+
+get_barplot.baron_humpan <- function(baron_humpan.data) {
+  #' Get a barplot for the Baron_HumPan dataset, where the bar indicates the
+  #' median performance, and the errorbar indicates the minimum and maximum performances.
+  #' 
+  #' @param baron_humpan.data: 
+}
+
+get_barplot.ensemble <- function(benchmark.ensemble, dataset, metric, zoom_aes=FALSE) {
+  #' Get a barplot where the x-axis represents methods and the y-axis represents
+  #' a clustering performance. The plot is titled after the dataset of interest.
+  #' 
+  #' @param benchmark.ensemble: a data.frame with four columns: 'method', 'dataset', 'ARI' and 'NMI'.
+  #' @param dataset: a character.sss
+  #' @param metric: a character. One of 'ARI' and 'NMI'.
+  #' @param zoom_aes: a boolean. If TRUE, a different aesthetic is applied.
+  #' 
+  #' @return a barplot.
+  #' 
+  prior <- get_prior()
+  data <- benchmark.ensemble[benchmark.ensemble$dataset==dataset,]
+  get_color <- function(method) {ifelse(method %in% prior$challengers, "black", "na.value")}
+  colors <- lapply(X=prior$ensemble_algorithms, FUN=get_color)
+  names(colors) <- prior$ ensemble_algorithms
+  print(colors)
+  
+  plot <- ggplot(data=data) +
+    geom_col(aes(x=method, y=.data[[metric]], fill=method, color=method)) +
+    scale_y_continuous(expand=expansion(mult=0), limits=c(0,1)) +
+    scale_fill_manual(values=get_prior()$colormap) +
+    scale_color_manual(values=colors) +
+    ggtitle(dataset)
+
+  plot <- plot +
+    theme_classic() +
+    theme(axis.title.x=element_blank(), 
+          panel.grid.major=element_line(linewidth=0.5),
+          strip.text=element_blank(), legend.position="none") +
+    facet_grid(~challenger, scales = "free_x", space = "free_x")
+  
+  if (zoom_aes) {plot <- plot +
+    theme(panel.background=element_rect(fill="#ebebeb"),
+          panel.grid.major=element_line(colour="white"))}
+  
+  return(plot)
+}
+
+get_barplots.ensemble <- function(benchmark.real, metric) {
+  #' Get a composite plot comparing scEVE to other ensemble algorithms in the literature.
+  #' 
+  #' @param benchmark.real: a data.frame with four columns: 'dataset', 'method', 'ARI' and 'NMI'.
+  #' @param metric: a character. One of 'ARI' and 'NMI'.
+  #' 
+  #' @return a composite plot.
+  #' 
+  benchmark.ensemble <- setup_benchmark.ensemble(benchmark.real)
+  baron_humpan.data <- setup_baron_humpan.data(benchmark.ensemble, metric)
 }
 
 get_barplots.ensemble <- function(benchmark.real) {
@@ -331,12 +442,12 @@ get_plot.synthetic.method <- function(benchmark.synthetic, metric, method) {
                  fill=get_prior()$colormap[[method]]) +
     facet_grid(nested~balanced,
                labeller=labeller(nested=nested.labels, balanced=balanced.labels))
-
+  
   minimum <- min(benchmark.synthetic[, metric])
   plot <- plot +
     scale_y_continuous(limits=c(minimum, 1)) +
     theme(panel.grid.major=element_line(linewidth=0.5))
-
+  
   return(plot)
 }
 
@@ -451,7 +562,7 @@ get_barplot.leaves <- function(distribution_leaves.data) {
              position="fill", stat="identity", color="black") +
     theme_classic() +
     scale_y_continuous(expand=expansion(mult=0)) +
-    coord_flip() + scale_fill_brewer(palette="Dark2") +
+    coord_flip() + scale_fill_brewer(palette="Paired") +
     labs(y="proportion")
   return(plot)
 }
@@ -468,7 +579,7 @@ get_counts.leaves <- function(distriubtion_leaves.data) {
     geom_bar(aes(x=population, y=n), stat="identity", fill="black") +
     theme_classic() +
     scale_y_continuous(expand=expansion(mult=0), trans="log10") +
-    coord_flip() + scale_fill_brewer(palette="Dark2") +
+    coord_flip() + scale_fill_brewer(palette="Paired") +
     labs(y="log10(n)")
   return(plot)
 }
@@ -500,7 +611,7 @@ get_summary_tree <- function(cluster_tree.data, distribution_leaves.data) {
     theme(axis.line.y=element_blank(), axis.title.y=element_blank(),
           axis.text.y=element_blank(),
           plot.margin = unit(c(0, 0, 0, 0), "null"))
-  summary_tree <- cluster_tree + barplot.leaves + counts.leaves +
+  summary_tree <- cluster_tree + counts.leaves + barplot.leaves +
     plot_layout(widths=c(8,2,2))
   return(summary_tree)
 }

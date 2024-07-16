@@ -223,15 +223,15 @@ get_parameters.population <- function(n_cells, parameters.init, label) {
   return(parameters)
 }
 
-get_parameters.nested <- function(population_sizes, balanced, nested, 
+get_parameters.related <- function(population_sizes, balanced, related, 
                                   parameters.init, total_size) {
-  #' Get the parameters for each cell population of a nested scRNA-seq dataset.
+  #' Get the parameters for each cell population of a related scRNA-seq dataset.
   #' 
   #' @param population_sizes: a vector of numeric.
   #' @param balanced: a boolean. If TRUE, every population has the same size. 
   #' If FALSE, populations follow a geometric distribution.  
-  #' @param nested: a boolean. If TRUE, the template parameter set is used recursively
-  #' to generate new parameters: to represent nested cell populations (e.g. T cells, T CD4+ cells).
+  #' @param related: a boolean. If TRUE, the template parameter set is used recursively
+  #' to generate new parameters: to represent related cell populations (e.g. T cells, T CD4+ cells).
   #' If false, a single template parameter set is used to generate new parameters: 
   #' to represent independent cell populations (e.g. T cells, neurons)
   #' @param parameters.init: a named list of vectors with intensity, variability and lib_size.
@@ -250,7 +250,7 @@ get_parameters.nested <- function(population_sizes, balanced, nested,
   return(parameters)
 }
 
-get_synthetic_dataset <- function(n_populations, balanced, nested, random_state,
+get_synthetic_dataset <- function(n_populations, balanced, related, random_state,
                                   parameters.init, total_size=10000) {
   #' Get a scRNA-seq synthetic dataset.
   #' This function follows the vignette of the SPARSim simulator.
@@ -258,8 +258,8 @@ get_synthetic_dataset <- function(n_populations, balanced, nested, random_state,
   #' @param n_populations: a numeric. The number of cell populations.
   #' @param balanced: a boolean. If TRUE, every population has the same size. 
   #' If FALSE, populations follow a geometric distribution.  
-  #' @param nested: a boolean. If TRUE, the template parameter set is used recursively
-  #' to generate new parameters: to represent nested cell populations (e.g. T cells, T CD4+ cells).
+  #' @param related: a boolean. If TRUE, the template parameter set is used recursively
+  #' to generate new parameters: to represent related cell populations (e.g. T cells, T CD4+ cells).
   #' If false, a single template parameter set is used to generate new parameters: 
   #' to represent independent cell populations (e.g. T cells, neurons)
   #' @param random_state: a numeric.
@@ -274,8 +274,8 @@ get_synthetic_dataset <- function(n_populations, balanced, nested, random_state,
   }
   population_sizes <- get_population_sizes(n_populations, total_size, balanced)
   
-  if (nested) {parameters <- get_parameters.nested(population_sizes, balanced,
-                                                   nested, parameters.init, total_size)}
+  if (related) {parameters <- get_parameters.related(population_sizes, balanced,
+                                                   related, parameters.init, total_size)}
   else {parameters <- lapply(X=1:n_populations, FUN = get_parameters.population.wrapper)}
   dataset <- SPARSim_simulation(parameters)$count_matrix
   dataset <- as.data.frame(dataset)

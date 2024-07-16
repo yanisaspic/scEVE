@@ -13,11 +13,12 @@ source("./src/paper/metrics.R")
 benchmark <- get_benchmark()
 benchmark.real <- benchmark[benchmark$real,]
 benchmark.synthetic <- benchmark[!benchmark$real,]
+benchmark.ensemble <- setup_benchmark.ensemble(benchmark.real)
 
 # performances of individual methods and scEVE on real datasets.
 for (metric in c("ARI", "NMI", "log10(s)", "log10(Mb)")) {
   plot.real <- get_plot.real(benchmark.real, metric)
-  ggsave(glue("./plots/real/{metric}.png"), plot.real, width=4.5, height=6)
+  ggsave(glue("./plots/real/{metric}.png"), plot.real, width=4.5, height=7)
 }
 
 # performances of scEVE w.r.t. previous ensemble clustering algorithms.
@@ -48,7 +49,7 @@ for (dataset in get_prior()$real_datasets) {
   distribution_leaves.data <- distribution_bars.data[distribution_bars.data$population %in% leaves,]
   
   summary_tree <- get_summary_tree(cluster_tree.data, distribution_leaves.data)
-  ggsave(glue("./plots/trees/{dataset}.png"), summary_tree, width=7, height=4.5)
+  ggsave(glue("./plots/trees/{dataset}.png"), summary_tree, width=10, height=6)
 }
 
 # disruption and consensi of clusters predicted by scEVE on real datasets.

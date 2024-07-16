@@ -10,27 +10,29 @@ suppressPackageStartupMessages({library(glue)})
 
 HYPERPARAMETERS <- list(POPULATIONS=c(1,3,5,7,9),
                         BALANCED=c(TRUE, FALSE),
-                        NESTED=c(TRUE, FALSE),
+                        RELATED=c(TRUE, FALSE),
                         SEED=1:30)
 HYPERPARAMETERS <- expand.grid(HYPERPARAMETERS)
 
 id <- as.numeric(commandArgs(trailingOnly=TRUE)[[1]])
 populations <- HYPERPARAMETERS[id, "POPULATIONS"]
 balanced <- HYPERPARAMETERS[id, "BALANCED"]
-nested <- HYPERPARAMETERS[id, "NESTED"]
+related <- HYPERPARAMETERS[id, "RELATED"]
 seed <- HYPERPARAMETERS[id, "SEED"]
-dataset <- glue("P{populations}_B{ifelse(balanced,'T','F')}_N{ifelse(nested,'T','F')}_S{seed}")
+dataset <- glue("P{populations}_B{ifelse(balanced,'T','F')}_R{ifelse(related,'T','F')}_S{seed}")
 
 data("PBMC_10X_param_preset")
 parameters.init <- PBMC_10X_param_preset[[1]]
-expression.init <- get_synthetic_dataset(populations, balanced, nested, seed, parameters.init)
-ground_truth <- get_ground_truth(expression.init)
+expression.init <- get_synthetic_dataset(populations, balanced, related, seed, parameters.init)
+cell_ids <- colnames(expression.init)
+ground_truth <- get_ground_truth(cell_ids)
+gc()
 
 params <- get_default_hyperparameters()
 params$figures_dir <- glue("./{dataset}")
 params$records_file <- glue("./{dataset}.xlsx")
-benchmark <- get_benchmark.dataset(expression.init, ground_truth, dataset, params,
-                                   random_state=0, save=TRUE, figures=TRUE)
+benchmark <- get_benchmark(expression.init, ground_truth, dataset, params,
+                           random_state=0, save=TRUE, figures=TRUE)
 write.csv(benchmark, glue("./benchmark/{dataset}.csv"), row.names=FALSE)
 
 file.rename(from=params$figures_dir, to=glue("./results/figures/{dataset}"))
