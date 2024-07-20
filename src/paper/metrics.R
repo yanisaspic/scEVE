@@ -65,7 +65,7 @@ get_distribution.population <- function(population, sheet.cells, ground_truth) {
   return(distribution)
 }
 
-get_distribution_bars.data <- function(sheet.cells) {
+get_distributions.data <- function(sheet.cells) {
   #' Get the distributions of ground truth labels in all populations of a scEVE analysis.
   #' The output is ggplot-friendly.
   #' 
@@ -75,16 +75,16 @@ get_distribution_bars.data <- function(sheet.cells) {
   #' @return a data.frame with three columns: 'n', 'ground_truth' and 'population'.
   #' 
   ground_truth <- get_ground_truth(rownames(sheet.cells))
-  get_distribution_bar.data.population <- function(population) {
+  get_distributions.data.population <- function(population) {
     distribution.population <- get_distribution.population(population, sheet.cells, ground_truth)
     output <- melt(distribution.population, value.name="n")
     output$ground_truth <- rownames(output)
     output$population <- population
     return(output)
   }
-  distribution_bars.data <- lapply(X=colnames(sheet.cells), FUN=get_distribution_bar.data.population)
-  distribution_bars.data <- do.call(rbind, distribution_bars.data)
-  return(distribution_bars.data)
+  distributions.data <- lapply(X=colnames(sheet.cells), FUN=get_distributions.data.population)
+  distributions.data <- do.call(rbind, distributions.data)
+  return(distributions.data)
 }
 
 get_disruption.population <- function(distribution.population, init_entropy) {

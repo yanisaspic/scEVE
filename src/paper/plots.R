@@ -28,6 +28,7 @@ get_prior <- function() {
   #' "baron_humpan" is a data.frame with the performances of RSEC and scEFSC on the merged Baron dataset.
   #' "ensemble_benchmark" is a data.frame with the performances of other ensemble algorithms.
   #' "colormap" associates each method to a specific color.
+  #' "bordermap" indicates if an ensemble method should be bordered or not.
   #' They are reported from the scEFSC paper (Bian et al. 2022)
   #' 
   algorithms <- c("densityCut", "monocle3", "Seurat", "SHARP", "scEVE")
@@ -97,19 +98,23 @@ get_prior <- function() {
                    monocle3="#33a02c",
                    Seurat="#b15928",
                    SHARP="#ff7f00",
+                   RSEC="#e6ab02",
+                   scEVE="#1f78b4",
                    EC.PGMGR="#7570b3",
-                   GRACE="#e6ab02",
-                   RSEC="#666666",
+                   GRACE="#666666",
                    SAFE="#1b9e77",
                    SAME="#d95f02",
-                   scEFSC="#e7298a",
-                   scEVE="#1f78b4")
+                   scEFSC="#a6761d")
+  
+  bordermap <- c(rep("black", 2), rep("#00000000", 5))
+  names(bordermap) <- ensemble_algorithms
   
   prior <- list(algorithms=algorithms,
                 ensemble_algorithms=ensemble_algorithms,
                 challengers=challengers,
                 real_datasets=real_datasets,
                 colormap=colormap,
+                bordermap=bordermap,
                 baron_humpan=baron_humpan,
                 ensemble_performances=ensemble_performances)
   return(prior)
@@ -141,6 +146,7 @@ get_benchmark <- function(path="./benchmark") {
   return(benchmark)
 }
 
+#___________________________________________________________________________real
 get_fontfaces <- function(data, rowsize, ascending=TRUE) {
   #' Get a vector of fontfaces, so that the best values are in bold in a heatmap.
   #' 
@@ -237,10 +243,11 @@ get_plot.real <- function(benchmark.real, metric) {
   heatmap.real <- get_heatmap.real(benchmark.real, metric)
   boxplot.methods <- get_boxplot.methods(benchmark.real, metric)
   plot.real <- ggarrange(boxplot.methods, heatmap.real, nrow=2, ncol=1, widths=1,
-                         heights=c(3,7),byrow=TRUE)
+                         heights=c(3,7), byrow=TRUE)
   return(plot.real)
 }
 
+#_______________________________________________________________________ensemble
 setup_benchmark.ensemble <- function(benchmark.real) {
   #' Merge the prior regarding other ensemble algorithms with the performances benchmarked of scEVE.
   #' 
@@ -263,6 +270,43 @@ setup_benchmark.ensemble <- function(benchmark.real) {
   return(benchmark.ensemble)
 }
 
+get_barplot.ensemble <- function(benchmark.ensemble, dataset, metric, zoom_aes=FALSE) {
+  #' Get a barplot where the x-axis represents methods and the y-axis represents
+  #' a clustering performance. The plot is titled after the dataset of interest.
+  #' 
+  #' @param benchmark.ensemble: a data.frame with four columns: 'method', 'dataset', 'ARI' and 'NMI'.
+  #' @param dataset: a character.sss
+  #' @param metric: a character. One of 'ARI' and 'NMI'.
+  #' @param zoom_aes: a boolean. If TRUE, a different aesthetic is applied.
+  #' 
+  #' @return a barplot.
+  #' 
+  data <- benchmark.ensemble[(benchmark.ensemble$dataset==dataset) &
+                               (!is.na(benchmark.ensemble[, metric])),]
+  prior <- get_prior()
+  
+  plot <- ggplot(data=data) +
+    geom_col(aes(x=method, y=.data[[metric]], fill=method, color=method), linewidth=1) +
+    scale_y_continuous(expand=expansion(mult=0), limits=c(0,1)) +
+    scale_fill_manual(values=prior$colormap) +
+    scale_colour_manual(values=prior$bordermap) +
+    ggtitle(dataset)
+
+  plot <- plot +
+    theme_classic() +
+    theme(axis.title.x=element_blank(), axis.text.x=element_text(angle=30, vjust=0.8, hjust=0.8),
+          panel.grid.major=element_line(linewidth=0.5),
+          strip.text=element_blank(), legend.position="none",
+          plot.title=element_text(hjust=0.5, size=12)) +
+    facet_grid(~challenger, scales = "free_x", space = "free_x")
+  
+  if (zoom_aes) {plot <- plot +
+    theme(panel.background=element_rect(fill="#ebebeb"),
+          panel.grid.major=element_line(colour="white"))}
+  
+  return(plot)
+}
+
 setup_baron_humpan.data <- function(benchmark.ensemble, metric) {
   #' Set-up the data to plot the Baron_HumPan performances. Baron_HumPan is split
   #' into four datasets. In the Baron_HumPan plot, the bar indicates the median
@@ -271,7 +315,7 @@ setup_baron_humpan.data <- function(benchmark.ensemble, metric) {
   #' @param benchmark.ensemble: a data.frame with four columns: 'dataset', 'method', 'ARI' and 'NMI'.
   #' @param metric: a character. One of 'ARI' or 'NMI'.
   #' 
-  #' @return a data.frame with four columns: 'method', 'median', 'minimum' and 'maximum'.
+  #' @return a data.frame with five columns: 'method', 'ymin', 'ymax', 'challenger' and a metric.
   #' 
   is_baron_humpan <- grepl("Baron_HumPan", benchmark.ensemble$dataset)
   baron_humpan.data <- benchmark.ensemble[is_baron_humpan, c("method", "challenger", metric)]
@@ -295,93 +339,82 @@ setup_baron_humpan.data <- function(benchmark.ensemble, metric) {
     baron_humpan.data[baron_humpan.data$method==method, metric] <- y
   }
   
+  baron_humpan.data$method <- factor(baron_humpan.data$method,
+                                     levels=get_prior()$ensemble_algorithms)
   return(baron_humpan.data)
 }
 
-get_barplot.ensemble <- function(benchmark.ensemble, dataset, metric, zoom_aes=FALSE) {
-  #' Get a barplot where the x-axis represents methods and the y-axis represents
-  #' a clustering performance. The plot is titled after the dataset of interest.
-  #' 
-  #' @param benchmark.ensemble: a data.frame with four columns: 'method', 'dataset', 'ARI' and 'NMI'.
-  #' @param dataset: a character.sss
-  #' @param metric: a character. One of 'ARI' and 'NMI'.
-  #' @param zoom_aes: a boolean. If TRUE, a different aesthetic is applied.
-  #' 
-  #' @return a barplot.
-  #' 
-  prior <- get_prior()
-  data <- benchmark.ensemble[benchmark.ensemble$dataset==dataset,]
-  
-  plot <- ggplot(data=data) +
-    geom_col(aes(x=method, y=.data[[metric]], fill=method, color=challenger), linewidth=1) +
-    scale_y_continuous(expand=expansion(mult=0), limits=c(0,1)) +
-    scale_fill_manual(values=get_prior()$colormap) +
-    scale_colour_manual(values=c(yes="black", no="#00000000")) +
-    ggtitle(dataset)
-
-  plot <- plot +
-    theme_classic() +
-    theme(axis.title.x=element_blank(), axis.text.x=element_text(angle=30, vjust=0.8, hjust=0.8),
-          panel.grid.major=element_line(linewidth=0.5),
-          strip.text=element_blank(), legend.position="none") +
-    facet_grid(~challenger, scales = "free_x", space = "free_x")
-  
-  if (zoom_aes) {plot <- plot +
-    theme(panel.background=element_rect(fill="#ebebeb"),
-          panel.grid.major=element_line(colour="white"))}
-  
-  return(plot)
-}
-
-get_barplot.baron_humpan <- function(baron_humpan.data) {
+get_barplot.baron_humpan <- function(baron_humpan.data, metric) {
   #' Get a barplot for the Baron_HumPan dataset, where the bar indicates the
   #' median performance, and the errorbar indicates the minimum and maximum performances.
   #' 
-  #' @param baron_humpan.data: 
-}
-
-get_barplot.ensemble <- function(benchmark.real) {
-  #' Generate barplots w.r.t. the performances of different ensemble clustering algorithms.
-  #' 
-  #' @param benchmark.real: a data.frame with 'dataset', 'method', 'ARI' and 'NMI'.
-  #' - datasets included are 'Li_HumCRC_a', 'Tasic_MouBra' and 'Baron_HumPan_X'.
-  #' - method included is 'scEVE'.
+  #' @param baron_humpan.data: a data.frame with five columns: 'method', 'ymin', 'ymax',
+  #' 'challenger' and a metric.
+  #' @param metric: a character. One of 'ARI' or 'NMI'.
   #' 
   #' @return a plot.
   #' 
-  ensemble_benchmark <- get_prior()$ensemble_benchmark
-  ensemble_datasets <- c("Li_HumCRC_a", "Tasic_MouBra", "Baron_HumPan")
-  is_comparable <- (benchmark.real$method == 'scEVE') & (benchmark.real$dataset %in% ensemble_datasets)
-  comparable_benchmark <- benchmark.real[is_comparable, c("ARI", "NMI", "method", "dataset")]
-  data <- rbind(ensemble_benchmark, comparable_benchmark)
-  data$method <- factor(data$method, levels=c("scEFSC", "SAME", "scEVE", "RSEC"))
+  data <- baron_humpan.data[!is.na(baron_humpan.data[, metric]), ]
+  prior <- get_prior()
   
-  data <- melt(data, variable.name="metric")
-  for (col in c("ymin", "ymax")) {data[, col] <- NA}
-  baron_benchmark.scEVE <- get_baron_benchmark.scEVE(benchmark.real)
-  data <- rbind(data, baron_benchmark.scEVE)
-  
-  plot <- ggplot(data, aes(x=dataset, y=value, fill=method)) +
-    geom_col(position="dodge", color="black") +
-    geom_errorbar(aes(ymin=ymin, ymax=ymax), position=position_dodge(.9), linewidth=1.5,
-                  width=0) +
-    facet_wrap(~metric, ncol=1,
-               labeller=as_labeller(c("ARI"="ARI [\u2b08]", "NMI"="NMI [\u2b08]"))) +
+  plot <- ggplot(data=data, aes(x=method, y=.data[[metric]], fill=method)) +
+    geom_col(aes(color=method), linewidth=1) +
+    geom_errorbar(aes(ymin=ymin, ymax=ymax), position=position_dodge(.9), linewidth=1, width=0.1) +
     scale_y_continuous(expand=expansion(mult=0), limits=c(0,1)) +
-    scale_fill_manual(values=get_prior()$colormap)
+    scale_fill_manual(values=prior$colormap) +
+    scale_colour_manual(values=prior$bordermap) +
+    ggtitle("Baron_HumPan")
   
   plot <- plot +
     theme_classic() +
-    theme(axis.title.x=element_blank(), axis.title.y=element_blank(),
-          axis.text.y=element_text(vjust=1),
-          panel.grid.major=element_line(linewidth=0.5),
-          strip.background=element_blank(), 
-          strip.text=element_text(face="bold", size=13),
-          legend.position="bottom")
+    guides(fill=guide_legend(nrow=1, title.hjust=0)) +
+    theme(axis.title.x=element_blank(), axis.text.x=element_text(angle=30, vjust=0.8, hjust=0.8),
+          panel.grid.major=element_line(colour="white", linewidth=0.5),
+          strip.text=element_blank(), panel.background=element_rect(fill="#ebebeb"),
+          plot.title=element_text(hjust=0.5)) +
+    facet_grid(~challenger, scales = "free_x", space = "free_x")
   
   return(plot)
 }
 
+get_plot.ensemble <- function(benchmark.real, metric) {
+  #' Get a composite plot representing the performances of multiple ensemble
+  #' algorithms on 8 scRNA-seq datasets.
+  #' 
+  #' @param benchmark.real: a data.frame with four columns: 'dataset', 'method', 'ARI' and 'NMI'.
+  #' @param metric: a character. One of 'ARI' or 'NMI'.
+  #' 
+  #' @return a composite plot.
+  #' 
+  benchmark.ensemble <- setup_benchmark.ensemble(benchmark.real)
+  get_barplot.ensemble.wrapper <- function(dataset) {
+    zoom <- ifelse(grepl("Baron_HumPan", dataset), TRUE, FALSE)
+    barplot.ensemble <- get_barplot.ensemble(benchmark.ensemble, dataset, metric, zoom)
+  }
+  
+  datasets <- unique(benchmark.ensemble$dataset)
+  barplots <- lapply(X=datasets, FUN=get_barplot.ensemble.wrapper)
+  names(barplots) <- datasets
+  
+  baron_humpan.data <- setup_baron_humpan.data(benchmark.ensemble, metric)
+  barplot.baron_humpan <- get_barplot.baron_humpan(baron_humpan.data, metric)
+  
+  barplots.baron_humpan.subfigures <- ggpubr::ggarrange(
+    barplots$Baron_HumPan_1, barplots$Baron_HumPan_2,
+    barplots$Baron_HumPan_3, barplots$Baron_HumPan_4,
+    nrow=2, ncol=2)
+  
+  barplots.upper <- ggpubr::ggarrange(barplots$Baron_MouPan_1, barplots$Baron_MouPan_2,
+                                      barplots$Li_HumCRC_a, barplots$Tasic_MouBra, align="h",
+                                      nrow=1, ncol=4)
+  
+  barplots.lower <- ggpubr::ggarrange(barplot.baron_humpan, barplots.baron_humpan.subfigures,
+                                      nrow=1, ncol=2, common.legend=TRUE, legend="bottom")
+  plot.ensemble <- ggpubr::ggarrange(barplots.upper, barplots.lower, nrow=2, heights=c(1,2))
+  return(plot.ensemble)
+}
+
+#______________________________________________________________________synthetic
 parse_dataset <- function(dataset) {
   #' Parse a dataset label to get a 1-row data.frame. The data.frame has 3 columns:
   #' 'populations' (a character), 'nested' (a boolean) and 'balanced' (a boolean).
@@ -495,8 +528,9 @@ get_plot.synthetic.scenario <- function(benchmark.synthetic, metric, nested, bal
   return(plot.synthetic.scenario)
 }
 
-get_cluster_tree.data <- function(meta) {
-  #' Get a tree representing the hierarchical clustering of scEVE.
+#__________________________________________________________________________trees
+get_resolution_tree.data <- function(meta) {
+  #' Get a tree representing the multi-resolution clustering of scEVE.
   #' 
   #' @param meta: a data.frame with two columns: 'parent', 'consensus' and 'n'.
   #' 
@@ -504,113 +538,122 @@ get_cluster_tree.data <- function(meta) {
   #' 
   data <- meta[-1, ]
   input <- data.frame(parent=as.character(data$parent), node=rownames(data))
-  cluster_tree <- as.phylo(input)
-  tree.coordinates <- fortify(cluster_tree)
-  cluster_tree.data <- as_tibble(cluster_tree)
+  resolution_tree <- as.phylo(input)
+  resolution_tree.coordinates <- fortify(resolution_tree)
+  resolution_tree.data <- as_tibble(resolution_tree)
   
   for (col in c("consensus", "n")) {meta[, col] <- as.numeric(meta[, col])}
   rows_order <- rownames(meta)[order(meta$consensus, -meta$n)]
   # sort by consensus and ensure that C is the first row.
-  cluster_tree.data <- cluster_tree.data[match(rows_order, cluster_tree.data$label),]
-  tree.coordinates <- tree.coordinates[match(rows_order, tree.coordinates$label),]
+  resolution_tree.data <- resolution_tree.data[match(rows_order, resolution_tree.data$label),]
+  resolution_tree.coordinates <- resolution_tree.coordinates[match(rows_order, resolution_tree.coordinates$label),]
   meta <- meta[rows_order,]
   
-  for (col in c("consensus", "n")) {cluster_tree.data[, col] <- meta[, col]}
+  for (col in c("consensus", "n")) {resolution_tree.data[, col] <- meta[, col]}
   for (col in c("isTip", "x", "y", "branch", "angle")) {
-    cluster_tree.data[, col] <- tree.coordinates[, col]}
-  
-  cluster_tree.data$node_type <- "consensus.cluster"
-  cluster_tree.data$node_type[cluster_tree.data$consensus==0] <- "root.leftover"
-  
-  return(cluster_tree.data)
+    resolution_tree.data[, col] <- resolution_tree.coordinates[, col]}
+  resolution_tree.data$node_type <- "consensus.cluster"
+  resolution_tree.data$node_type[resolution_tree.data$consensus==0] <- "root.leftover"
+  return(resolution_tree.data)
 }
 
-get_cluster_tree <- function(cluster_tree.data) {
+get_resolution_tree <- function(resolution_tree.data) {
   #' Draw a classification tree summarizing the analysis of scEVE.
   #' 
-  #' @param cluster_tree.data: a tibble object with 10 columns: 'parent', 'node',
+  #' @param resolution_tree.data: a tibble object with 10 columns: 'parent', 'node',
   #' 'label', 'consensus', 'isTip', 'x', 'y', 'branch', 'angle' and 'node_type'.
   #' 
   #' @return a ggtree plot.
   #' 
   colors <- list(root.leftover="white", consensus.cluster="black")
   get_color <- function(node_type) {colors[[node_type]]}
-  cluster_tree.data$colors <- sapply(X=cluster_tree.data$node_type, FUN=get_color)
+  resolution_tree.data$colors <- sapply(X=resolution_tree.data$node_type, FUN=get_color)
   
-  plot <- ggtree(cluster_tree.data) +
-    geom_label(data=cluster_tree.data[-1,], aes(x=branch, label=round(consensus, 2)),
+  plot <- ggtree(resolution_tree.data) +
+    geom_label(data=resolution_tree.data[-1,], aes(x=branch, label=round(consensus, 2)),
                label.size=NA, hjust="right") +
     geom_label(aes(label=label, fill=node_type, colour=node_type),
-               hjust=ifelse(cluster_tree.data$isTip, "right", "middle")) +
-    scale_colour_manual(values=cluster_tree.data$colors) +
+               hjust=ifelse(resolution_tree.data$isTip, "right", "middle")) +
+    scale_colour_manual(values=resolution_tree.data$colors) +
     scale_fill_manual(values=list(root.leftover="#36393d", consensus.cluster="#e6e6e6")) +
     guides(fill="none", color="none")
   return(plot)
 }
 
-get_barplot.leaves <- function(distribution_leaves.data) {
+get_barplot.tree.heterogeneity <- function(distributions.data) {
   #' Get a horizontal barplot associating its leaf cluster to its cell type composition.
   #' 
-  #' @param distribution_leaves.data: a data.frame with three columns: 'proportion',
-  #' 'ground_truth' and 'population'.
+  #' @param distributions.data: a data.frame with three columns: 'n', 'ground_truth' and 'population'.
   #'
   #' @return a plot.
   #' 
-  plot <- ggplot(data=distribution_leaves.data) +
+  cell_types <- unique(distributions.data$ground_truth)
+  nrows <- length(cell_types) %/% 4
+  
+  plot <- ggplot(data=distributions.data) +
     geom_bar(aes(x=population, y=n, fill=ground_truth),
              position="fill", stat="identity", color="black") +
-    theme_classic() +
-    scale_y_continuous(expand=expansion(mult=0)) +
+    theme_classic() + 
+    scale_y_continuous(expand=expansion(mult=0), labels=percent) +
+    guides(fill=guide_legend(nrow=nrows, title="cell types")) +
     coord_flip() + scale_fill_brewer(palette="Paired") +
-    labs(y="proportion")
+    ylab("cell types")
   return(plot)
 }
 
-get_counts.leaves <- function(distriubtion_leaves.data) {
+get_barplot.tree.counts <- function(distributions.data) {
   #' Get a horizontal barplot associating its leaf cluster to its number of cells.
   #' 
-  #' @param distribution_leaves.data: a data.frame with three columns: 'proportion',
-  #' 'ground_truth' and 'population'.
+  #' @param distributions.data: a data.frame with three columns: 'n', 'ground_truth' and 'population'.
   #'
   #' @return a plot.
   #' 
-  plot <- ggplot(data=distribution_leaves.data) +
+  data <- distributions.data %>%
+    group_by(population) %>%
+    summarise(n=sum(n))
+  
+  plot <- ggplot(data=data) +
     geom_bar(aes(x=population, y=n), stat="identity", fill="black") +
     theme_classic() +
-    scale_y_continuous(expand=expansion(mult=0), trans="log10") +
+    scale_y_log10(expand=expansion(mult=0), guide="axis_logticks") +
     coord_flip() + scale_fill_brewer(palette="Paired") +
-    labs(y="log10(n)")
+    ylab("# cells")
   return(plot)
 }
 
-# need to rework tree to have proportion with n
-# need to rework heatmap to center the colorbar
-# need to check for synthetic datasets zooms
-
-get_summary_tree <- function(cluster_tree.data, distribution_leaves.data) {
-  #' Get a composite plot aligning a cluster tree to the barplots of its leaves.
+get_plot.tree <- function(resolution_tree.data, distributions.data, dataset) {
+  #' Get a composite plot aligning a resolution tree to barplots representing
+  #' the proportion of cell types and the total count of cells in leaf populations.
   #' 
-  #' @param cluster_tree.data: a tibble object with 10 columns: 'parent', 'node',
+  #' @param resolution_tree.data: a tibble object with 10 columns: 'parent', 'node',
   #' 'label', 'consensus', 'isTip', 'x', 'y', 'branch', 'angle' and 'node_type'.
-  #' @param distribution_leaves.data: a data.frame with three columns: 'proportion',
+  #' @param distributions.data: a data.frame with three columns: 'proportion',
   #' 'ground_truth' and 'population'.
+  #' @param dataset: a character.
   #' 
   #' @return a composite plot.
   #' 
-  cluster_tree <- get_cluster_tree(cluster_tree.data)
-  cluster_tree <- cluster_tree +
-    theme(plot.margin=unit(c(0, 0, 0, 0), "null"))
-  barplot.leaves <- get_barplot.leaves(distribution_leaves.data)
-  barplot.leaves <- barplot.leaves +
-    theme(axis.line.y=element_blank(), axis.title.y=element_blank(),
-          axis.text.y=element_blank(),
-          plot.margin = unit(c(0, 0, 0, 0), "null"))
-  counts.leaves <- get_counts.leaves(distribution_leaves.data)
-  counts.leaves <- counts.leaves +
-    theme(axis.line.y=element_blank(), axis.title.y=element_blank(),
-          axis.text.y=element_blank(),
-          plot.margin = unit(c(0, 0, 0, 0), "null"))
-  summary_tree <- cluster_tree + counts.leaves + barplot.leaves +
-    plot_layout(widths=c(8,2,2))
-  return(summary_tree)
+  #'
+  leaves <- resolution_tree.data$label[resolution_tree.data$isTip]
+  distributions.data <- distributions.data[distributions.data$population %in% leaves, ]
+  barplot.heterogeneity <- get_barplot.tree.heterogeneity(distributions.data)
+  barplot.counts <- get_barplot.tree.counts(distributions.data)
+  resolution_tree <- get_resolution_tree(resolution_tree.data)
+  
+  resolution_tree <- resolution_tree + theme(plot.margin=unit(c(0, 0, 0, 0), "null"))
+  
+  apply_aes <- function(barplot) {barplot +
+      theme(axis.line.y=element_blank(), axis.title.y=element_blank(),
+            axis.text.y=element_blank())}
+  
+  plot.tree <- resolution_tree +
+    apply_aes(barplot.heterogeneity) +
+    apply_aes(barplot.counts) +
+    plot_layout(widths=c(8,3,3), guides="collect", ) &
+    theme(legend.position="bottom")
+
+  plot.tree <- plot.tree +
+    plot_annotation(title=dataset,
+                    theme=theme(plot.title=element_text(size=12, face="bold")))
+  return(plot.tree)
 }

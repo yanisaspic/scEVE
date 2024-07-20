@@ -1,15 +1,33 @@
-"""Functions called to set-up the datasets used in the scEVE paper.
+"""Functions called to set-up the datasets used in the scEVE paper,
+    and to get the cancer signatures from CancerSEA.
 
-    Run this script after download_data.sh
+    Run this script after download.sh
 
     2024/05/23 @yanisaspic"""
 
 import os
 import pandas as pd
 
-downloads_dir = "./etc/real_data/source"
+downloads_dir = "./etc/source/tmp"
 data_dir = "./data"
 
+
+def get_signature(functional_state: str) -> pd.DataFrame:
+    """Get a table with two columns, associating a cancer functional state to its marker genes."""
+    data = pd.read_csv(f"{downloads_dir}/CancerSEA/{functional_state}.txt", sep="\t")
+    data = data.rename(columns={"GeneName": "gene"})
+    data["signature"] = functional_state
+    return(data)
+
+
+def setup_signatures():
+    """Set up the cancer signature data table."""
+    functional_states = ["Angiogenesis", "Apoptosis", "Cell_Cycle", "Differentiation", "DNA_damage", "DNA_repair", "EMT",
+                         "Hypoxia", "Inflammation", "Invasion", "Metastasis", "Proliferation", "Quiescence", "Stemness"]
+    signatures = [get_signature(fs) for fs in functional_states]
+    signatures = pd.concat(signatures)
+    signatures = signatures[["gene", "signature"]]
+    signatures.to_csv(f"{data_dir}/cancer_signatures.csv", index=False)
 
 # In the scEVE papers, all cells are associated to a unique id,
 # with the following structure: {label}_{n}, where
@@ -135,3 +153,4 @@ def setup_tasic():
 setup_baron()
 setup_li()
 setup_tasic()
+setup_signatures()

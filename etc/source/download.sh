@@ -1,17 +1,29 @@
 #!/bin/bash
 #
-#	Run this script to download the files required to set-up the datasets used in the scEFSC paper.
+#	Run this script to download the files required to set-up the datasets used in the scEFSC paper,
+#	and to get the cancer signatures from CancerSea.
 #
 #	2024/05/23 @yanisaspic
 
+DOWNLOADS_DIR="./etc/source/tmp"
+
+# Cancer signatures (CancerSEA)_______
+#
+CANCER_SIGNATURES=("Angiogenesis" "Apoptosis" "Cell_Cycle" \
+"Differentiation" "DNA_damage" "DNA_repair" \
+"EMT" "Hypoxia" "Inflammation" "Invasion" \
+"Metastasis" "Proliferation" "Quiescence" "Stemness")
+CANCER_DIR="$DOWNLOADS_DIR/CancerSEA"
+mkdir $CANCER_DIR
+for signature in "${CANCER_SIGNATURES[@]}"
+do
+	wget -O $CANCER_DIR/$signature.txt "http://biocc.hrbmu.edu.cn/CancerSEA/download/signature/$signature.txt"
+done
 
 #######################################################################
 # scEFSC datasets are downloaded according to the Hemberg Lab pipeline.
 # see:    https://hemberg-lab.github.io/scRNA.seq.datasets/
-#         https://github.com/hemberg-lab/scRNA.seq.datasets
 #######################################################################
-
-DOWNLOADS_DIR="./etc/real_data/source"
 
 # Li (2017)__________________________
 # accession: GSE81861

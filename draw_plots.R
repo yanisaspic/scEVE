@@ -11,19 +11,27 @@ source("./src/paper/plots.R")
 source("./src/paper/metrics.R")
 
 benchmark <- get_benchmark()
-benchmark.real <- benchmark[benchmark$real,]
-benchmark.synthetic <- benchmark[!benchmark$real,]
-benchmark.ensemble <- setup_benchmark.ensemble(benchmark.real)
 
 # performances of individual methods and scEVE on real datasets.
 for (metric in c("ARI", "NMI", "log10(s)", "log10(Mb)")) {
-  plot.real <- get_plot.real(benchmark.real, metric)
+  plot.real <- get_plot.real(benchmark[benchmark$real,], metric)
   ggsave(glue("./plots/real/{metric}.png"), plot.real, width=4.5, height=7)
 }
 
 # performances of scEVE w.r.t. previous ensemble clustering algorithms.
-barplots.ensemble <- get_barplots.ensemble(benchmark.real)
-ggsave("./plots/ensemble.png", barplots.ensemble, width=4.5, height=4)
+for (metric in c("ARI", "NMI")) {
+  plot.ensemble <- get_plot.ensemble(benchmark[benchmark$real,], metric)
+  ggsave(glue("./plots/ensemble/{metric}.png"), plot.ensemble, width=10, height=7)
+}
+
+# trees of real scRNA-seq datasets clustering.
+for (dataset in get_prior()$real_datasets) {
+  records <- get_records(glue("./results/records/{dataset}.xlsx"))
+  resolution_tree.data <- get_resolution_tree.data(records$meta)
+  distributions.data <- get_distributions.data(records$cells)
+  tree <- get_plot.tree(resolution_tree.data, distributions.data, dataset)
+  ggsave(glue("./plots/trees/{dataset}.png"), tree, width=13, height=5.5)
+}
 
 # performances of individual methods and scEVE on synthetic datasets.
 for (method in get_prior()$algorithm) {
@@ -37,19 +45,6 @@ for (method in get_prior()$algorithm) {
 for (metric in c("ARI", "NMI")) {
   plot.synthetic <- get_plot.synthetic.scenario(benchmark.synthetic, metric, TRUE, TRUE)
   ggsave(glue("./plots/synthetic/NB_{metric}.png"), plot.synthetic, width=4.5, height=7)  
-}
-
-# summary trees on real scRNA-seq datasets.
-for (dataset in get_prior()$real_datasets) {
-  records <- get_records(glue("./results/records/{dataset}.xlsx"))
-  cluster_tree.data <- get_cluster_tree.data(records$meta)
-  distribution_bars.data <- get_distribution_bars.data(records$cells)
-  
-  leaves <- cluster_tree.data$label[cluster_tree.data$isTip]
-  distribution_leaves.data <- distribution_bars.data[distribution_bars.data$population %in% leaves,]
-  
-  summary_tree <- get_summary_tree(cluster_tree.data, distribution_leaves.data)
-  ggsave(glue("./plots/trees/{dataset}.png"), summary_tree, width=10, height=6)
 }
 
 # disruption and consensi of clusters predicted by scEVE on real datasets.
