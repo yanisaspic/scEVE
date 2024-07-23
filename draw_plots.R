@@ -33,7 +33,15 @@ for (dataset in get_prior()$real_datasets) {
   ggsave(glue("./plots/trees/{dataset}.png"), tree, width=13, height=5.5)
 }
 
+# barplot of cancer signatures in the Darmanis dataset
+records <- get_records(glue("./results/records/Darmanis_HumGBM.xlsx"))
+cancer_signatures <- read.csv("./data/cancer_signatures.csv")
+signatures.data <- setup_signatures.data(records$markers, cancer_signatures)
+plot.signatures <- get_plot.signatures(signatures.data)
+ggsave("./plots/signatures.png", plot.signatures, width=4, height=7)
+
 # performances of individual methods and scEVE on synthetic datasets.
+benchmark.synthetic <- setup_benchmark.synthetic(benchmark[!benchmark$real, ])
 for (method in get_prior()$algorithm) {
   for (metric in c("ARI", "NMI")) {
     plot.synthetic <- get_plot.synthetic.method(benchmark.synthetic, metric, method)

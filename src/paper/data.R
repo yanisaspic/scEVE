@@ -43,7 +43,7 @@ get_metadata <- function() {
   datasets <- c(
     # Raw counts datasets still available (June 2024)
     # on TMExplorer 
-    "Li_HumCRC_b", "Darmanis_HumGBM", "JerbyArnon_HumMLM", "Gillen_HumEPDM",
+    "Li_HumCRC_b", "Darmanis_HumGBM", "JerbyArnon_HumMLM", "Gillen_HumEPN",
     "VanGalen_HumAML", "Lambrechts_HumNSCLC", "Peng_HumPDAC",
     
     # Raw counts datasets used in the scEFSC paper still available (June 2024)
@@ -141,7 +141,7 @@ get_real_dataset <- function(scRNAseq_label) {
     Li_HumCRC_b="GSE81861",
     Darmanis_HumGBM="GSE84465",
     JerbyArnon_HumMLM="GSE115978",
-    Gillen_HumEPDM="GSE125969",
+    Gillen_HumEPN="GSE125969",
     VanGalen_HumAML="GSE116256",
     Lambrechts_HumNSCLC="E-MTAB-6149,   E-MTAB-6653,",
     Peng_HumPDAC="CRA001160"

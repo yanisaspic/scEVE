@@ -8,6 +8,7 @@ suppressPackageStartupMessages({
   library(ggplot2)
   library(ggplotify)
   library(ggtree)
+  library(ggVennDiagram)
   library(glue)
   library(patchwork)
   library(RColorBrewer)
@@ -47,7 +48,7 @@ get_prior <- function() {
     "Darmanis_HumGBM",     # 3,589c
     "Baron_HumPan_3",      # 3,605c
     "JerbyArnon_HumMLM",   # 6,879c
-    "Gillen_HumEPDM",      # 18,456c
+    "Gillen_HumEPN",       # 18,456c
     "VanGalen_HumAML",     # 27,899c
     "Lambrechts_HumNSCLC", # 51,775c
     "Peng_HumPDAC"         # 57,530c
@@ -225,7 +226,7 @@ get_boxplot.methods <- function(benchmark.real, metric) {
     theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
           legend.position="left", panel.grid.major=element_line(linewidth=0.5),
           axis.line.x=element_blank(), axis.ticks.x=element_blank(),
-          strip.text=element_blank()) +
+          legend.title=element_blank(), strip.text=element_blank()) +
     facet_grid(~method_type, scales = "free_x", space = "free_x")
   return(plot)
 }
@@ -397,7 +398,8 @@ get_plot.ensemble <- function(benchmark.real, metric) {
   names(barplots) <- datasets
   
   baron_humpan.data <- setup_baron_humpan.data(benchmark.ensemble, metric)
-  barplot.baron_humpan <- get_barplot.baron_humpan(baron_humpan.data, metric)
+  barplot.baron_humpan <- get_barplot.baron_humpan(baron_humpan.data, metric) + 
+    labs(fill="", color="")
   
   barplots.baron_humpan.subfigures <- ggpubr::ggarrange(
     barplots$Baron_HumPan_1, barplots$Baron_HumPan_2,
@@ -410,127 +412,15 @@ get_plot.ensemble <- function(benchmark.real, metric) {
   
   barplots.lower <- ggpubr::ggarrange(barplot.baron_humpan, barplots.baron_humpan.subfigures,
                                       nrow=1, ncol=2, common.legend=TRUE, legend="bottom")
+    
   plot.ensemble <- ggpubr::ggarrange(barplots.upper, barplots.lower, nrow=2, heights=c(1,2))
   return(plot.ensemble)
 }
 
-#______________________________________________________________________synthetic
-parse_dataset <- function(dataset) {
-  #' Parse a dataset label to get a 1-row data.frame. The data.frame has 3 columns:
-  #' 'populations' (a character), 'nested' (a boolean) and 'balanced' (a boolean).
-  #' 
-  #' @param dataset: a character.
-  #' 
-  #' @return a data.frame with 3 columns: 'populations', 'nested' and 'balanced'.
-  #' 
-  elements <- strsplit(dataset, split="_")[[1]]
-  populations <- substr(elements[1], start=2, stop=nchar(elements[1]))
-  balanced <- substr(elements[2], 2, 2)
-  nested <- substr(elements[3], 2, 2)
-  row <- data.frame(populations=as.character(populations),
-                    balanced=as.logical(balanced),
-                    nested=as.logical(nested))
-  return(row)
-}
-
-setup_benchmark.synthetic <- function(benchmark.synthetic) {
-  #' Get a slim data.frame usable by get_plot.synthetic.
-  #' 
-  #' @param benchmark.synthetic: a data.frame with 6 columns: 'dataset',
-  #' 'method', 'ARI', 'NMI', 'log10(Mb)', 'log10(s)'.
-  #' 
-  #' @return a data.frame with 8 columns: 'populations', 'nested', 'balanced',
-  #' 'ARI', 'NMI', 'log10(Mb)', 'log10(s)' and 'method'.
-  #' 
-  metadata <- lapply(X=benchmark.synthetic$dataset, FUN=parse_dataset)
-  metadata <- do.call(rbind, metadata)
-  benchmark.synthetic <- cbind(benchmark.synthetic, metadata)
-  return(benchmark.synthetic)
-}
-
-get_plot.synthetic.method <- function(benchmark.synthetic, metric, method) {
-  #' Get a composite plot of the performances of a method under different conditions
-  #' with synthetic scRNA-seq datasets.
-  #' 
-  #' @param benchmark.synthetic: a data.frame with four columns: 'balanced',
-  #' 'nested', 'populations' and a metric.
-  #' @param metric: a character. The metric of interest.
-  #' @param method: a character. The method of interest.
-  #' 
-  #' @return a plot.
-  #' 
-  benchmark.synthetic <- setup_benchmark.synthetic(benchmark.synthetic)
-  data <- benchmark.synthetic[benchmark.synthetic$method==method,]
-  
-  data$nested <- factor(data$nested, levels=c(FALSE, TRUE))
-  nested.labels <- c("independent", "nested")
-  names(nested.labels) <- c(FALSE, TRUE)
-  data$balanced <- factor(data$balanced, levels=c(TRUE, FALSE))
-  balanced.labels <- c("balanced", "unbalanced")
-  names(balanced.labels) <- c(TRUE, FALSE)
-  
-  plot <- ggplot(data=data) +
-    geom_boxplot(aes(x=populations, group=populations, y=.data[[metric]]),
-                 fill=get_prior()$colormap[[method]]) +
-    facet_grid(nested~balanced,
-               labeller=labeller(nested=nested.labels, balanced=balanced.labels))
-  
-  minimum <- min(benchmark.synthetic[, metric])
-  plot <- plot +
-    scale_y_continuous(limits=c(minimum, 1)) +
-    theme(panel.grid.major=element_line(linewidth=0.5))
-  
-  return(plot)
-}
-
-get_plot.synthetic.scenario <- function(benchmark.synthetic, metric, nested, balanced) {
-  #' Get a composite plot showing the performances of scEVE on a specific scenario
-  #' w.r.t. the performances of its individual methods.
-  #' 
-  #' @param benchmark.synthetic: a data.frame with four columns: 'balanced',
-  #' 'nested', 'populations' and a metric.
-  #' @param metric: a character. The metric of interest.
-  #' @param nested: a boolean.
-  #' @param balanced: a boolean.
-  #' 
-  #' @return a plot.
-  #' 
-  prior <- get_prior()
-  benchmark.synthetic <- setup_benchmark.synthetic(benchmark.synthetic)
-  data <- benchmark.synthetic[(benchmark.synthetic$nested==nested) &
-                                (benchmark.synthetic$balanced==balanced), ]
-  maximum <- max(data[!is.na(data[, metric]), metric])
-  minimum <- min(data[!is.na(data[, metric]), metric])
-  data.sub <- data[data$method != "scEVE",]
-  data.main <- data[data$method == "scEVE",]
-  
-  get_subplot <- function(method) {
-    subplot <- ggplot(data=data.sub[data.sub$method==method,]) +
-      geom_boxplot(aes(y=populations, group=populations, x=.data[[metric]]),
-                   fill=prior$colormap[[method]]) +
-      scale_x_continuous(limits=c(minimum, maximum)) +
-      theme_classic() +
-      theme(panel.background=element_rect(fill="#ebebeb"),
-            panel.grid.major=element_line(colour="white", linewidth=0.5))
-  }
-  subplots <- lapply(X=unique(data.sub$method), FUN=get_subplot)
-  subplots <- ggarrange(plots=subplots, draw=FALSE)
-  
-  main_plot <- ggplot(data=data.main) +
-    geom_boxplot(aes(y=populations, group=populations, x=.data[[metric]]),
-                 fill=prior$colormap$scEVE) +
-    theme_classic() +
-    scale_x_continuous(limits=c(minimum, maximum)) +
-    theme(panel.grid.major=element_line(linewidth=0.5))
-  
-  plot.synthetic.scenario <- ggpubr::ggarrange(main_plot, subplots, nrow=2)
-  
-  return(plot.synthetic.scenario)
-}
-
 #__________________________________________________________________________trees
 get_resolution_tree.data <- function(meta) {
-  #' Get a tree representing the multi-resolution clustering of scEVE.
+  #' Get a data.frame set up to generate a tree representing the 
+  #' multi-resolution clustering of scEVE.
   #' 
   #' @param meta: a data.frame with two columns: 'parent', 'consensus' and 'n'.
   #' 
@@ -617,6 +507,7 @@ get_barplot.tree.counts <- function(distributions.data) {
     theme_classic() +
     scale_y_log10(expand=expansion(mult=0), guide="axis_logticks") +
     coord_flip() + scale_fill_brewer(palette="Paired") +
+    theme(panel.grid.major.x=element_line(linewidth=0.5)) +
     ylab("# cells")
   return(plot)
 }
@@ -649,11 +540,231 @@ get_plot.tree <- function(resolution_tree.data, distributions.data, dataset) {
   plot.tree <- resolution_tree +
     apply_aes(barplot.heterogeneity) +
     apply_aes(barplot.counts) +
-    plot_layout(widths=c(8,3,3), guides="collect", ) &
+    plot_layout(widths=c(8,3,3), guides="collect") &
     theme(legend.position="bottom")
-
+  
   plot.tree <- plot.tree +
     plot_annotation(title=dataset,
                     theme=theme(plot.title=element_text(size=12, face="bold")))
   return(plot.tree)
+}
+
+#_____________________________________________________________________signatures
+setup_signatures.data.population <- function(population, markers, cancer_signatures) {
+  #' Get a data.frame associating the markers of a cell population to cancer signatures.
+  #' 
+  #' @param population: a character.
+  #' @param markers: a data.frame where rows are markers and cols are cell populations.
+  #' @param cancer_signatures: a data.frame with two columns: 'gene' and 'signature'.
+  #' 
+  #' @return a data.frame with three columns: 'population', 'signature' and 'n_markers'.
+  #' 
+  markers.population <- rownames(markers[markers[, population]==1, ])
+  signatures <- unique(cancer_signatures$signature)
+  
+  get_n_markers.signature <- function(signature) {
+    markers.signature <- cancer_signatures[cancer_signatures$signature==signature, "gene"]
+    data <- intersect(markers.population, markers.signature)
+    n_markers <- length(data)
+    return(n_markers)
+  }
+  
+  signatures.data.population <- lapply(X=signatures, FUN=get_n_markers.signature)
+  signatures.data.population <- do.call(rbind, signatures.data.population)
+  signatures.data.population <- as.data.frame(signatures.data.population)
+  colnames(signatures.data.population) <- c("n_markers")
+  
+  signatures.data.population$signature <- signatures
+  signatures.data.population$cell_population <- population
+  colnames(signatures.data.population) <- c("n_markers", "signature", "population")
+  return(signatures.data.population)
+}
+
+setup_signatures.data <- function(markers, cancer_signatures) {
+  #' Get a data.frame set up to generate a barplot representing the cancer signatures.
+  #' 
+  #' @param markers: a data.frame where rows are markers and cols are cell populations.
+  #' @param cancer_signatures: a data.frame with two columns: 'gene' and 'signature'.
+  #' 
+  #' @return a data.frame with three columns: 'population', 'signature' and 'n_markers'.
+  #' 
+  populations <- colnames(markers)
+  signatures.data.population <- lapply(X=populations, FUN=setup_signatures.data.population,
+                                       markers=markers, cancer_signatures=cancer_signatures)
+  signatures.data <- do.call(rbind, signatures.data.population)
+  return(signatures.data)
+}
+
+get_plot.signatures <- function(signatures.data) {
+  #' Get a barplot representing the number of cancer markers w.r.t. the cell
+  #' population and the cancer signature.
+  #'
+  #' @param signatures.data: a data.frame with three columns: 'population', 'signature'
+  #' and 'n_markers'.
+  #' 
+  #' @return a plot.
+  #' 
+  data <- signatures.data[signatures.data$population %in% c("C.5.1", "C.5.3"), ]
+  plot <- ggplot(data=data) +
+    geom_bar(aes(x=signature, y=n_markers, fill=population), color="black", 
+             stat="identity", position="dodge") +
+    theme_classic() +
+    scale_y_continuous(expand=expansion(mult=0)) +
+    coord_flip() + scale_fill_manual(values=list(C.5.1="white", C.5.3="black")) +
+    theme(panel.grid.major.x=element_line(linewidth=0.5), legend.position="bottom",
+          legend.title=element_blank(), axis.title.y=element_blank()) + ylab("# markers")
+  return(plot)
+}
+
+#______________________________________________________________________synthetic
+parse_dataset <- function(dataset) {
+  #' Parse a dataset label to get a 1-row data.frame. The data.frame has 3 columns:
+  #' 'populations' (a character), 'related' (a boolean) and 'balanced' (a boolean).
+  #' 
+  #' @param dataset: a character.
+  #' 
+  #' @return a data.frame with 3 columns: 'populations', 'related' and 'balanced'.
+  #' 
+  elements <- strsplit(dataset, split="_")[[1]]
+  n_populations <- substr(elements[1], start=2, stop=nchar(elements[1]))
+  balanced <- substr(elements[2], 2, 2)
+  related <- substr(elements[3], 2, 2)
+  row <- data.frame(n_populations=as.character(n_populations),
+                    balanced=as.logical(balanced),
+                    related=as.logical(related))
+  return(row)
+}
+
+setup_benchmark.synthetic <- function(benchmark.synthetic) {
+  #' Get a slim data.frame usable by get_plot.synthetic.
+  #' 
+  #' @param benchmark.synthetic: a data.frame with 6 columns: 'dataset',
+  #' 'method', 'ARI', 'NMI', 'log10(Mb)', 'log10(s)'.
+  #' 
+  #' @return a data.frame with 8 columns: 'populations', 'related', 'balanced',
+  #' 'ARI', 'NMI', 'log10(Mb)', 'log10(s)' and 'method'.
+  #' 
+  metadata <- lapply(X=benchmark.synthetic$dataset, FUN=parse_dataset)
+  metadata <- do.call(rbind, metadata)
+  benchmark.synthetic <- cbind(benchmark.synthetic, metadata)
+  return(benchmark.synthetic)
+}
+
+get_boxplot.synthetic <- function(benchmark.synthetic, metric, method, balanced,
+                                  related, zoom_aes=FALSE) {
+  #' Get a boxplot showing the performances of a given method on synthetic datasets
+  #' that can be balanced or related.
+  #' 
+  #' @param benchmark.synthetic: a data.frame with five columns: 'balanced',
+  #' 'related', 'populations', 'method' and a metric.
+  #' @param metric: a character. The metric of interest.
+  #' @param method: a character. The method of interest.
+  #' @param balanced: a boolean.
+  #' @param related: a boolean.
+  #' @param zoom_aes: a boolean. If TRUE, a different aesthetic is applied.
+  #' 
+  #' @return a plot.
+  #' 
+  data <- benchmark.synthetic[(benchmark.synthetic$method==method) &
+                                (benchmark.synthetic$related==related) &
+                                (benchmark.synthetic$balanced==balanced),]
+  
+  plot <- ggplot(data=data) +
+    geom_boxplot(aes(x=n_populations, y=.data[[metric]]),
+                 fill="white", color=get_prior()$colormap[[method]]) +
+    scale_y_continuous(limits=c(0, 1)) +
+    theme_classic() + xlab("# pop.") +
+    theme(panel.grid.major=element_line(linewidth=0.5))
+  
+  if (zoom_aes) {plot <- plot +
+    theme(panel.background=element_rect(fill="#ebebeb"),
+          panel.grid.major=element_line(colour="white"))}
+  
+  return(plot)
+}
+
+get_plot.synthetic.method <- function(benchmark.synthetic, metric, method) {
+  #' Get a composite plot of the performances of a method under different conditions
+  #' with synthetic scRNA-seq datasets.
+  #' 
+  #' @param benchmark.synthetic: a data.frame with five columns: 'balanced',
+  #' 'related', 'populations', 'method' and a metric.
+  #' @param metric: a character.
+  #' @param method: a character. 
+  #' 
+  #' @return a plot.
+  #' 
+  configs <- expand.grid(list(related=c(TRUE, FALSE), balanced=c(TRUE, FALSE)))
+  get_barplot.config <- function(i) {
+    get_boxplot.synthetic(benchmark.synthetic, metric, method,
+                          configs$balanced[i], configs$related[i])}
+  plots <- lapply(X=1:4, FUN=get_barplot.config)
+  plot.synthetic.method <- do.call(grid.arrange, plots)
+  return(plot.synthetic.method)
+  # 
+  # data$related <- factor(data$related, levels=c(FALSE, TRUE))
+  # related.labels <- c("independent", "related")
+  # names(related.labels) <- c(FALSE, TRUE)
+  # data$balanced <- factor(data$balanced, levels=c(TRUE, FALSE))
+  # balanced.labels <- c("balanced", "unbalanced")
+  # names(balanced.labels) <- c(TRUE, FALSE)
+  # 
+  # plot <- ggplot(data=data) +
+  #   geom_boxplot(aes(x=populations, group=populations, y=.data[[metric]]),
+  #                fill=get_prior()$colormap[[method]]) +
+  #   facet_wrap(related~balanced, scales="free_y", nrow=2, ncol=2,
+  #              labeller=labeller(related=related.labels, balanced=balanced.labels))
+  # 
+  # minimum <- min(benchmark.synthetic[, metric])
+  # minimum <- ifelse(is.na(minimum), 0, minimum)
+  # plot <- plot +
+  #   scale_y_continuous(limits=c(minimum, 1)) +
+  #   theme(panel.grid.major=element_line(linewidth=0.5))
+  # 
+  # return(plot)
+}
+
+get_plot.synthetic.scenario <- function(benchmark.synthetic, metric, related, balanced) {
+  #' Get a composite plot showing the performances of scEVE on a specific scenario
+  #' w.r.t. the performances of its individual methods.
+  #' 
+  #' @param benchmark.synthetic: a data.frame with four columns: 'balanced',
+  #' 'related', 'populations' and a metric.
+  #' @param metric: a character. The metric of interest.
+  #' @param related: a boolean.
+  #' @param balanced: a boolean.
+  #' 
+  #' @return a plot.
+  #' 
+  prior <- get_prior()
+  benchmark.synthetic <- setup_benchmark.synthetic(benchmark.synthetic)
+  data <- benchmark.synthetic[(benchmark.synthetic$related==related) &
+                                (benchmark.synthetic$balanced==balanced), ]
+  maximum <- max(data[!is.na(data[, metric]), metric])
+  minimum <- min(data[!is.na(data[, metric]), metric])
+  data.sub <- data[data$method != "scEVE",]
+  data.main <- data[data$method == "scEVE",]
+  
+  get_subplot <- function(method) {
+    subplot <- ggplot(data=data.sub[data.sub$method==method,]) +
+      geom_boxplot(aes(y=populations, group=populations, x=.data[[metric]]),
+                   fill=prior$colormap[[method]]) +
+      scale_x_continuous(limits=c(minimum, maximum)) +
+      theme_classic() +
+      theme(panel.background=element_rect(fill="#ebebeb"),
+            panel.grid.major=element_line(colour="white", linewidth=0.5))
+  }
+  subplots <- lapply(X=unique(data.sub$method), FUN=get_subplot)
+  subplots <- ggarrange(plots=subplots, draw=FALSE)
+  
+  main_plot <- ggplot(data=data.main) +
+    geom_boxplot(aes(y=populations, group=populations, x=.data[[metric]]),
+                 fill=prior$colormap$scEVE) +
+    theme_classic() +
+    scale_x_continuous(limits=c(minimum, maximum)) +
+    theme(panel.grid.major=element_line(linewidth=0.5))
+  
+  plot.synthetic.scenario <- ggpubr::ggarrange(main_plot, subplots, nrow=2)
+  
+  return(plot.synthetic.scenario)
 }
