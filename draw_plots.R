@@ -11,6 +11,7 @@ source("./src/paper/plots.R")
 source("./src/paper/metrics.R")
 
 benchmark <- get_benchmark()
+benchmark.synthetic <- setup_benchmark.synthetic(benchmark[!benchmark$real, ])
 
 # performances of individual methods and scEVE on real datasets.
 for (metric in c("ARI", "NMI", "log10(s)", "log10(Mb)")) {
@@ -40,29 +41,18 @@ signatures.data <- setup_signatures.data(records$markers, cancer_signatures)
 plot.signatures <- get_plot.signatures(signatures.data)
 ggsave("./plots/signatures.png", plot.signatures, width=4, height=7)
 
-# performances of individual methods and scEVE on synthetic datasets.
-benchmark.synthetic <- setup_benchmark.synthetic(benchmark[!benchmark$real, ])
-for (method in get_prior()$algorithm) {
-  for (metric in c("ARI", "NMI")) {
-    plot.synthetic <- get_plot.synthetic.method(benchmark.synthetic, metric, method)
-    ggsave(glue("./plots/synthetic/{method}_{metric}.png"), plot.synthetic, width=4, height=4)
-  }
-}
-
-# focus on the nested-balanced synthetic datasets.
+# performances of scEVE on synthetic datasets, and explanation.
 for (metric in c("ARI", "NMI")) {
-  plot.synthetic <- get_plot.synthetic.scenario(benchmark.synthetic, metric, TRUE, TRUE)
-  ggsave(glue("./plots/synthetic/NB_{metric}.png"), plot.synthetic, width=4.5, height=7)  
+  plot.synthetic.scEVE <- get_plot.synthetic.method(benchmark.synthetic, metric, method="scEVE")
+  plot.synthetic.hard <- get_plot.synthetic.setting(benchmark.synthetic, metric,
+                                                    related="yes", balanced="yes")
+  ggsave(glue("./plots/synthetic/scEVE_{metric}.png"), plot.synthetic.scEVE, width=5, height=5)
+  ggsave(glue("./plots/synthetic/hard_{metric}.png"), plot.synthetic.hard, width=4, height=6.5)
 }
 
-# disruption and consensi of clusters predicted by scEVE on real datasets.
-# real_datasets <- get_prior()$real_datasets
-# disruptions <- get_disruption(real_datasets)
-# test <- disruptions %>% mutate(bins=cut(consensus, breaks=10), )
-# # plot <- ggplot(data=test) +
-# #   geom_boxplot(aes(x=bins, y=disruption, group=bins, fill=bins)) +
-# #   geom_point(aes(x=bins, y=disruption, fill=bins), position=position_jitterdodge(), alpha=.5) 
-# 
-# print(cons)
-# ground_truth <- get_ground_truth(rownames(sheet.cells))
-# distribution.population <- get_distribution.population("C.3", sheet.cells, ground_truth)
+# performances of individual methods on synthetic datasets.
+for (metric in c("ARI", "NMI")) {
+  plot.synthetic.summary <- get_plot.synthetic.summary(benchmark.synthetic, metric)
+  ggsave(glue("./plots/synthetic/summary_{metric}.png"), plot.synthetic.summary,
+         width=9.5, height=10.5)
+}

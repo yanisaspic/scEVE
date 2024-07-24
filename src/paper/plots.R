@@ -5,6 +5,7 @@
 suppressPackageStartupMessages({
   library(dplyr)
   library(egg)
+  library(ggh4x)
   library(ggplot2)
   library(ggplotify)
   library(ggtree)
@@ -99,8 +100,8 @@ get_prior <- function() {
                    monocle3="#33a02c",
                    Seurat="#b15928",
                    SHARP="#ff7f00",
-                   RSEC="#e6ab02",
                    scEVE="#1f78b4",
+                   RSEC="#e6ab02",
                    EC.PGMGR="#7570b3",
                    GRACE="#666666",
                    SAFE="#1b9e77",
@@ -221,7 +222,7 @@ get_boxplot.methods <- function(benchmark.real, metric) {
     geom_boxplot(aes(fill=method)) +
     geom_point()
   
-  plot <- plot + scale_fill_manual(values=get_prior()[["colormap"]]) +
+  plot <- plot + scale_fill_manual(values=get_prior()$colormap) +
     theme_classic() +
     theme(axis.title.x=element_blank(), axis.text.x=element_blank(),
           legend.position="left", panel.grid.major=element_line(linewidth=0.5),
@@ -292,7 +293,7 @@ get_barplot.ensemble <- function(benchmark.ensemble, dataset, metric, zoom_aes=F
     scale_fill_manual(values=prior$colormap) +
     scale_colour_manual(values=prior$bordermap) +
     ggtitle(dataset)
-
+  
   plot <- plot +
     theme_classic() +
     theme(axis.title.x=element_blank(), axis.text.x=element_text(angle=30, vjust=0.8, hjust=0.8),
@@ -412,7 +413,7 @@ get_plot.ensemble <- function(benchmark.real, metric) {
   
   barplots.lower <- ggpubr::ggarrange(barplot.baron_humpan, barplots.baron_humpan.subfigures,
                                       nrow=1, ncol=2, common.legend=TRUE, legend="bottom")
-    
+  
   plot.ensemble <- ggpubr::ggarrange(barplots.upper, barplots.lower, nrow=2, heights=c(1,2))
   return(plot.ensemble)
 }
@@ -486,7 +487,7 @@ get_barplot.tree.heterogeneity <- function(distributions.data) {
     theme_classic() + 
     scale_y_continuous(expand=expansion(mult=0), labels=percent) +
     guides(fill=guide_legend(nrow=nrows, title="cell types")) +
-    coord_flip() + scale_fill_brewer(palette="Paired") +
+    coord_flip() + scale_fill_brewer(palette="Dark2") +
     ylab("cell types")
   return(plot)
 }
@@ -607,10 +608,10 @@ get_plot.signatures <- function(signatures.data) {
   data <- signatures.data[signatures.data$population %in% c("C.5.1", "C.5.3"), ]
   plot <- ggplot(data=data) +
     geom_bar(aes(x=signature, y=n_markers, fill=population), color="black", 
-             stat="identity", position="dodge") +
+             stat="identity", position="dodge", width=0.75) +
     theme_classic() +
     scale_y_continuous(expand=expansion(mult=0)) +
-    coord_flip() + scale_fill_manual(values=list(C.5.1="white", C.5.3="black")) +
+    coord_flip() + scale_fill_manual(values=list(C.5.1="grey", C.5.3="black")) +
     theme(panel.grid.major.x=element_line(linewidth=0.5), legend.position="bottom",
           legend.title=element_blank(), axis.title.y=element_blank()) + ylab("# markers")
   return(plot)
@@ -630,8 +631,8 @@ parse_dataset <- function(dataset) {
   balanced <- substr(elements[2], 2, 2)
   related <- substr(elements[3], 2, 2)
   row <- data.frame(n_populations=as.character(n_populations),
-                    balanced=as.logical(balanced),
-                    related=as.logical(related))
+                    balanced=ifelse(as.logical(balanced), "yes", "no"),
+                    related=ifelse(as.logical(related), "yes", "no"))
   return(row)
 }
 
@@ -650,39 +651,6 @@ setup_benchmark.synthetic <- function(benchmark.synthetic) {
   return(benchmark.synthetic)
 }
 
-get_boxplot.synthetic <- function(benchmark.synthetic, metric, method, balanced,
-                                  related, zoom_aes=FALSE) {
-  #' Get a boxplot showing the performances of a given method on synthetic datasets
-  #' that can be balanced or related.
-  #' 
-  #' @param benchmark.synthetic: a data.frame with five columns: 'balanced',
-  #' 'related', 'populations', 'method' and a metric.
-  #' @param metric: a character. The metric of interest.
-  #' @param method: a character. The method of interest.
-  #' @param balanced: a boolean.
-  #' @param related: a boolean.
-  #' @param zoom_aes: a boolean. If TRUE, a different aesthetic is applied.
-  #' 
-  #' @return a plot.
-  #' 
-  data <- benchmark.synthetic[(benchmark.synthetic$method==method) &
-                                (benchmark.synthetic$related==related) &
-                                (benchmark.synthetic$balanced==balanced),]
-  
-  plot <- ggplot(data=data) +
-    geom_boxplot(aes(x=n_populations, y=.data[[metric]]),
-                 fill="white", color=get_prior()$colormap[[method]]) +
-    scale_y_continuous(limits=c(0, 1)) +
-    theme_classic() + xlab("# pop.") +
-    theme(panel.grid.major=element_line(linewidth=0.5))
-  
-  if (zoom_aes) {plot <- plot +
-    theme(panel.background=element_rect(fill="#ebebeb"),
-          panel.grid.major=element_line(colour="white"))}
-  
-  return(plot)
-}
-
 get_plot.synthetic.method <- function(benchmark.synthetic, metric, method) {
   #' Get a composite plot of the performances of a method under different conditions
   #' with synthetic scRNA-seq datasets.
@@ -694,77 +662,113 @@ get_plot.synthetic.method <- function(benchmark.synthetic, metric, method) {
   #' 
   #' @return a plot.
   #' 
-  configs <- expand.grid(list(related=c(TRUE, FALSE), balanced=c(TRUE, FALSE)))
-  get_barplot.config <- function(i) {
-    get_boxplot.synthetic(benchmark.synthetic, metric, method,
-                          configs$balanced[i], configs$related[i])}
-  plots <- lapply(X=1:4, FUN=get_barplot.config)
-  plot.synthetic.method <- do.call(grid.arrange, plots)
-  return(plot.synthetic.method)
-  # 
-  # data$related <- factor(data$related, levels=c(FALSE, TRUE))
-  # related.labels <- c("independent", "related")
-  # names(related.labels) <- c(FALSE, TRUE)
-  # data$balanced <- factor(data$balanced, levels=c(TRUE, FALSE))
-  # balanced.labels <- c("balanced", "unbalanced")
-  # names(balanced.labels) <- c(TRUE, FALSE)
-  # 
-  # plot <- ggplot(data=data) +
-  #   geom_boxplot(aes(x=populations, group=populations, y=.data[[metric]]),
-  #                fill=get_prior()$colormap[[method]]) +
-  #   facet_wrap(related~balanced, scales="free_y", nrow=2, ncol=2,
-  #              labeller=labeller(related=related.labels, balanced=balanced.labels))
-  # 
-  # minimum <- min(benchmark.synthetic[, metric])
-  # minimum <- ifelse(is.na(minimum), 0, minimum)
-  # plot <- plot +
-  #   scale_y_continuous(limits=c(minimum, 1)) +
-  #   theme(panel.grid.major=element_line(linewidth=0.5))
-  # 
-  # return(plot)
+  data <- benchmark.synthetic[benchmark.synthetic$method==method, ]
+  
+  related.labels <- c(yes="related", no="independent")
+  balanced.labels <- c(yes="balanced", no="unbalanced")
+  color <- get_prior()$colormap[[method]]
+  
+  plot <- ggplot(data=data) +
+    geom_boxplot(aes(x=n_populations, y=.data[[metric]]),
+                 fill="white", color=color) +
+    scale_y_continuous(limits=c(0, 1)) +
+    facet_grid(related ~ balanced, #switch="y",
+               labeller=labeller(related=related.labels, balanced=balanced.labels))
+  
+  plot <- plot + theme_classic() + xlab("# populations") +
+    theme(panel.background=element_rect(fill="#ebebeb"),
+          panel.grid.major=element_line(colour="white", linewidth=0.5),
+          panel.border=element_rect(colour="black", fill=NA, linewidth=1),
+          axis.line=element_blank(), strip.text=element_text(color="white"),
+          strip.background=element_rect(color=NA, fill=color))
+  
+  top_facet <- ggpubr::text_grob("pop. sizes", hjust=0.3)
+  plot <- grid.arrange(plot, top=top_facet, right="pop. transcriptomes")
+  return(plot)
 }
 
-get_plot.synthetic.scenario <- function(benchmark.synthetic, metric, related, balanced) {
-  #' Get a composite plot showing the performances of scEVE on a specific scenario
+get_boxplot.synthetic <- function(benchmark.synthetic, metric, method, related, balanced) {
+  #' Get a boxplot showing the performances of a given method on synthetic datasets
+  #' that can be balanced or related.
+  #' 
+  #' @param benchmark.synthetic: a data.frame with five columns: 'balanced',
+  #' 'related', 'populations', 'method' and a metric.
+  #' @param metric: a character. The metric of interest.
+  #' @param method: a character. The method of interest.
+  #' @param related: a character. One of 'yes' or 'no'.
+  #' @param balanced: a character. One of 'yes' or 'no'.
+  #' 
+  #' @return a plot.
+  #' 
+  data <- benchmark.synthetic[(benchmark.synthetic$method==method) &
+                                (benchmark.synthetic$related==related) &
+                                (benchmark.synthetic$balanced==balanced),]
+  
+  plot <- ggplot(data=data) +
+    geom_boxplot(aes(x=n_populations, y=.data[[metric]]),
+                 fill="white", color=get_prior()$colormap[[method]]) +
+    scale_y_continuous(limits=c(0, 1)) + ggtitle(method) + xlab("# populations")
+  
+  plot <- plot +
+    theme_classic() + 
+    theme(panel.background=element_rect(fill="#ebebeb"),
+          panel.grid.major=element_line(colour="white", linewidth=0.5),
+          plot.title=element_text(hjust=0.5, face="bold")) 
+  
+  return(plot)
+}
+
+get_plot.synthetic.setting <- function(benchmark.synthetic, metric, related, balanced) {
+  #' Get a composite plot showing the performances of scEVE on a specific data setting
   #' w.r.t. the performances of its individual methods.
   #' 
   #' @param benchmark.synthetic: a data.frame with four columns: 'balanced',
   #' 'related', 'populations' and a metric.
   #' @param metric: a character. The metric of interest.
-  #' @param related: a boolean.
-  #' @param balanced: a boolean.
+  #' @param related: a character. One of 'yes' or 'no'.
+  #' @param balanced: a character. One of 'yes' or 'no'.
   #' 
   #' @return a plot.
   #' 
-  prior <- get_prior()
-  benchmark.synthetic <- setup_benchmark.synthetic(benchmark.synthetic)
-  data <- benchmark.synthetic[(benchmark.synthetic$related==related) &
-                                (benchmark.synthetic$balanced==balanced), ]
-  maximum <- max(data[!is.na(data[, metric]), metric])
-  minimum <- min(data[!is.na(data[, metric]), metric])
-  data.sub <- data[data$method != "scEVE",]
-  data.main <- data[data$method == "scEVE",]
-  
-  get_subplot <- function(method) {
-    subplot <- ggplot(data=data.sub[data.sub$method==method,]) +
-      geom_boxplot(aes(y=populations, group=populations, x=.data[[metric]]),
-                   fill=prior$colormap[[method]]) +
-      scale_x_continuous(limits=c(minimum, maximum)) +
-      theme_classic() +
-      theme(panel.background=element_rect(fill="#ebebeb"),
-            panel.grid.major=element_line(colour="white", linewidth=0.5))
+  get_boxplot.synthetic.wrapper <- function(method) {
+    get_boxplot.synthetic(benchmark.synthetic, metric, method, related, balanced)
   }
-  subplots <- lapply(X=unique(data.sub$method), FUN=get_subplot)
-  subplots <- ggarrange(plots=subplots, draw=FALSE)
+  methods <- unique(benchmark.synthetic$method)
+  boxplots <- lapply(X=methods, FUN=get_boxplot.synthetic.wrapper)
+  names(boxplots) <- methods
   
-  main_plot <- ggplot(data=data.main) +
-    geom_boxplot(aes(y=populations, group=populations, x=.data[[metric]]),
-                 fill=prior$colormap$scEVE) +
-    theme_classic() +
-    scale_x_continuous(limits=c(minimum, maximum)) +
-    theme(panel.grid.major=element_line(linewidth=0.5))
+  boxplots.individual <- ggpubr::ggarrange(boxplots$densityCut, boxplots$monocle3,
+                                           boxplots$Seurat, boxplots$SHARP,
+                                           nrow=2, ncol=2)
   
-  plot.synthetic.scenario <- ggpubr::ggarrange(main_plot, subplots, nrow=2)
+  boxplot.scEVE <- boxplots$scEVE +
+    theme(plot.title=element_text(hjust=0))
+  plot.synthetic.setting <- ggpubr::ggarrange(boxplot.scEVE, boxplots.individual,
+                                              nrow=2, ncol=1)
+  return(plot.synthetic.setting)
+}
+
+get_plot.synthetic.summary <- function(benchmark.synthetic, metric) {
+  #' Get a composite plot showing the performances of all the methods
+  #' on the synthetic datasets.
+  #' 
+  #' @param benchmark.synthetic: a data.frame with four columns: 'balanced',
+  #' 'related', 'populations' and a metric.
+  #' @param metric: a character. The metric of interest.
+  #' 
+  #' @return a plot.
+  #' 
+  get_plot.synthetic.method.wrapper <- function(method) {
+    plot <- get_plot.synthetic.method(benchmark.synthetic, metric, method)
+  }
   
-  return(plot.synthetic.scenario)
+  methods <- unique(benchmark.synthetic$method)
+  plots <- lapply(X=methods, FUN=get_plot.synthetic.method.wrapper)
+  names(plots) <- methods
+  
+  plot.synthetic.summary <- grid.arrange(plots$densityCut, plots$monocle3,
+                                         plots$Seurat, plots$SHARP, plots$scEVE,
+                                         nrow=3, ncol=2)
+  
+  return(plot.synthetic.summary)
 }
