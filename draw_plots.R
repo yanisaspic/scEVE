@@ -14,15 +14,17 @@ benchmark <- get_benchmark()
 benchmark.synthetic <- setup_benchmark.synthetic(benchmark[!benchmark$real, ])
 
 # performances of individual methods and scEVE on real datasets.
+plot.real.summary <- get_plot.real.summary(benchmark[benchmark$real,])
+ggsave("./plots/real/summary.png", plot.real.summary, width=12.5, height=8)
 for (metric in c("ARI", "NMI", "log10(s)", "log10(Mb)")) {
-  plot.real <- get_plot.real(benchmark[benchmark$real,], metric)
-  ggsave(glue("./plots/real/{metric}.png"), plot.real, width=4.5, height=7)
+  plot.real.metric <- get_plot.real(benchmark[benchmark$real,], metric)
+  ggsave(glue("./plots/real/{metric}.png"), plot.real.metric, width=4.5, height=7)
 }
 
 # performances of scEVE w.r.t. previous ensemble clustering algorithms.
 for (metric in c("ARI", "NMI")) {
   plot.ensemble <- get_plot.ensemble(benchmark[benchmark$real,], metric)
-  ggsave(glue("./plots/ensemble/{metric}.png"), plot.ensemble, width=10, height=7)
+  ggsave(glue("./plots/ensemble/{metric}.png"), plot.ensemble, width=10, height=6)
 }
 
 # trees of real scRNA-seq datasets clustering.

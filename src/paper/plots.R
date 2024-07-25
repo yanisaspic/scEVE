@@ -210,11 +210,12 @@ get_heatmap.real <- function(benchmark.real, metric) {
   return(plot)
 }
 
-get_boxplot.methods <- function(benchmark.real, metric) {
+get_boxplot.methods <- function(benchmark.real, metric, legend=TRUE) {
   #' Get a boxplot where the x-axis is methods and the y-axis is a performance metric.
   #' 
   #' @param benchmark.real: a data.frame with three columns: 'dataset', 'method' and a metric.
   #' @param metric: a character. The metric of interest.
+  #' @param legend: a boolean. If TRUE, the legend of the boxplot is plotted.
   #' 
   #' @return a plot.
   #' 
@@ -229,23 +230,56 @@ get_boxplot.methods <- function(benchmark.real, metric) {
           axis.line.x=element_blank(), axis.ticks.x=element_blank(),
           legend.title=element_blank(), strip.text=element_blank()) +
     facet_grid(~method_type, scales = "free_x", space = "free_x")
+  
+  if (!legend) {plot <- plot + theme(legend.position="none")}
   return(plot)
 }
 
-get_plot.real <- function(benchmark.real, metric) {
+get_plot.real <- function(benchmark.real, metric, legend=TRUE) {
   #' Generate a composite plot of the benchmark on real scRNA-seq datasets.
-  #' It is composed of a heatmap and two boxplots w.r.t. the datasets and methods used respectively.
+  #' It is composed of a heatmap and a boxplot w.r.t. the method used.
   #' 
   #' @param benchmark.real: a data.frame with three columns: 'dataset', 'method' and a metric.
   #' @param metric: a character. The metric of interest.
+  #' @param legend: a boolean. If TRUE, the legend of the boxplot is drawn.
   #' 
   #' @return a plot.
   #' 
   benchmark.real$dataset <- factor(benchmark.real$dataset, levels=get_prior()$real_datasets)
   heatmap.real <- get_heatmap.real(benchmark.real, metric)
-  boxplot.methods <- get_boxplot.methods(benchmark.real, metric)
+  boxplot.methods <- get_boxplot.methods(benchmark.real, metric, legend)
   plot.real <- ggarrange(boxplot.methods, heatmap.real, nrow=2, ncol=1, widths=1,
                          heights=c(3,7), byrow=TRUE)
+  return(plot.real)
+}
+
+get_plot.real.summary <- function(benchmark.real) {
+  #' Generate a composite plot of the benchmark on real scRNA-seq datasets.
+  #' It includes plots for the 'NMI', the computation time and the memory usage.
+  #' 
+  #' @param benchmark.real: a data.frame with five columns: 'dataset', 'method', 'NMI',
+  #' 'log10(s)' and 'log10(Mb)'.
+  #' 
+  #' @return a plot.
+  #' 
+  metrics <- c("NMI", "log10(s)", "log10(Mb)")
+  get_plot.metric <- function(metric) {get_plot.real(benchmark.real, metric, legend=FALSE)}
+  plots.metrics <- lapply(X=metrics, get_plot.metric)
+  names(plots.metrics) <- metrics
+  
+  get_legend <- function() {
+    plot <- get_boxplot.methods(benchmark.real, "NMI") + 
+      theme(legend.position="top", legend.margin=margin(0, 0, 0, 100),
+            legend.text=element_text(size=10))
+    legend <- ggpubr::get_legend(plot)
+    legend <- ggpubr::as_ggplot(legend)}
+  
+  blank <- ggplot() + theme_void()
+  plots <- ggpubr::ggarrange(plots.metrics[["NMI"]], blank, plots.metrics[["log10(s)"]],
+                             blank, plots.metrics[["log10(Mb)"]], nrow=1, ncol=5,
+                             widths=c(4,.1,4,.1,4))
+  plot.real <- ggpubr::ggarrange(get_legend(), plots, nrow=2, ncol=1,
+                                 heights=c(1,10))
   return(plot.real)
 }
 
@@ -544,9 +578,6 @@ get_plot.tree <- function(resolution_tree.data, distributions.data, dataset) {
     plot_layout(widths=c(8,3,3), guides="collect") &
     theme(legend.position="bottom")
   
-  plot.tree <- plot.tree +
-    plot_annotation(title=dataset,
-                    theme=theme(plot.title=element_text(size=12, face="bold")))
   return(plot.tree)
 }
 
@@ -612,7 +643,7 @@ get_plot.signatures <- function(signatures.data) {
     theme_classic() +
     scale_y_continuous(expand=expansion(mult=0)) +
     coord_flip() + scale_fill_manual(values=list(C.5.1="grey", C.5.3="black")) +
-    theme(panel.grid.major.x=element_line(linewidth=0.5), legend.position="bottom",
+    theme(panel.grid.major.x=element_line(linewidth=0.5),
           legend.title=element_blank(), axis.title.y=element_blank()) + ylab("# markers")
   return(plot)
 }
@@ -713,7 +744,7 @@ get_boxplot.synthetic <- function(benchmark.synthetic, metric, method, related, 
     theme_classic() + 
     theme(panel.background=element_rect(fill="#ebebeb"),
           panel.grid.major=element_line(colour="white", linewidth=0.5),
-          plot.title=element_text(hjust=0.5, face="bold")) 
+          plot.title=element_text(size=10, face="bold")) 
   
   return(plot)
 }
@@ -731,20 +762,20 @@ get_plot.synthetic.setting <- function(benchmark.synthetic, metric, related, bal
   #' @return a plot.
   #' 
   get_boxplot.synthetic.wrapper <- function(method) {
-    get_boxplot.synthetic(benchmark.synthetic, metric, method, related, balanced)
-  }
+    get_boxplot.synthetic(benchmark.synthetic, metric, method, related, balanced)}
   methods <- unique(benchmark.synthetic$method)
   boxplots <- lapply(X=methods, FUN=get_boxplot.synthetic.wrapper)
   names(boxplots) <- methods
-  
+
+  blank <- ggplot() + theme_void()
   boxplots.individual <- ggpubr::ggarrange(boxplots$densityCut, boxplots$monocle3,
+                                           blank, blank,
                                            boxplots$Seurat, boxplots$SHARP,
-                                           nrow=2, ncol=2)
-  
-  boxplot.scEVE <- boxplots$scEVE +
-    theme(plot.title=element_text(hjust=0))
+                                           nrow=3, ncol=2, heights=c(5,0.1,5))
+  boxplot.scEVE <- ggpubr::ggarrange(blank, boxplots$scEVE, blank, nrow=1, ncol=3,
+                                     widths=c(.5,1,.5))
   plot.synthetic.setting <- ggpubr::ggarrange(boxplot.scEVE, boxplots.individual,
-                                              nrow=2, ncol=1)
+                                              nrow=2, ncol=1, heights=c(1,2))
   return(plot.synthetic.setting)
 }
 
@@ -766,9 +797,15 @@ get_plot.synthetic.summary <- function(benchmark.synthetic, metric) {
   plots <- lapply(X=methods, FUN=get_plot.synthetic.method.wrapper)
   names(plots) <- methods
   
-  plot.synthetic.summary <- grid.arrange(plots$densityCut, plots$monocle3,
-                                         plots$Seurat, plots$SHARP, plots$scEVE,
-                                         nrow=3, ncol=2)
+  blank <- ggplot() + theme_void()
+  plot.scEVE <- ggpubr::ggarrange(blank, plots$scEVE, blank, nrow=1,
+                                  ncol=3, widths=c(0.5, 1, 0.5))
+  plots.methods <- ggpubr::ggarrange(plots$densityCut, blank, plots$monocle3,
+                                     blank, blank, blank,
+                                     plots$Seurat, blank, plots$SHARP, nrow=3, ncol=3,
+                                     widths=c(5,0.5,5), heights=c(5,0.1,5))
+  plot.synthetic.summary <- grid.arrange(plots.methods, plot.scEVE, nrow=2, ncol=1,
+                                         heights=c(2,1))
   
   return(plot.synthetic.summary)
 }
