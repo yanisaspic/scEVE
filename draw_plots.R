@@ -41,7 +41,7 @@ records <- get_records(glue("./results/records/Darmanis_HumGBM.xlsx"))
 cancer_signatures <- read.csv("./data/cancer_signatures.csv")
 signatures.data <- setup_signatures.data(records$markers, cancer_signatures)
 plot.signatures <- get_plot.signatures(signatures.data)
-ggsave("./plots/signatures.png", plot.signatures, width=4, height=7)
+ggsave("./plots/signatures.png", plot.signatures, width=4, height=6)
 
 # performances of scEVE on synthetic datasets, and explanation.
 for (metric in c("ARI", "NMI")) {

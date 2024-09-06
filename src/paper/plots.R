@@ -642,9 +642,11 @@ get_plot.signatures <- function(signatures.data) {
              stat="identity", position="dodge", width=0.75) +
     theme_classic() +
     scale_y_continuous(expand=expansion(mult=0)) +
-    coord_flip() + scale_fill_manual(values=list(C.5.1="grey", C.5.3="black")) +
+    coord_flip() + scale_fill_manual(values=list(C.5.1="#ebebeb", C.5.3="#1F78B4")) +
     theme(panel.grid.major.x=element_line(linewidth=0.5),
-          legend.title=element_blank(), axis.title.y=element_blank()) + ylab("# markers")
+          legend.title=element_blank(), axis.title.y=element_blank(),
+          legend.position="top", legend.key.height=unit(0.4, "line")) + 
+    ylab("# markers")
   return(plot)
 }
 
@@ -696,7 +698,7 @@ get_plot.synthetic.method <- function(benchmark.synthetic, metric, method) {
   data <- benchmark.synthetic[benchmark.synthetic$method==method, ]
   
   related.labels <- c(yes="related", no="independent")
-  balanced.labels <- c(yes="balanced", no="unbalanced")
+  balanced.labels <- c(yes="balanced", no="imbalanced")
   color <- get_prior()$colormap[[method]]
   
   plot <- ggplot(data=data) +
