@@ -5,7 +5,7 @@ ___
 *Clustering analyses play a fundamental role in single-cell data science. Hundreds of methods  
 have been developed to conduct this analysis, but they all generate different results. Benchmarks and reviews make this issue obvious, and they also show that no single clustering method outperforms all the others. Thus, to address this issue and to generate clustering results robust to the method used, scRNA-seq ensemble clustering algorithms have been developed. They usually tackle this issue by trying to minimize the differences across multiple clustering solutions. In this paper, we propose a novel approach to tackle it. We name ”extrinsic variability” the variations in the clustering solutions that are due to methodological choices. We hypothesize that this extrinsic variability is not an issue to be minimized, but rather an informative signal, and that it can be leveraged to prevent over-clustering. To verify our hypothesis, we have developed scEVE, an algorithm that embraces this approach.*
 ___
-This repository includes the code of the scEVE algorithm, and the code required to generate the results of the associated paper. 
+This repository includes the code of the scEVE algorithm, and the code required to generate the results in the associated paper. 
 
 # 1. Dependencies
 The dependencies required to run the scEVE algorithm and to generate our results are summarized at the end of the README.
