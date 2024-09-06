@@ -13,15 +13,7 @@ ___
 *Clustering analyses play a fundamental role in single-cell data science. Hundreds of methods  
 have been developed to conduct this analysis, but they all generate different results. Benchmarks and reviews make this issue obvious, and they also show that no single clustering method outperforms all the others. Thus, to address this issue and to generate clustering results robust to the method used, scRNA-seq ensemble clustering algorithms have been developed. They usually tackle this issue by trying to minimize the differences across multiple clustering solutions. In this paper, we propose a novel approach to tackle it. We name ”extrinsic variability” the variations in the clustering solutions that are due to methodological choices. We hypothesize that this extrinsic variability is not an issue to be minimized, but rather an informative signal, and that it can be leveraged to prevent over-clustering. To verify our hypothesis, we have developed scEVE, an algorithm that embraces this approach.*
 ___
-***1. Data***
-
-Run the script `setup.sh` to download and set-up the data used in the paper. The generated files are stored in the `data/` directory.
-```bash
-chmod +x setup.sh
-./setup.sh
-```
-
-***2. Configuration***
+***1. Dependencies***
 
 The dependencies required to run the scEVE algorithm and to generate our results are summarized at the end of the README.
 The summary is generated with `session_info()` from the R package `sessioninfo` (see https://github.com/r-lib/sessioninfo).
@@ -32,13 +24,15 @@ Run the script `etc/config/install_requirements.R` to install the dependencies.
 Rscript ./etc/config/install_requirements.R
 ```
 
-***3. Results***
+***2. Data***
 
-After completing the two steps above, run `paper.R` interactively (e.g. with Rstudio) to reproduce the results of the JOBIM2024 paper.
-* **Fig.2** is generated interactively.
-* **Fig.3** is stored in the file `figures/C5.pdf`.
-* **Fig.4** uses marker genes stored in the sheet `markers` of the file `records.xlsx`.
+Run the script `setup.sh` to download and set-up the data used in the paper. The generated files are stored in the `data/` directory.
+```bash
+chmod +x setup.sh
+./setup.sh
+```
 
+***Dependencies summary***
 ```
 ─ Session info ────────────────────────────────────────────────────────────
  setting  value
