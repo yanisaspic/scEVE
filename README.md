@@ -25,6 +25,7 @@ chmod +x setup.sh
 
 The dependencies required to run the scEVE algorithm and to generate our results are summarized at the end of the README.
 The summary is generated with `session_info()` from the R package `sessioninfo` (see https://github.com/r-lib/sessioninfo).
+
 The dependencies and their respective versions are also listed in the `etc/config/` directory.
 Run the script `etc/config/install_requirements.R` to install the dependencies.
 ```bash
