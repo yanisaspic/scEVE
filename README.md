@@ -7,7 +7,7 @@ have been developed to conduct this analysis, but they all generate different re
 ___
 This repository includes the code of the scEVE algorithm, and the code required to generate the results of the associated paper. 
 
-***1. Dependencies***
+# 1. Dependencies
 The dependencies required to run the scEVE algorithm and to generate our results are summarized at the end of the README.
 The summary is generated with `session_info()` from the R package `sessioninfo` (see https://github.com/r-lib/sessioninfo).
 
@@ -16,14 +16,14 @@ The dependencies are also listed in the `etc/config/` directory. Run the script 
 Rscript ./etc/config/install_requirements.R
 ```
 
-***2. Data***
+# 2. Data
 Run the script `setup.sh` to download and set-up the data used in the paper. The generated files are stored in the `data/` directory.
 ```bash
 chmod +x setup.sh
 ./setup.sh
 ```
 
-***Dependencies summary***
+# Summary of the dependencies
 ```
 ─ Session info ────────────────────────────────────────────────────────────
  setting  value
