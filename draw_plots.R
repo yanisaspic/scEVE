@@ -49,7 +49,7 @@ for (metric in c("ARI", "NMI")) {
   plot.synthetic.hard <- get_plot.synthetic.setting(benchmark.synthetic, metric,
                                                     related="yes", balanced="yes")
   ggsave(glue("./plots/synthetic/scEVE_{metric}.png"), plot.synthetic.scEVE, width=5, height=5)
-  ggsave(glue("./plots/synthetic/hard_{metric}.png"), plot.synthetic.hard, width=4, height=6.5)
+  ggsave(glue("./plots/synthetic/hard_{metric}.png"), plot.synthetic.hard, width=4.5, height=6.5)
 }
 
 # performances of individual methods on synthetic datasets.

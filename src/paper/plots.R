@@ -620,6 +620,12 @@ setup_signatures.data <- function(markers, cancer_signatures) {
   #' 
   #' @return a data.frame with three columns: 'population', 'signature' and 'n_markers'.
   #' 
+  n_markers.signature <- table(cancer_signatures$signature)
+  get_label.signature <- function(signature) {
+    glue("{signature} ({n_markers.signature[[signature]]})")} 
+  labels.signature <- sapply(X=cancer_signatures$signature, FUN=get_label.signature)
+  cancer_signatures$signature <- labels.signature
+  
   populations <- colnames(markers)
   signatures.data.population <- lapply(X=populations, FUN=setup_signatures.data.population,
                                        markers=markers, cancer_signatures=cancer_signatures)
@@ -708,15 +714,15 @@ get_plot.synthetic.method <- function(benchmark.synthetic, metric, method) {
     facet_grid(related ~ balanced, #switch="y",
                labeller=labeller(related=related.labels, balanced=balanced.labels))
   
-  plot <- plot + theme_classic() + xlab("# populations") +
+  plot <- plot + theme_classic() + xlab("# clusters") +
     theme(panel.background=element_rect(fill="#ebebeb"),
           panel.grid.major=element_line(colour="white", linewidth=0.5),
           panel.border=element_rect(colour="black", fill=NA, linewidth=1),
           axis.line=element_blank(), strip.text=element_text(color="white"),
           strip.background=element_rect(color=NA, fill=color))
   
-  top_facet <- ggpubr::text_grob("pop. sizes", hjust=0.3)
-  plot <- grid.arrange(plot, top=top_facet, right="pop. transcriptomes")
+  top_facet <- ggpubr::text_grob("cluster sizes", hjust=0.3)
+  plot <- grid.arrange(plot, top=top_facet, right="cluster transcriptomes")
   return(plot)
 }
 
@@ -740,13 +746,15 @@ get_boxplot.synthetic <- function(benchmark.synthetic, metric, method, related, 
   plot <- ggplot(data=data) +
     geom_boxplot(aes(x=n_populations, y=.data[[metric]]),
                  fill="white", color=get_prior()$colormap[[method]]) +
-    scale_y_continuous(limits=c(0, 1)) + ggtitle(method) + xlab("# populations")
+    scale_y_continuous(limits=c(0, 1)) + xlab("# clusters")
   
-  plot <- plot +
+  plot <- plot + facet_grid(. ~ method) +
     theme_classic() + 
     theme(panel.background=element_rect(fill="#ebebeb"),
           panel.grid.major=element_line(colour="white", linewidth=0.5),
-          plot.title=element_text(size=10, face="bold")) 
+          strip.background=element_rect(fill=get_prior()$colormap[[method]], color=NA),
+          strip.text=element_text(face="bold", colour="white")
+    )
   
   return(plot)
 }

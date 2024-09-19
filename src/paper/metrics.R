@@ -1,6 +1,6 @@
 "Functions used to compute metrics for the benchmark.
 
-	2024/04/02 @yanisaspic"
+	2024/09/19 @yanisaspic"
 
 suppressPackageStartupMessages({
   library(aricode)  # packageVersion("aricode")==1.0.3
@@ -146,4 +146,31 @@ get_disruption <- function(datasets, path="./results/records") {
   disruptions <- as.data.frame(disruptions)
   for (col in c("disruption", "consensus")) {disruptions[, col] <- as.numeric(disruptions[, col])}
   return(disruptions)
+}
+
+get_similarity.individual <- function(results.individual, dataset) {
+  #' Get the pairwise similarity (ARI and NMI) between clustering results 
+  #' predicted by the methods integrated in scEVE.
+  #' 
+  #' @param results.individual: a nested list of three elements: 'peakRAM', 'time' and 'preds'.
+  #' @param dataset: a character.
+  #' 
+  #' @return a data.frame with 5 columns: 'method_1', 'method_2', 'ARI', 'NMI' and 'dataset'.
+  #' 
+  combinations <- combn(names(results.individual), 2)
+  combinations <- as.data.frame(t(combinations))
+  colnames(combinations) <- c("method_1", "method_2")
+  
+  get_similarity.pairwise <- function(row, metric) {
+    preds_1 <- results.individual[[row[["method_1"]]]]$preds
+    preds_2 <- results.individual[[row[["method_2"]]]]$preds
+    get_metric(preds_1, preds_2, metric)
+  }
+  
+  for (metric in c("ARI", "NMI")) {
+    combinations[, metric] <- apply(X=combinations, MARGIN=1,
+                                    FUN=get_similarity.pairwise, metric=metric)
+  }
+  combinations[, dataset] <- dataset
+  return(combinations)
 }

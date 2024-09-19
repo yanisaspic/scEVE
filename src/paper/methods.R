@@ -1,6 +1,6 @@
 "Functions used to get the results (preds, time and peakRAM) for the benchmark.
 
-	2024/04/02 @yanisaspic"
+	2024/09/19 @yanisaspic"
 
 suppressPackageStartupMessages({
   library(glue)
