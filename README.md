@@ -1,3 +1,29 @@
+# scEVE: a scRNA-seq ensemble clustering algorithm that leverages the extrinsic variability to prevent over-clustering
+
+[![R](https://img.shields.io/badge/R-4.3.3-ffffff.svg)](https://cran.r-project.org/) [![Linux](https://img.shields.io/badge/GNU_bash-5.1.16-ffffff.svg)](https://www.gnu.org/software/bash/) [![Python](https://img.shields.io/badge/Python-3.10.12-ffffff.svg)](https://www.python.org/) [![Code style: black](https://img.shields.io/badge/code_style-black-000000.svg)](https://github.com/psf/black)
+___
+*Clustering analyses play a fundamental role in single-cell data science. Hundreds of methods  
+have been developed to conduct this analysis, but they all generate different results. Benchmarks and reviews make this issue obvious, and they also show that no single clustering method outperforms all the others. Thus, to address this issue and to generate clustering results robust to the method used, scRNA-seq ensemble clustering algorithms have been developed. They usually tackle this issue by trying to minimize the differences across multiple clustering solutions. In this paper, we propose a novel approach to tackle it. We name ”extrinsic variability” the variations in the clustering solutions that are due to methodological choices. We hypothesize that this extrinsic variability is not an issue to be minimized, but rather an informative signal, and that it can be leveraged to prevent over-clustering. To verify our hypothesis, we have developed scEVE, an algorithm that embraces this approach.*
+___
+This repository includes the code of the scEVE algorithm, and the code required to generate the results in the associated paper. 
+
+# 1. Dependencies
+The dependencies required to run the scEVE algorithm and to generate our results are summarized at the end of the README.
+The summary is generated with `session_info()` from the R package `sessioninfo` (see https://github.com/r-lib/sessioninfo).
+
+The dependencies are also listed in the `etc/config/` directory. Run the script `etc/config/install_requirements.R` to install them.
+```bash
+Rscript ./etc/config/install_requirements.R
+```
+
+# 2. Data
+Run the script `setup.sh` to download and set-up the data used in the paper. The generated files are stored in the `data/` directory.
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+# Summary of the dependencies
 ```
 ─ Session info ────────────────────────────────────────────────────────────
  setting  value
