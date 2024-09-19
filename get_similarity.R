@@ -33,4 +33,4 @@ params <- get_default_hyperparameters()
 results.individual <- get_results.individual(expression.init, params, random_state=0,
                                              save=FALSE, figures=FALSE)
 similarity.individual <- get_similarity.individual(results.individual, dataset)
-write.csv(benchmark, glue("./similarity/{dataset}.csv"), row.names=FALSE)
+write.csv(similarity.individual, glue("./similarity/{dataset}.csv"), row.names=FALSE)

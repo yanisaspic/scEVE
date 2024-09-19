@@ -11,6 +11,7 @@ source("./src/paper/plots.R")
 source("./src/paper/metrics.R")
 
 benchmark <- get_benchmark()
+similarities <- get_similarities()
 benchmark.synthetic <- setup_benchmark.synthetic(benchmark[!benchmark$real, ])
 
 # performances of individual methods and scEVE on real datasets.
@@ -58,3 +59,7 @@ for (metric in c("ARI", "NMI")) {
   ggsave(glue("./plots/synthetic/summary_{metric}.png"), plot.synthetic.summary,
          width=9.5, height=10.5)
 }
+
+# mean (+std) performance of the clustering methods on real datasets
+
+# mean (+std) similarity of the predictions of the clustering methods on synthetic datasets
