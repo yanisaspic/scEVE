@@ -48,7 +48,7 @@ They can be installed automatically by running the script `install_requirements.
 ```bash
 Rscript ./etc/config/install_requirements.R
 ```
-Note that the dependencies versions may differ from the summary.
+Note that the versions of the dependencies installed that way may differ from the versions in the summary.
 
 ## 2. Formatting the datasets.
 The experimental datasets used in the paper are publicly available.
@@ -79,8 +79,10 @@ sbatch
 ```
 *1 to 150 for the script `./run/array/.get_similarity.sbatch`
 
-## Dependencies
+## Summary of the dependencies
 The summary is generated with `session_info()` from the R package `sessioninfo` (see https://github.com/r-lib/sessioninfo).
+Required dependencies are indicated by an asterisk (*).
+
 ```
 ─ Session info ────────────────────────────────────────────────────────────
  setting  value
