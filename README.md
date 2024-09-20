@@ -1,6 +1,6 @@
 # scEVE: a scRNA-seq ensemble clustering algorithm
 
-[![R](https://img.shields.io/badge/R-4.3.1+-ffffff.svg)](https://cran.r-project.org/) [![Linux](https://img.shields.io/badge/GNU_bash-5.4.0+-ffffff.svg)](https://www.gnu.org/software/bash/) [![Python](https://img.shields.io/badge/Python-3.9+-ffffff.svg)](https://www.python.org/)
+[![R](https://img.shields.io/badge/R-4.3.1-blue.svg)](https://cran.r-project.org/) [![Ubuntu](https://img.shields.io/badge/20.04.6-black.svg)](https://ubuntu.com/) [![bash](https://img.shields.io/badge/5.0.17-black.svg)](https://www.gnu.org/software/bash/) [![Python](https://img.shields.io/badge/Python-3.9-blue.svg)](https://www.python.org/) 
 
 ![The figure is composed of three parts: a multi-resolution cluster tree (left), a cell type plot (middle), and an abundance plot (right).\\
 The multi-resolution cluster tree (left) represents the cell populations predicted by scEVE as nodes. Edges between nodes connect sub-populations to their parents, and their weight indicates the robustness of the sub-populations. The nodes representing the original cell pool and the leftover clusters are black. The cell type plot (middle) associates the highest-resolution populations to bars. If a population is homogeneous (\textit{i.e.} composed of a unique cell type), its bar is monochrome. Otherwise, its bar is polychrome. The abundance plot (right) also associates highest-resolution populations to bars. The bars are log-scaled, and they indicate the size of the cell populations.](/plots/Darmanis_HumGBM.png?raw=true "Clustering results of scEVE")
@@ -8,7 +8,9 @@ The multi-resolution cluster tree (left) represents the cell populations predict
 ___
 *Single-cell RNA-sequencing is used to measure the individual transcriptomes of cells within a tissue. In a decade only, it motivated the development of hundreds of clustering methods that attempt to identify cell populations with similar transcriptomes. Because each method relies on its specific hypotheses, the results of a clustering analysis can vary drastically based on the method used, which makes employing a single method ill-advised. To address that issue, ensemble algorithms integrated multiple clustering methods by minimizing the differences in their results. While that approach is sensible, it does not address some methodological challenges in single-cell data science: namely, the need to generate clustering results with multiple cellular resolutions and explicit uncertainty values. In this work, we present a novel approach to ensemble clustering that addresses these challenges by leveraging the differences between clustering results. We present our algorithm scEVE, and we evaluate it on 15 experimental and up to 600 synthetic datasets. Our results highlight how beneficial these challenges are to the biological downstream analysis, and they show that scEVE is the best ensemble algorithm to address them, yet. Finally, we argue that future ensemble algorithm would profit from combining both approaches.*
 ___
-The repository includes the code of the scEVE algorithm, and the codes used to generate the datasets and the results in the paper "**The differences of results between clustering methods are informative in single-cell RNA-seq ensemble clustering analyses.**" 
+The repository includes the code of the scEVE algorithm, and the codes used to generate the datasets and the results in the related paper "**The differences of results between clustering methods are informative in single-cell RNA-seq ensemble clustering analyses.**" 
+
+## Architecture
 
 # 1. Dependencies
 The dependencies required to run the scEVE algorithm and to generate our results are summarized at the end of the README.
