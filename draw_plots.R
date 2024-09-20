@@ -10,9 +10,10 @@ suppressPackageStartupMessages({
 source("./src/paper/plots.R")
 source("./src/paper/metrics.R")
 
-benchmark <- get_benchmark()
-similarities <- get_similarities()
-benchmark.synthetic <- setup_benchmark.synthetic(benchmark[!benchmark$real, ])
+benchmark <- get_results.benchmark()
+benchmark.synthetic <- setup_data.synthetic(benchmark[!benchmark$real, ])
+similarities <- get_results("./similarity")
+similarities <- setup_data.synthetic(similarities)
 
 # performances of individual methods and scEVE on real datasets.
 plot.real.summary <- get_plot.real.summary(benchmark[benchmark$real,])
@@ -60,6 +61,13 @@ for (metric in c("ARI", "NMI")) {
          width=9.5, height=10.5)
 }
 
-# mean (+std) performance of the clustering methods on real datasets
+# mean (+ std) performance of the clustering methods on real datasets
+data <- benchmark[(benchmark$real) & (benchmark$method != "scEVE"), ]
+performances <- data %>%
+  group_by(dataset) %>%
+  summarise(ARI=mean(ARI), NMI=mean(NMI))
 
-# mean (+std) similarity of the predictions of the clustering methods on synthetic datasets
+# mean (+ std) similarity of the predictions of the clustering methods on synthetic datasets
+similarities.summary <- similarities %>%
+  group_by(n_populations) %>%
+  summarise(mean_ARI=mean(ARI), std_ARI=sd(ARI), mean_NMI=mean(NMI), std_NMI=sd(NMI))

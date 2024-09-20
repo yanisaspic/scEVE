@@ -87,66 +87,66 @@ get_distributions.data <- function(sheet.cells) {
   return(distributions.data)
 }
 
-get_disruption.population <- function(distribution.population, init_entropy) {
-  #' Get the normalized Shannon entropy of a distribution of ground truth labels.
-  #' 
-  #' @param distribution.population: a vector of numerics.
-  #' @param max_entropy: the entropy of the initial population.
-  #' 
-  #' @return a numeric ranging from 0 to 1.
-  #' 
-  n <- sum(distribution.population > 0)
-  entropy <- entropy::entropy(distribution.population, unit="log2")
-  disruption <- entropy / init_entropy
-  if (is.na(disruption)) {disruption <- 0}
-    # this happens if there is a single ground truth label in the population.
-  return(disruption)
-}
-
-get_disruption.dataset <- function(records) {
-  #' Get the disruption and the consensus associated to each population of a dataset.
-  #' 
-  #' @param records: a named list of two data.frames: 'meta' and 'cells'.
-  #' @param ground_truth: a named vector: names are cell ids and values are cluster labels of the authors.
-  #' 
-  #' @return a data.frame with two columns: 'consensus' and 'disruption'.
-  #' 
-  populations <- colnames(records$cells)
-  cell_ids <- rownames(records$cells)
-  ground_truth <- get_ground_truth(cell_ids)
-  init_distribution <- table(ground_truth)
-  init_entropy <- entropy::entropy(init_distribution)
-  
-  get_disruption.population.wrapper <- function(population) {
-    distribution.population <- get_distribution.population(population, records$cells, ground_truth)
-    disruption.population <- get_disruption.population(distribution.population, init_entropy)
-    output <- list(disruption=disruption.population, consensus=records$meta[population, "consensus"])
-  }
-  
-  disruption.dataset <- lapply(X=populations, FUN=get_disruption.population.wrapper)
-  disruption.dataset <- do.call(rbind, disruption.dataset)
-  return(disruption.dataset)
-}
-
-get_disruption <- function(datasets, path="./results/records") {
-  #' Get a data.frame associating disruption and consensi values across multiple datasets.
-  #' 
-  #' @param datasets: a vector of dataset labels.
-  #' @param path: a character.
-  #' 
-  #' @return a data.frame with three columns: 'consensus', 'disruption', and 'group'.
-  #' 
-  get_disruption.dataset.wrapper <- function(dataset) {
-    records <- get_records(glue("{path}/{dataset}.xlsx"))
-    disruption.dataset <- get_disruption.dataset(records)
-  }
-  disruptions <- lapply(X=datasets, FUN=get_disruption.dataset.wrapper)
-  disruptions <- do.call(rbind, disruptions)
-  
-  disruptions <- as.data.frame(disruptions)
-  for (col in c("disruption", "consensus")) {disruptions[, col] <- as.numeric(disruptions[, col])}
-  return(disruptions)
-}
+#' get_disruption.population <- function(distribution.population, init_entropy) {
+#'   #' Get the normalized Shannon entropy of a distribution of ground truth labels.
+#'   #' 
+#'   #' @param distribution.population: a vector of numerics.
+#'   #' @param max_entropy: the entropy of the initial population.
+#'   #' 
+#'   #' @return a numeric ranging from 0 to 1.
+#'   #' 
+#'   n <- sum(distribution.population > 0)
+#'   entropy <- entropy::entropy(distribution.population, unit="log2")
+#'   disruption <- entropy / init_entropy
+#'   if (is.na(disruption)) {disruption <- 0}
+#'     # this happens if there is a single ground truth label in the population.
+#'   return(disruption)
+#' }
+#' 
+#' get_disruption.dataset <- function(records) {
+#'   #' Get the disruption and the consensus associated to each population of a dataset.
+#'   #' 
+#'   #' @param records: a named list of two data.frames: 'meta' and 'cells'.
+#'   #' @param ground_truth: a named vector: names are cell ids and values are cluster labels of the authors.
+#'   #' 
+#'   #' @return a data.frame with two columns: 'consensus' and 'disruption'.
+#'   #' 
+#'   populations <- colnames(records$cells)
+#'   cell_ids <- rownames(records$cells)
+#'   ground_truth <- get_ground_truth(cell_ids)
+#'   init_distribution <- table(ground_truth)
+#'   init_entropy <- entropy::entropy(init_distribution)
+#'   
+#'   get_disruption.population.wrapper <- function(population) {
+#'     distribution.population <- get_distribution.population(population, records$cells, ground_truth)
+#'     disruption.population <- get_disruption.population(distribution.population, init_entropy)
+#'     output <- list(disruption=disruption.population, consensus=records$meta[population, "consensus"])
+#'   }
+#'   
+#'   disruption.dataset <- lapply(X=populations, FUN=get_disruption.population.wrapper)
+#'   disruption.dataset <- do.call(rbind, disruption.dataset)
+#'   return(disruption.dataset)
+#' }
+#' 
+#' get_disruption <- function(datasets, path="./results/records") {
+#'   #' Get a data.frame associating disruption and consensi values across multiple datasets.
+#'   #' 
+#'   #' @param datasets: a vector of dataset labels.
+#'   #' @param path: a character.
+#'   #' 
+#'   #' @return a data.frame with three columns: 'consensus', 'disruption', and 'group'.
+#'   #' 
+#'   get_disruption.dataset.wrapper <- function(dataset) {
+#'     records <- get_records(glue("{path}/{dataset}.xlsx"))
+#'     disruption.dataset <- get_disruption.dataset(records)
+#'   }
+#'   disruptions <- lapply(X=datasets, FUN=get_disruption.dataset.wrapper)
+#'   disruptions <- do.call(rbind, disruptions)
+#'   
+#'   disruptions <- as.data.frame(disruptions)
+#'   for (col in c("disruption", "consensus")) {disruptions[, col] <- as.numeric(disruptions[, col])}
+#'   return(disruptions)
+#' }
 
 get_similarity.individual <- function(results.individual, dataset) {
   #' Get the pairwise similarity (ARI and NMI) between clustering results 
@@ -171,6 +171,6 @@ get_similarity.individual <- function(results.individual, dataset) {
     combinations[, metric] <- apply(X=combinations, MARGIN=1,
                                     FUN=get_similarity.pairwise, metric=metric)
   }
-  combinations[, dataset] <- dataset
+  combinations[, "dataset"] <- dataset
   return(combinations)
 }

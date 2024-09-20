@@ -122,7 +122,21 @@ get_prior <- function() {
   return(prior)
 }
 
-get_benchmark <- function(path="./benchmark") {
+get_results <- function(path) {
+  #' Merge the similarity table of each scRNA-seq dataset in a single data.frame.
+  #' 
+  #' @param path: a character. The path where the tables are stored.
+  #' 
+  #' @return a data.frame with five columns: 'method_1', 'method_2', 'dataset',
+  #' 'ARI' and 'NMI'.
+  #' 
+  individual_filenames <- list.files(path, full.names=TRUE)
+  individual_tables <- lapply(individual_filenames, read.csv)
+  results <- do.call(rbind, individual_tables)
+  return(results)
+}
+
+get_results.benchmark <- function(path="./benchmark") {
   #' Merge the benchmark of each scRNA-seq dataset in a single dataframe.
   #' 
   #' @param path: a character. The path where benchmark files are stored.
@@ -130,9 +144,7 @@ get_benchmark <- function(path="./benchmark") {
   #' @return a data.frame with ten columns: 'peakRAM', 'time', 'ARI', 'NMI',
   #' 'method', 'dataset', 'real', 'log10(s)', 'log10(Mb)' and 'method_type'.
   #' 
-  individual_filenames <- list.files(path, full.names=TRUE)
-  individual_benchmark <- lapply(individual_filenames, read.csv)
-  benchmark <- do.call(rbind, individual_benchmark)
+  benchmark <- get_results(path)
   
   prior <- get_prior()
   benchmark$method <- factor(benchmark$method, levels=prior$algorithms)
@@ -146,6 +158,38 @@ get_benchmark <- function(path="./benchmark") {
   benchmark[, "method_type"] <- "individual"
   benchmark[benchmark$method=="scEVE", "method_type"] <- "scEVE"
   return(benchmark)
+}
+
+parse_dataset.synthetic <- function(dataset) {
+  #' Parse a dataset label to get a 1-row data.frame. The data.frame has 3 columns:
+  #' 'populations' (a character), 'related' (a boolean) and 'balanced' (a boolean).
+  #' 
+  #' @param dataset: a character.
+  #' 
+  #' @return a data.frame with 3 columns: 'populations', 'related' and 'balanced'.
+  #' 
+  elements <- strsplit(dataset, split="_")[[1]]
+  n_populations <- substr(elements[1], start=2, stop=nchar(elements[1]))
+  balanced <- substr(elements[2], 2, 2)
+  related <- substr(elements[3], 2, 2)
+  row <- data.frame(n_populations=as.character(n_populations),
+                    balanced=ifelse(as.logical(balanced), "yes", "no"),
+                    related=ifelse(as.logical(related), "yes", "no"))
+  return(row)
+}
+
+setup_data.synthetic <- function(data.synthetic) {
+  #' Get a slim data.frame usable by get_plot.synthetic.
+  #' 
+  #' @param benchmark.synthetic: a data.frame with a column 'dataset' corresponding
+  #' to synthetic datasets.
+  #' 
+  #' @return a data.frame with 3 extra columns: 'populations', 'related', 'balanced'.
+  #' 
+  metadata <- lapply(X=data.synthetic$dataset, FUN=parse_dataset.synthetic)
+  metadata <- do.call(rbind, metadata)
+  data.synthetic <- cbind(data.synthetic, metadata)
+  return(data.synthetic)
 }
 
 #___________________________________________________________________________real
@@ -657,39 +701,6 @@ get_plot.signatures <- function(signatures.data) {
 }
 
 #______________________________________________________________________synthetic
-parse_dataset <- function(dataset) {
-  #' Parse a dataset label to get a 1-row data.frame. The data.frame has 3 columns:
-  #' 'populations' (a character), 'related' (a boolean) and 'balanced' (a boolean).
-  #' 
-  #' @param dataset: a character.
-  #' 
-  #' @return a data.frame with 3 columns: 'populations', 'related' and 'balanced'.
-  #' 
-  elements <- strsplit(dataset, split="_")[[1]]
-  n_populations <- substr(elements[1], start=2, stop=nchar(elements[1]))
-  balanced <- substr(elements[2], 2, 2)
-  related <- substr(elements[3], 2, 2)
-  row <- data.frame(n_populations=as.character(n_populations),
-                    balanced=ifelse(as.logical(balanced), "yes", "no"),
-                    related=ifelse(as.logical(related), "yes", "no"))
-  return(row)
-}
-
-setup_benchmark.synthetic <- function(benchmark.synthetic) {
-  #' Get a slim data.frame usable by get_plot.synthetic.
-  #' 
-  #' @param benchmark.synthetic: a data.frame with 6 columns: 'dataset',
-  #' 'method', 'ARI', 'NMI', 'log10(Mb)', 'log10(s)'.
-  #' 
-  #' @return a data.frame with 8 columns: 'populations', 'related', 'balanced',
-  #' 'ARI', 'NMI', 'log10(Mb)', 'log10(s)' and 'method'.
-  #' 
-  metadata <- lapply(X=benchmark.synthetic$dataset, FUN=parse_dataset)
-  metadata <- do.call(rbind, metadata)
-  benchmark.synthetic <- cbind(benchmark.synthetic, metadata)
-  return(benchmark.synthetic)
-}
-
 get_plot.synthetic.method <- function(benchmark.synthetic, metric, method) {
   #' Get a composite plot of the performances of a method under different conditions
   #' with synthetic scRNA-seq datasets.
