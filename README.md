@@ -1,6 +1,9 @@
 # scEVE: a scRNA-seq ensemble clustering algorithm
 
-[![R](https://img.shields.io/badge/R-4.3.1-blue.svg)](https://cran.r-project.org/) [![Ubuntu](https://img.shields.io/badge/20.04.6-black.svg)](https://ubuntu.com/) [![bash](https://img.shields.io/badge/5.0.17-black.svg)](https://www.gnu.org/software/bash/) [![Python]([https://img.shields.io/badge/Python-3.9-blue.svg](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white))(https://www.python.org/) 
+[![R](https://img.shields.io/badge/R-4.3.1-blue.svg)](https://cran.r-project.org/)
+[![Linux](https://img.shields.io/badge/Ubuntu-20.04.6-white.svg)](https://ubuntu.com/)
+[![bash](https://img.shields.io/badge/bash-5.0.17-white.svg)](https://www.gnu.org/software/bash/)
+[![Python](https://img.shields.io/badge/Python-4.3.1-blue.svg)](https://www.python.org/) 
 
 ![The figure is composed of three parts: a multi-resolution cluster tree (left), a cell type plot (middle), and an abundance plot (right).\\
 The multi-resolution cluster tree (left) represents the cell populations predicted by scEVE as nodes. Edges between nodes connect sub-populations to their parents, and their weight indicates the robustness of the sub-populations. The nodes representing the original cell pool and the leftover clusters are black. The cell type plot (middle) associates the highest-resolution populations to bars. If a population is homogeneous (\textit{i.e.} composed of a unique cell type), its bar is monochrome. Otherwise, its bar is polychrome. The abundance plot (right) also associates highest-resolution populations to bars. The bars are log-scaled, and they indicate the size of the cell populations.](/plots/Darmanis_HumGBM.png?raw=true "Clustering results of scEVE")
