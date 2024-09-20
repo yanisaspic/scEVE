@@ -24,14 +24,25 @@ The dependencies are also listed in the `etc/config/` directory. Run the script 
 Rscript ./etc/config/install_requirements.R
 ```
 
-# 2. Data
-Run the script `setup.sh` to download and set-up the data used in the paper. The generated files are stored in the `data/` directory.
+## 1. Installing the dependencies.
+The dependencies and their respective versions are summarized at the end of the README.
+They can be installed automatically by running the script `install_requirements.R`.
+
+```bash
+Rscript ./etc/config/install_requirements.R
+```
+Note that the dependencies versions may differ from the summary.
+
+## 2. Generating the datasets.
+The experimental datasets used in the paper are publicly available.
+They must be downloaded and set-up using the script `setup.sh`.
+
 ```bash
 chmod +x setup.sh
 ./setup.sh
 ```
 
-## Summary of the dependencies
+## Dependencies
 The summary is generated with `session_info()` from the R package `sessioninfo` (see https://github.com/r-lib/sessioninfo).
 ```
 ─ Session info ────────────────────────────────────────────────────────────
