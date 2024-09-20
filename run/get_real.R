@@ -21,4 +21,4 @@ params$figures_dir <- glue("./{dataset}")
 params$records_file <- glue("./{dataset}.xlsx")
 benchmark <- get_benchmark(expression.init, ground_truth, dataset, params,
                            random_state=0, save=TRUE, figures=TRUE)
-write.csv(benchmark, glue("./benchmark/{dataset}.csv"), row.names=FALSE)
+write.csv(benchmark, glue("./results/benchmark/{dataset}.csv"), row.names=FALSE)

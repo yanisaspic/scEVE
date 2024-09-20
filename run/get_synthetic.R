@@ -1,7 +1,6 @@
-"Run this script to compute the average similarity between the clustering methods
-  integrated in scEVE on the related balanced synthetic datasets.
+"Run this script to benchmark scEVE to its component methods on synthetic datasets.
 
-	2024/09/19 @yanisaspic"
+	2024/06/07 @yanisaspic"
 
 source("./scEVE.R")
 source("./src/paper/data.R")
@@ -10,8 +9,8 @@ source("./src/paper/metrics.R")
 suppressPackageStartupMessages({library(glue)})
 
 HYPERPARAMETERS <- list(POPULATIONS=c(1,3,5,7,9),
-                        BALANCED=c(TRUE),
-                        RELATED=c(TRUE),
+                        BALANCED=c(TRUE, FALSE),
+                        RELATED=c(TRUE, FALSE),
                         SEED=1:30)
 HYPERPARAMETERS <- expand.grid(HYPERPARAMETERS)
 
@@ -30,7 +29,11 @@ ground_truth <- get_ground_truth(cell_ids)
 gc()
 
 params <- get_default_hyperparameters()
-results.individual <- get_results.individual(expression.init, params, random_state=0,
-                                             save=FALSE, figures=FALSE)
-similarity.individual <- get_similarity.individual(results.individual, dataset)
-write.csv(similarity.individual, glue("./similarity/{dataset}.csv"), row.names=FALSE)
+params$figures_dir <- glue("./{dataset}")
+params$records_file <- glue("./{dataset}.xlsx")
+benchmark <- get_benchmark(expression.init, ground_truth, dataset, params,
+                           random_state=0, save=TRUE, figures=TRUE)
+
+write.csv(benchmark, glue("./results/benchmark/{dataset}.csv"), row.names=FALSE)
+file.rename(from=params$figures_dir, to=glue("./results/figures/{dataset}"))
+file.rename(from=params$records_file, to=glue("./results/records/{dataset}.xlsx"))

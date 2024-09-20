@@ -18,4 +18,4 @@ echo "SLURM_JOB_NODELIST:" $SLURM_JOB_NODELIST
 echo "DATASET ID:" $id
 echo "#############################" 
 
-Rscript ./get_similarity.R $id
+Rscript ./run/get_synthetic.R $id
