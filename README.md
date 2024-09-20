@@ -69,13 +69,13 @@ sbatch ./run/array/get_similarity.sbatch
 ```
 
 Note that hidden SLURM scripts are also available in order to analyze a specific dataset.
-The scripts expect an argument corresponding to the dataset of interest, _i.e._ a label for experimental datasets, or an integer for synthetic datasets. 
-The integer ranges from 1 to 600 for `./run/array/.get_synthetic.sbatch/`, and 1 to 150 for `./run/array/.get_similarity.sbatch/`.
+The scripts expect an argument corresponding to the dataset of interest, _i.e._ a label for experimental datasets, or an integer **n** for synthetic datasets. 
 
 ```bash
 sbatch ./run/array/.get_real.sbatch Darmanis_HumGBM
 sbatch ./run/array/.get_synthetic.sbatch 123
 ```
+**n** ranges from 1 to 600 for `./run/array/.get_synthetic.sbatch/`, and 1 to 150 for `./run/array/.get_similarity.sbatch/`.
 
 ## 4. Generating our results.
 The script `./run/draw.R` is ran to generate the figures and the contents of our tables. The results are directly available in the `./plots/` directory.
