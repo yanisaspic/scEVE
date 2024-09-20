@@ -14,19 +14,19 @@ ___
 The repository includes the code of the scEVE algorithm, and the codes used to generate the datasets and the results in the related paper "**The differences of results between clustering methods are informative in single-cell RNA-seq ensemble clustering analyses.**" 
 
 # Architecture
-The repository is composed of 7 directories, and we describe their contents.
-- `./data/`: some of the experimental datasets are stored here.
-- `./etc/`: there are scripts to run before conducing the clustering analyses.
- - `./etc/config/`: to install the dependencies.
- - `./etc/source/`: to download and format the experimental datasets.
+The repository is composed of 7 directories:
+- `./data/` some of the experimental datasets are stored here.
+- `./etc/` there are scripts to run before conducing the clustering analyses.
+  - `./etc/config/`: to install the dependencies.
+  - `./etc/source/`: to download and format the experimental datasets.
 - `./null/`: empty, but used to parallelize multiple scEVE clustering analyses.
 - `./plots/`: the figures used in the paper are generated here.
 - `./results/`: for each dataset analyzed, the performances are stored in `./results/benchmark/`, the intermediate plots in `./results/figures/`, the summary of the clustering in `./results/records` and the similarity between clustering results in `./results/similarity/`.
 - `./run/`: the scripts stored here must be run to produce the results of the paper. They are described below.
- - `./run/array/`: this sub-directory includes SLURM scripts to parallelize multiple analyses on computer clusters.
+  - `./run/array/`: this sub-directory includes SLURM scripts to parallelize multiple analyses on computer clusters.
 - `./src/`: the functions imported by `scEVE.R` and the scripts in `./run/`.
- - `./src/scEVE`: functions used in the scEVE algorithm.
- - `./src/paper`: functions used exclusively to generate our results.
+  - `./src/scEVE`: functions used in the scEVE algorithm.
+  - `./src/paper`: functions used exclusively to generate our results.
 
 ### Regarding the scripts in `./run/` 
 - `./run/setup.sh`: download and format the experimental datasets.
