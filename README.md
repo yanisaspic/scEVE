@@ -38,6 +38,9 @@ The repository is composed of 7 directories:
 - `./run/get_synthetic.R` is ran to analyze one of 600 synthetic datasets.
 - `./run/get_similarity.R` is ran to measure the similarity between clustering results on 150 specific datasets.
 
+# Producing our results
+Because of the large number of datasets, we recommend the use of a computer cluster to produce our results.
+
 ## 1. Installing the dependencies.
 The dependencies and their respective versions are summarized at the end of the README.
 They can be installed automatically by running the script `install_requirements.R`.
@@ -49,12 +52,32 @@ Note that the dependencies versions may differ from the summary.
 
 ## 2. Formatting the datasets.
 The experimental datasets used in the paper are publicly available.
-They must be downloaded and formatted by running the script `setup.sh`.
+Some of them must be downloaded and formatted by running the script `setup.sh`.
 
 ```bash
 chmod +x ./run/setup.sh
 ./run/setup.sh
 ```
+
+## 3. Generating our results.
+If a computer cluster is used, the SLURM scripts stored in `./run/array/` can be ran directly.
+
+```bash
+sbatch ./run/array/get_real.sbatch
+sbatch ./run/array/get_synthetic.sbatch
+sbatch ./run/array/get_similarity.sbatch
+```
+
+Note that hidden SLURM scripts are also available in order to analyze a specific dataset.
+The scripts expect an argument corresponding to the dataset of interest.
+It corresponds to the dataset label for experimental datasets, or an integer ranging from 1 to 600* for synthetic datasets. 
+
+```bash
+sbatch ./run/array/.get_real.sbatch Darmanis_HumGBM
+sbatch ./run/array/.get_synthetic.sbatch 123
+sbatch
+```
+*1 to 150 for the script `./run/array/.get_similarity.sbatch`
 
 ## Dependencies
 The summary is generated with `session_info()` from the R package `sessioninfo` (see https://github.com/r-lib/sessioninfo).
