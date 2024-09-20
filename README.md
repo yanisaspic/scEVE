@@ -15,15 +15,6 @@ The repository includes the code of the scEVE algorithm, and the codes used to g
 
 ## Architecture
 
-# 1. Dependencies
-The dependencies required to run the scEVE algorithm and to generate our results are summarized at the end of the README.
-The summary is generated with `session_info()` from the R package `sessioninfo` (see https://github.com/r-lib/sessioninfo).
-
-The dependencies are also listed in the `etc/config/` directory. Run the script `etc/config/install_requirements.R` to install them.
-```bash
-Rscript ./etc/config/install_requirements.R
-```
-
 ## 1. Installing the dependencies.
 The dependencies and their respective versions are summarized at the end of the README.
 They can be installed automatically by running the script `install_requirements.R`.
@@ -35,11 +26,11 @@ Note that the dependencies versions may differ from the summary.
 
 ## 2. Generating the datasets.
 The experimental datasets used in the paper are publicly available.
-They must be downloaded and set-up using the script `setup.sh`.
+They must be downloaded and formatted by running the script `setup.sh`.
 
 ```bash
-chmod +x setup.sh
-./setup.sh
+chmod +x ./run/setup.sh
+./run/setup.sh
 ```
 
 ## Dependencies
