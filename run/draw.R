@@ -66,8 +66,10 @@ data <- benchmark[(benchmark$real) & (benchmark$method != "scEVE"), ]
 performances <- data %>%
   group_by(dataset) %>%
   summarise(ARI=mean(ARI), NMI=mean(NMI))
+print(performances)
 
 # mean (+ std) similarity of the predictions of the clustering methods on synthetic datasets
 similarities.summary <- similarities %>%
   group_by(n_populations) %>%
   summarise(mean_ARI=mean(ARI), std_ARI=sd(ARI), mean_NMI=mean(NMI), std_NMI=sd(NMI))
+print(similarities.summary)
