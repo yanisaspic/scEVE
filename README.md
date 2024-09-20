@@ -78,7 +78,11 @@ sbatch ./run/array/.get_synthetic.sbatch 123
 **n** ranges from 1 to 600 for `./run/array/.get_synthetic.sbatch/`, and 1 to 150 for `./run/array/.get_similarity.sbatch/`.
 
 ## 4. Generating our results.
-The script `./run/draw.R` is ran to generate the figures and the contents of our tables. The results are directly available in the `./plots/` directory.
+The script `./run/draw.R` is ran to generate the figures and the contents of our tables. The results are directly available in the `./plots/` directory and in the terminal.
+
+```bash
+Rscript ./run/draw.R
+``
 
 ## Summary of the dependencies
 The summary is generated with `session_info()` from the R package `sessioninfo` (see https://github.com/r-lib/sessioninfo).
