@@ -17,22 +17,26 @@ The repository includes the code of the scEVE algorithm, and the codes used to g
 The repository is composed of 7 directories:
 - `./data/` some of the experimental datasets are stored here.
 - `./etc/` there are scripts to run before conducing the clustering analyses.
-  - `./etc/config/`: to install the dependencies.
-  - `./etc/source/`: to download and format the experimental datasets.
-- `./null/`: empty, but used to parallelize multiple scEVE clustering analyses.
-- `./plots/`: the figures used in the paper are generated here.
-- `./results/`: for each dataset analyzed, the performances are stored in `./results/benchmark/`, the intermediate plots in `./results/figures/`, the summary of the clustering in `./results/records` and the similarity between clustering results in `./results/similarity/`.
-- `./run/`: the scripts stored here must be run to produce the results of the paper. They are described below.
-  - `./run/array/`: this sub-directory includes SLURM scripts to parallelize multiple analyses on computer clusters.
-- `./src/`: the functions imported by `scEVE.R` and the scripts in `./run/`.
-  - `./src/scEVE`: functions used in the scEVE algorithm.
-  - `./src/paper`: functions used exclusively to generate our results.
+  - `./etc/config/` to install the dependencies.
+  - `./etc/source/` to download and format the experimental datasets.
+- `./null/` empty, but used to parallelize multiple scEVE clustering analyses.
+- `./plots/` the figures used in the paper are generated here.
+- `./results/` the results of each clustering analysis.
+    - `./results/benchmark/` the clustering and computational performances.
+    - `./results/figures/` the plots generated during the clustering analysis.
+    - `./results/records/` the files summarizing a clustering analysis.
+    - `./results/similarity` the pairwise similarity between the clustering results.
+- `./run/` the scripts stored here are ran to produce our results.
+  - `./run/array/` this sub-directory includes SLURM scripts to parallelize the dataset analyses on computer clusters.
+- `./src/` the functions imported by `scEVE.R` and the scripts in `./run/`.
+  - `./src/scEVE` functions used in the scEVE algorithm.
+  - `./src/paper` functions used exclusively to generate our results.
 
 ### Regarding the scripts in `./run/` 
-- `./run/setup.sh`: download and format the experimental datasets.
-- `./run/get_real.R`: measure the performances on an experimental dataset.
-- `./run/get_synthetic.R`: measure the performances on a synthetic dataset.
-- `./run/get_similarity.R`: measure the similarity of the clustering results on a synthetic dataset.
+- `./run/setup.sh` is ran to download and format the experimental datasets.
+- `./run/get_real.R` is ran to analyze one of 15 experimental datasets.
+- `./run/get_synthetic.R` is ran to analyze one of 600 synthetic datasets.
+- `./run/get_similarity.R` is ran to measure the similarity between clustering results on 150 specific datasets.
 
 ## 1. Installing the dependencies.
 The dependencies and their respective versions are summarized at the end of the README.
