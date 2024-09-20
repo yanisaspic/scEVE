@@ -59,8 +59,8 @@ chmod +x ./run/setup.sh
 ./run/setup.sh
 ```
 
-## 3. Generating our results.
-If a computer cluster is used, the SLURM scripts stored in `./run/array/` can be ran directly.
+## 3. Conducting the analyses.
+If a computer cluster is used, the SLURM scripts stored in `./run/array/` can be used directly.
 
 ```bash
 sbatch ./run/array/get_real.sbatch
@@ -69,15 +69,16 @@ sbatch ./run/array/get_similarity.sbatch
 ```
 
 Note that hidden SLURM scripts are also available in order to analyze a specific dataset.
-The scripts expect an argument corresponding to the dataset of interest.
-It corresponds to the dataset label for experimental datasets, or an integer ranging from 1 to 600* for synthetic datasets. 
+The scripts expect an argument corresponding to the dataset of interest, _i.e._ a label for experimental datasets, or an integer for synthetic datasets. 
+The integer ranges from 1 to 600 for `./run/array/.get_synthetic.sbatch/`, and 1 to 150 for `./run/array/.get_similarity.sbatch/`.
 
 ```bash
 sbatch ./run/array/.get_real.sbatch Darmanis_HumGBM
 sbatch ./run/array/.get_synthetic.sbatch 123
-sbatch
 ```
-*1 to 150 for the script `./run/array/.get_similarity.sbatch`
+
+## 4. Generating our results.
+The script `./run/draw.R` is ran to generate the figures and the contents of our tables. The results are directly available in the `./plots/` directory.
 
 ## Summary of the dependencies
 The summary is generated with `session_info()` from the R package `sessioninfo` (see https://github.com/r-lib/sessioninfo).
