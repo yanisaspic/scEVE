@@ -13,7 +13,26 @@ ___
 ___
 The repository includes the code of the scEVE algorithm, and the codes used to generate the datasets and the results in the related paper "**The differences of results between clustering methods are informative in single-cell RNA-seq ensemble clustering analyses.**" 
 
-## Architecture
+# Architecture
+The repository is composed of 7 directories, and we describe their contents.
+- `./data/`: some of the experimental datasets are stored here.
+- `./etc/`: there are scripts to run before conducing the clustering analyses.
+ - `./etc/config/`: to install the dependencies.
+ - `./etc/source/`: to download and format the experimental datasets.
+- `./null/`: empty, but used to parallelize multiple scEVE clustering analyses.
+- `./plots/`: the figures used in the paper are generated here.
+- `./results/`: for each dataset analyzed, the performances are stored in `./results/benchmark/`, the intermediate plots in `./results/figures/`, the summary of the clustering in `./results/records` and the similarity between clustering results in `./results/similarity/`.
+- `./run/`: the scripts stored here must be run to produce the results of the paper. They are described below.
+ - `./run/array/`: this sub-directory includes SLURM scripts to parallelize multiple analyses on computer clusters.
+- `./src/`: the functions imported by `scEVE.R` and the scripts in `./run/`.
+ - `./src/scEVE`: functions used in the scEVE algorithm.
+ - `./src/paper`: functions used exclusively to generate our results.
+
+### Regarding the scripts in `./run/` 
+- `./run/setup.sh`: download and format the experimental datasets.
+- `./run/get_real.R`: measure the performances on an experimental dataset.
+- `./run/get_synthetic.R`: measure the performances on a synthetic dataset.
+- `./run/get_similarity.R`: measure the similarity of the clustering results on a synthetic dataset.
 
 ## 1. Installing the dependencies.
 The dependencies and their respective versions are summarized at the end of the README.
@@ -24,7 +43,7 @@ Rscript ./etc/config/install_requirements.R
 ```
 Note that the dependencies versions may differ from the summary.
 
-## 2. Generating the datasets.
+## 2. Formatting the datasets.
 The experimental datasets used in the paper are publicly available.
 They must be downloaded and formatted by running the script `setup.sh`.
 
