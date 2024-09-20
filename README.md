@@ -82,7 +82,7 @@ The script `./run/draw.R` is ran to generate the figures and the contents of our
 
 ```bash
 Rscript ./run/draw.R
-``
+```
 
 ## Summary of the dependencies
 The summary is generated with `session_info()` from the R package `sessioninfo` (see https://github.com/r-lib/sessioninfo).
