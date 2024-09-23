@@ -63,19 +63,19 @@ chmod +x ./run/setup.sh
 If a computer cluster is used, the SLURM scripts stored in `./run/array/` can be used directly.
 
 ```bash
-sbatch ./run/array/get_real.sbatch
-sbatch ./run/array/get_synthetic.sbatch
-sbatch ./run/array/get_similarity.sbatch
+sbatch ./run/array/real.sbatch
+sbatch ./run/array/synthetic.sbatch
+sbatch ./run/array/similarity.sbatch
 ```
 
 Note that hidden SLURM scripts are also available in order to analyze a specific dataset.
 The scripts expect an argument corresponding to the dataset of interest, _i.e._ a label for experimental datasets, or an integer **n** for synthetic datasets. 
 
 ```bash
-sbatch ./run/array/.get_real.sbatch Darmanis_HumGBM
-sbatch ./run/array/.get_synthetic.sbatch 123
+sbatch ./run/array/real.sbatch Darmanis_HumGBM
+sbatch ./run/array/synthetic.sbatch 123
 ```
-**n** ranges from 1 to 600 for `./run/array/.get_synthetic.sbatch/`, and 1 to 150 for `./run/array/.get_similarity.sbatch/`.
+**n** ranges from 1 to 600 for `./run/array/synthetic.sbatch/`, and 1 to 150 for `./run/array/similarity.sbatch/`.
 
 ## 4. Generating our results.
 The script `./run/draw.R` is ran to generate the figures and the contents of our tables. The results are directly available in the `./plots/` directory and in the terminal.
