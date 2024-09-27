@@ -136,7 +136,7 @@ get_results <- function(path) {
   return(results)
 }
 
-get_results.benchmark <- function(path="./benchmark") {
+get_results.benchmark <- function(path="./results/benchmark") {
   #' Merge the benchmark of each scRNA-seq dataset in a single dataframe.
   #' 
   #' @param path: a character. The path where benchmark files are stored.

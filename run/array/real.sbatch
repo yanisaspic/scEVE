@@ -3,7 +3,9 @@
 #SBATCH --mem=128G
 #SBATCH --array=0-13%5
 #SBATCH --time=24:00:00
+#SBATCH --exclude=cpu-node-17
 
+module purge
 module load r/4.3.1
 
 DATASETS=("Peng_HumPDAC" \

@@ -12,7 +12,7 @@ source("./src/paper/metrics.R")
 
 benchmark <- get_results.benchmark()
 benchmark.synthetic <- setup_data.synthetic(benchmark[!benchmark$real, ])
-similarities <- get_results("./similarity")
+similarities <- get_results("./results/similarity")
 similarities <- setup_data.synthetic(similarities)
 
 # performances of individual methods and scEVE on real datasets.

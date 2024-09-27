@@ -201,7 +201,7 @@ get_benchmark <- function(expression.init, ground_truth, dataset, params,
   benchmark <- get_benchmark.individual(expression.init, ground_truth,
                                                    dataset, params, random_state)
   benchmark <- format_benchmark(benchmark)
-  write.csv(benchmark, glue("./benchmark/{dataset}.csv"), row.names=FALSE)
+  write.csv(benchmark, glue("./results/benchmark/{dataset}.csv"), row.names=FALSE)
     # save the individual methods performances early in case scEVE times out (e.g. Peng_HumPDAC)
   
   results.scEVE <- get_results.scEVE(expression.init, params, random_state, save, figures)
