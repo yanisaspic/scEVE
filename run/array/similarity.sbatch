@@ -3,6 +3,7 @@
 #SBATCH --mem=64G
 #SBATCH --array=0-149%10
 #SBATCH --time=24:00:00
+#SBATCH --exclude=cpu-node-17,cpu-node-91
 
 module load r/4.3.1
 

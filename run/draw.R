@@ -29,14 +29,13 @@ for (metric in c("ARI", "NMI")) {
   ggsave(glue("./plots/ensemble/{metric}.png"), plot.ensemble, width=10, height=6)
 }
 
-# trees of real scRNA-seq datasets clustering.
-for (dataset in get_prior()$real_datasets) {
-  records <- get_records(glue("./results/records/{dataset}.xlsx"))
-  resolution_tree.data <- get_resolution_tree.data(records$meta)
-  distributions.data <- get_distributions.data(records$cells)
-  tree <- get_plot.tree(resolution_tree.data, distributions.data, dataset)
-  ggsave(glue("./plots/trees/{dataset}.png"), tree, width=13, height=5.5)
-}
+# tree of human glioblastoma
+dataset <- "Darmanis_HumGBM"
+records <- get_records(glue("./results/records/{dataset}.xlsx"))
+resolution_tree.data <- get_resolution_tree.data(records$meta)
+distributions.data <- get_distributions.data(records$cells)
+tree <- get_plot.tree(resolution_tree.data, distributions.data, dataset)
+ggsave(glue("./plots/trees/{dataset}.png"), tree, width=13, height=5.5)
 
 # barplot of cancer signatures in the Darmanis dataset
 records <- get_records(glue("./results/records/Darmanis_HumGBM.xlsx"))

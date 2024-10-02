@@ -1,9 +1,9 @@
 #!/bin/bash
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=128G
-#SBATCH --array=0-13%5
+#SBATCH --array=0-14%5
 #SBATCH --time=24:00:00
-#SBATCH --exclude=cpu-node-17
+#SBATCH --exclude=cpu-node-17,cpu-node-91
 
 module purge
 module load r/4.3.1

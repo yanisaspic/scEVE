@@ -2,6 +2,7 @@
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=64G
 #SBATCH --time=24:00:00
+#SBATCH --exclude=cpu-node-17,cpu-node-91
 
 module load r/4.3.1
 
